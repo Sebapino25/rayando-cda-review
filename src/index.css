@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #1e3a5f;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #0d8f5f;
+  --color-accent-foreground: #ffffff;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-background: #f4f6f8;
+  --color-surface: #ffffff;
+  --color-foreground: #0f172a;
+  --color-muted: #eef1f4;
+  --color-muted-foreground: #5b6774;
+  --color-border: #e2e6ea;
+  --color-ring: #1e3a5f;
+  --color-warning: #b45309;
+  --color-warning-bg: #fef3c7;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  touch-action: manipulation;
+}
+
+/* Safe-area padding so fixed/bottom elements don't sit under gesture bars */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
