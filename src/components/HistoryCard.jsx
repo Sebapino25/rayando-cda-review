@@ -1,4 +1,5 @@
-import { CheckCircle, XCircle, NoteBlank, ArrowSquareOut } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { CheckCircle, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap } from '@phosphor-icons/react'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -17,9 +18,24 @@ function formatDate(value) {
   }
 }
 
-export default function HistoryCard({ clip }) {
+export default function HistoryCard({ clip, onUndo }) {
   const approved = clip.estado === 'aprobado'
   const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
+  const [undoing, setUndoing] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  async function handleUndo() {
+    const confirmed = window.confirm('¿Seguro que quieres deshacer esta revisión?')
+    if (!confirmed) return
+    setUndoing(true)
+    setErrorMsg('')
+    try {
+      await onUndo(clip.id)
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo deshacer. Probá de nuevo.')
+      setUndoing(false)
+    }
+  }
 
   return (
     <article className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -81,6 +97,27 @@ export default function HistoryCard({ clip }) {
           )}
         </div>
       )}
+
+      <div className="border-t border-border px-4 py-3 flex flex-col gap-2">
+        {errorMsg && (
+          <p className="text-sm text-destructive font-medium" role="alert">
+            {errorMsg}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={handleUndo}
+          disabled={undoing}
+          className="self-start flex items-center gap-1.5 text-sm font-semibold text-muted-foreground disabled:opacity-40 cursor-pointer"
+        >
+          {undoing ? (
+            <SpinnerGap size={15} className="animate-spin" />
+          ) : (
+            <ArrowUUpLeft size={15} weight="bold" />
+          )}
+          Deshacer
+        </button>
+      </div>
     </article>
   )
 }

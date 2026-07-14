@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { SoccerBall, ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap } from '@phosphor-icons/react'
+import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap } from '@phosphor-icons/react'
 import { supabase } from './lib/supabaseClient'
 import { ORDER_COLUMN } from './lib/constants'
 import { getReviewerName, setReviewerName } from './lib/reviewer'
@@ -105,6 +105,19 @@ function App() {
     setPendingClips((prev) => prev.filter((c) => c.id !== id))
   }
 
+  async function handleUndo(id) {
+    const payload = {
+      estado: 'pendiente',
+      revisado_por: null,
+      revisado_en: null,
+      notas_revision: null,
+    }
+    const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
+    if (updateError) throw updateError
+    setHistoryClips((prev) => prev.filter((c) => c.id !== id))
+    loadPending()
+  }
+
   if (!reviewer) {
     return <ReviewerGate onSubmit={handleReviewerSubmit} />
   }
@@ -114,9 +127,11 @@ function App() {
       <header className="pt-safe sticky top-0 z-20 bg-primary text-primary-foreground shadow-md">
         <div className="max-w-2xl mx-auto w-full px-4 pt-4 pb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 shrink-0 rounded-xl bg-white/10 flex items-center justify-center">
-              <SoccerBall size={20} weight="fill" />
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt=""
+              className="w-9 h-9 shrink-0 rounded-xl object-cover"
+            />
             <div className="min-w-0">
               <h1 className="text-[15px] font-bold leading-tight truncate">Rayando el CDA</h1>
               <p className="text-xs text-white/70 leading-tight">Cola de revisión</p>
@@ -215,7 +230,9 @@ function App() {
         )}
 
         {!loading && !error && tab === 'historial' &&
-          historyClips.map((clip) => <HistoryCard key={clip.id} clip={clip} />)}
+          historyClips.map((clip) => (
+            <HistoryCard key={clip.id} clip={clip} onUndo={handleUndo} />
+          ))}
       </main>
     </div>
   )

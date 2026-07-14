@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Guía visual — Cola de revisión Rayando el CDA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+  :root{
+    --bg:#0B1730; --bg2:#0F1E3D; --surface:#152847; --surfaceL:#1D3358;
+    --input:#0F1F3E; --border:#284370; --text:#F5F3EE; --muted:#93A6C9;
+    --amber:#FFB100; --teal:#3FA796; --red:#E5484D; --blue:#7C93C7;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Inter',sans-serif; color:var(--text);
+    background:radial-gradient(circle at top left, var(--bg2), var(--bg) 60%); padding:32px 16px 80px;}
+  .wrap{max-width:920px;margin:0 auto;}
+  h1.title{font-family:'Oswald',sans-serif; font-size:32px; font-weight:700; margin:0 0 4px;}
+  .subtitle{color:var(--blue); font-size:14px; margin-bottom:36px;}
+  h2.section{font-family:'Oswald',sans-serif; font-size:20px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--amber); margin:56px 0 6px; border-bottom:1px solid var(--border); padding-bottom:10px;}
+  .section-note{color:var(--muted); font-size:13.5px; margin-bottom:20px; line-height:1.6;}
+  .mockup{background:var(--surface); border:1px solid var(--border); border-radius:16px;
+    position:relative; max-width:420px; margin:0 auto; box-shadow:0 20px 50px rgba(0,0,0,0.35); overflow:hidden;}
+  .mockup-header{background:var(--bg2); padding:14px 16px; display:flex; align-items:center; gap:10px;
+    border-bottom:1px solid var(--border);}
+  .logo-dot{width:30px;height:30px;border-radius:8px;background:var(--amber);
+    display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .mockup-header .name{font-weight:700; font-size:14px;}
+  .mockup-header .sub{font-size:10.5px; color:var(--muted);}
+  .badge{position:absolute; width:24px; height:24px; border-radius:50%; background:var(--amber); color:#1A1300;
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:13px; display:flex; align-items:center;
+    justify-content:center; box-shadow:0 0 0 3px var(--surface), 0 4px 10px rgba(0,0,0,0.4); z-index:5;}
+  .video-box{background:linear-gradient(160deg,#2b2f3a,#171a22); height:180px; position:relative;
+    display:flex; align-items:center; justify-content:center;}
+  .play-tri{width:0;height:0; border-top:14px solid transparent; border-bottom:14px solid transparent;
+    border-left:22px solid rgba(255,255,255,0.85); margin-left:4px;}
+  .play-circ{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.12);
+    display:flex;align-items:center;justify-content:center; border:1px solid rgba(255,255,255,0.3);}
+  .yt-tag{position:absolute; bottom:10px; right:12px; background:rgba(0,0,0,0.55); color:#fff;
+    font-size:10px; padding:4px 8px; border-radius:6px;}
+  .mockup-body{padding:16px;}
+  .field-label{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:14px 0 6px;}
+  .field-label:first-child{margin-top:0;}
+  .readonly-box{background:var(--input); border:1px solid var(--border); border-radius:8px; padding:10px;
+    font-size:12px; color:var(--text); line-height:1.5;}
+  .edit-box{background:var(--input); border:1px solid var(--amber); border-radius:8px; padding:10px;
+    font-size:12px; color:var(--text); line-height:1.5;}
+  .comment-box{background:#3a2f10; border:1px solid var(--amber); border-radius:8px; padding:10px;}
+  .comment-box .ph{color:#c9a24a; font-size:12px; font-style:italic;}
+  .comment-warn{font-size:10.5px; color:#e8c77a; margin-top:6px; line-height:1.5;}
+  .btn-row{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; position:relative;}
+  .btn{flex:1; text-align:center; padding:10px 8px; border-radius:8px; font-size:12.5px; font-weight:700;
+    border:1px solid var(--border); background:var(--surfaceL); color:var(--text); min-width:100px;}
+  .btn.approve{background:var(--teal); color:#04231d; border-color:var(--teal);}
+  .btn.reject{background:var(--red); color:#2b0505; border-color:var(--red);}
+  .legend{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-top:24px;}
+  .legend-item{padding:10px 0; border-bottom:1px solid var(--border);}
+  .legend-item:last-child{border-bottom:none;}
+  .legend-num{display:inline-flex; width:20px; height:20px; border-radius:50%; background:var(--amber); color:#1A1300;
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:11px; align-items:center; justify-content:center;
+    margin-right:8px; vertical-align:middle;}
+  .legend-name{font-weight:700; font-size:13.5px;}
+  .legend-body{font-size:12.5px; color:var(--muted); margin-top:4px; line-height:1.6; padding-left:28px;}
+  .legend-body b{color:var(--text);}
+  .flow{display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; margin:20px 0 8px; font-size:12px;}
+  .flow-step{background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:8px 14px; white-space:nowrap;}
+  .flow-arrow{color:var(--amber); font-size:14px;}
+  .name-gate{background:var(--surface); border:1px solid var(--border); border-radius:16px; max-width:340px;
+    margin:0 auto; padding:36px 24px; text-align:center; position:relative;}
+  .name-gate .logo-dot{margin:0 auto 16px; width:56px; height:56px; border-radius:14px; font-size:26px;}
+  .name-gate h3{font-family:'Oswald',sans-serif; margin:0 0 6px; font-size:18px;}
+  .name-gate p{color:var(--muted); font-size:12px; margin:0 0 18px;}
+  .name-input{background:var(--input); border:1px solid var(--border); border-radius:8px; padding:12px;
+    font-size:13px; color:var(--muted); text-align:left; margin-bottom:12px; position:relative;}
+  .name-btn{background:var(--amber); color:#1A1300; font-weight:700; padding:12px; border-radius:8px; font-size:13px;}
+  .hist-row{display:flex; justify-content:space-between; align-items:center; padding:12px 14px; background:var(--input);
+    border:1px solid var(--border); border-radius:10px; margin-bottom:8px; font-size:12px; position:relative;}
+  .pill{padding:3px 9px; border-radius:999px; font-size:10.5px; font-weight:700;}
+  .pill.approved{background:rgba(63,167,150,0.2); color:var(--teal); border:1px solid rgba(63,167,150,0.5);}
+  .pill.rejected{background:rgba(229,72,77,0.2); color:var(--red); border:1px solid rgba(229,72,77,0.5);}
+  .undo-btn{background:var(--surfaceL); border:1px solid var(--border); color:var(--text); font-size:11px; padding:6px 10px; border-radius:6px;}
+  .footer-note{text-align:center; color:var(--muted); font-size:12.5px; margin-top:60px; border-top:1px solid var(--border);
+    padding-top:20px; line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="title">Guía visual — Cola de revisión</h1>
+  <div class="subtitle">Rayando el CDA · cómo usar la herramienta paso a paso</div>
+
+  <div class="flow">
+    <div class="flow-step">1. Entra con tu nombre</div><span class="flow-arrow">→</span>
+    <div class="flow-step">2. Mira el video</div><span class="flow-arrow">→</span>
+    <div class="flow-step">3. Edita el copy</div><span class="flow-arrow">→</span>
+    <div class="flow-step">4. Guarda</div><span class="flow-arrow">→</span>
+    <div class="flow-step">5. Aprueba o rechaza</div>
+  </div>
+
+  <h2 class="section">Pantalla 1 — Al entrar</h2>
+  <p class="section-note">No es una contraseña real, solo identifica quién revisa cada clip.</p>
+  <div class="name-gate">
+    <span class="badge" style="top:14px; left:14px;">1</span>
+    <div class="logo-dot">⚽</div>
+    <h3>Rayando el CDA</h3>
+    <p>Cola de revisión</p>
+    <div class="name-input">Tu nombre...<span class="badge" style="top:-10px; right:-10px;">2</span></div>
+    <div class="name-btn">Entrar</div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="legend-num">1</span><span class="legend-name">Logo del programa</span>
+      <div class="legend-body">Confirma que estás en el lugar correcto.</div></div>
+    <div class="legend-item"><span class="legend-num">2</span><span class="legend-name">Campo de nombre</span>
+      <div class="legend-body">Escríbelo una vez, el navegador lo recuerda. <b>No es login</b>: no valida contraseña, solo registra quién aprobó/rechazó cada clip.</div></div>
+  </div>
+
+  <h2 class="section">Pantalla 2 — Revisando un clip</h2>
+  <p class="section-note">Donde vas a pasar la mayor parte del tiempo. Cada número corresponde a la explicación de abajo.</p>
+  <div class="mockup">
+    <div class="mockup-header"><div class="logo-dot" style="width:24px;height:24px;font-size:13px;">⚽</div>
+      <div><div class="name">Rayando el CDA</div><div class="sub">Cola de revisión</div></div></div>
+    <div class="video-box"><span class="badge" style="top:10px; left:10px;">1</span>
+      <div class="play-circ"><div class="play-tri"></div></div>
+      <div class="yt-tag">▶ Mirar en YouTube</div></div>
+    <div class="mockup-body">
+      <div class="field-label" style="position:relative;">Por qué se eligió este momento <span class="badge" style="top:-6px; right:0;">2</span></div>
+      <div class="readonly-box">Manifiesto del panel: "si quieren comunicar, comuniquen bien; si no, váyanse a la chucha".</div>
+      <div class="field-label" style="position:relative;">Transcripción del fragmento <span class="badge" style="top:-6px; right:0;">3</span></div>
+      <div class="readonly-box">y jamás lo voy a hacer porque le tengo respeto también a la gente católica y de Colo-Colo...</div>
+      <div class="field-label" style="position:relative;">Copy Instagram <span class="badge" style="top:-6px; right:0;">4</span></div>
+      <div class="edit-box">Acá no se dice cualquier estupidez para juntar seguidores...</div>
+      <div class="field-label">Copy TikTok</div>
+      <div class="edit-box">Pendejos, si van a comunicar, comuniquen bien...</div>
+      <div class="field-label">Título de YouTube</div>
+      <div class="edit-box">"Si quieren comunicar, comuniquen bien": palo a los que hablan por seguidores</div>
+      <div class="field-label" style="position:relative;">Comentarios sobre el video (opcional) <span class="badge" style="top:-6px; right:0;">5</span></div>
+      <div class="comment-box"><div class="ph">Ej: "extender 5 segundos al final", "agregar el logo de tal marca"</div>
+        <div class="comment-warn">ⓘ No se ejecutan automáticamente: quedan anotados para procesarse a mano.</div></div>
+      <div class="btn-row"><span class="badge" style="top:-30px; left:0;">6</span><div class="btn">💾 Guardar cambios</div></div>
+      <div class="btn-row"><span class="badge" style="top:-8px; left:60px;">7</span><div class="btn approve">✓ Aprobar</div>
+        <span class="badge" style="top:-8px; right:60px;">8</span><div class="btn reject">✕ Rechazar</div></div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="legend-num">1</span><span class="legend-name">El video</span>
+      <div class="legend-body">El clip <b>tal como quedaría publicado</b>. Míralo siempre entero — es lo único que muestra si el corte se siente natural.</div></div>
+    <div class="legend-item"><span class="legend-num">2</span><span class="legend-name">Por qué se eligió este momento</span>
+      <div class="legend-body">Explicación de la IA (solo lectura). Contexto rápido sin escuchar todo el programa.</div></div>
+    <div class="legend-item"><span class="legend-num">3</span><span class="legend-name">Transcripción del fragmento</span>
+      <div class="legend-body">Texto exacto (solo lectura). Sirve para chequear que el copy no distorsione lo dicho.</div></div>
+    <div class="legend-item"><span class="legend-num">4</span><span class="legend-name">Los 4 campos de copy</span>
+      <div class="legend-body">Todos editables. <b>Por qué importa:</b> es lo primero que la gente lee antes de decidir si mira el video. <b>Qué gana el proyecto:</b> mejor copy → más alcance → más argumentos para el media kit con sponsors.</div></div>
+    <div class="legend-item"><span class="legend-num">5</span><span class="legend-name">Comentarios sobre el video</span>
+      <div class="legend-body">Campo libre para pedir cambios en el video. <b>No se ejecuta solo</b> — es una nota para Seba, como un post-it.</div></div>
+    <div class="legend-item"><span class="legend-num">6</span><span class="legend-name">Guardar cambios</span>
+      <div class="legend-body">Guarda tus ediciones sin aprobar/rechazar. <b>Úsalo primero</b> si editaste algo.</div></div>
+    <div class="legend-item"><span class="legend-num">7</span><span class="legend-name">Aprobar</span>
+      <div class="legend-body">Marca el clip como listo para publicar.</div></div>
+    <div class="legend-item"><span class="legend-num">8</span><span class="legend-name">Rechazar</span>
+      <div class="legend-body">Descarta el clip, con nota opcional de por qué.</div></div>
+  </div>
+
+  <h2 class="section">Pantalla 3 — Historial</h2>
+  <p class="section-note">Lo ya revisado. Sirve para consultar, no para trabajar ahí normalmente.</p>
+  <div class="mockup" style="padding-bottom:16px;">
+    <div class="mockup-header"><div class="logo-dot" style="width:24px;height:24px;font-size:13px;">⚽</div><div><div class="name">Historial</div></div></div>
+    <div class="mockup-body">
+      <div class="hist-row"><div>Candidato-04 — "¡Comuniquen bien!"<br><span style="color:var(--muted); font-size:10.5px;">Revisado por Seba</span></div>
+        <span class="pill approved">Aprobado</span></div>
+      <div class="hist-row"><div>Candidato-02 — "Clásicos entre paredes"<br><span style="color:var(--muted); font-size:10.5px;">Revisado por Seba</span></div>
+        <div style="display:flex; align-items:center; gap:8px;"><span class="pill rejected">Rechazado</span><div class="undo-btn">↺ Deshacer</div></div>
+        <span class="badge" style="top:-10px; right:-6px;">1</span></div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="legend-num">1</span><span class="legend-name">Deshacer</span>
+      <div class="legend-body">Devuelve el clip a "Pendiente". Pide confirmación antes de ejecutarlo.</div></div>
+  </div>
+
+  <div class="footer-note">
+    Esta es una <b>primera prueba real</b>, no la versión final.<br>
+    ¿El copy suena natural? ¿el corte se siente natural? ¿algo fue confuso de usar?<br>
+    Cualquier duda, directo a Seba.
+  </div>
+</div>
+</body>
+</html>

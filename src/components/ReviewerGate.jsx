@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { SoccerBall } from '@phosphor-icons/react'
 
 export default function ReviewerGate({ onSubmit }) {
   const [name, setName] = useState('')
@@ -18,9 +17,11 @@ export default function ReviewerGate({ onSubmit }) {
         className="w-full max-w-sm bg-surface rounded-3xl shadow-xl p-6 sm:p-8"
       >
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mb-4">
-            <SoccerBall size={30} weight="fill" className="text-white" />
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt="Rayando el CDA"
+            className="w-16 h-16 rounded-2xl object-cover mb-4"
+          />
           <h1 className="text-xl font-bold text-foreground">Rayando el CDA</h1>
           <p className="text-sm text-muted-foreground mt-1">Cola de revisión de clips</p>
         </div>
