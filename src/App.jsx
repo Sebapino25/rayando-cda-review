@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap } from '@phosphor-icons/react'
+import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap, Question } from '@phosphor-icons/react'
 import { supabase } from './lib/supabaseClient'
 import { ORDER_COLUMN } from './lib/constants'
 import { getReviewerName, setReviewerName } from './lib/reviewer'
@@ -136,6 +136,15 @@ function App() {
               <h1 className="text-[15px] font-bold leading-tight truncate">Rayando el CDA</h1>
               <p className="text-xs text-white/70 leading-tight">Cola de revisión</p>
             </div>
+            <a
+              href={`${import.meta.env.BASE_URL}guia.html`}
+              target="_blank"
+              rel="noreferrer"
+              title="Cómo usar esto"
+              className="shrink-0 w-8 h-8 rounded-full bg-white/10 hover:bg-white/15 flex items-center justify-center"
+            >
+              <Question size={16} weight="bold" />
+            </a>
           </div>
           <button
             type="button"
