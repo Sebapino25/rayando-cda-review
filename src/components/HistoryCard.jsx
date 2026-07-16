@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap } from '@phosphor-icons/react'
+import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap } from '@phosphor-icons/react'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -18,8 +18,14 @@ function formatDate(value) {
   }
 }
 
+const STATE_META = {
+  aprobado: { label: 'Aprobado', Icon: CheckCircle, className: 'bg-accent/10 text-accent' },
+  correccion_video: { label: 'Corrección de video', Icon: Wrench, className: 'bg-warning-bg text-warning' },
+  rechazado: { label: 'Rechazado', Icon: XCircle, className: 'bg-destructive/10 text-destructive' },
+}
+
 export default function HistoryCard({ clip, onUndo }) {
-  const approved = clip.estado === 'aprobado'
+  const stateMeta = STATE_META[clip.estado] ?? STATE_META.rechazado
   const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
   const [undoing, setUndoing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -61,12 +67,10 @@ export default function HistoryCard({ clip, onUndo }) {
 
         <div className="min-w-0 flex-1 flex flex-col gap-1.5">
           <span
-            className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-              approved ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'
-            }`}
+            className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${stateMeta.className}`}
           >
-            {approved ? <CheckCircle size={14} weight="fill" /> : <XCircle size={14} weight="fill" />}
-            {approved ? 'Aprobado' : 'Rechazado'}
+            <stateMeta.Icon size={14} weight="fill" />
+            {stateMeta.label}
           </span>
           <p className="text-[15px] font-semibold text-foreground truncate">
             {clip.youtube_titulo || 'Sin título'}

@@ -52,7 +52,9 @@
   .btn{flex:1; text-align:center; padding:10px 8px; border-radius:8px; font-size:12.5px; font-weight:700;
     border:1px solid var(--border); background:var(--surfaceL); color:var(--text); min-width:100px;}
   .btn.approve{background:var(--teal); color:#04231d; border-color:var(--teal);}
+  .btn.correction{background:var(--amber); color:#1A1300; border-color:var(--amber);}
   .btn.reject{background:var(--red); color:#2b0505; border-color:var(--red);}
+  .btn-caption{font-size:10.5px; color:var(--muted); margin:4px 0 12px; line-height:1.5;}
   .legend{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-top:24px;}
   .legend-item{padding:10px 0; border-bottom:1px solid var(--border);}
   .legend-item:last-child{border-bottom:none;}
@@ -77,6 +79,7 @@
     border:1px solid var(--border); border-radius:10px; margin-bottom:8px; font-size:12px; position:relative;}
   .pill{padding:3px 9px; border-radius:999px; font-size:10.5px; font-weight:700;}
   .pill.approved{background:rgba(63,167,150,0.2); color:var(--teal); border:1px solid rgba(63,167,150,0.5);}
+  .pill.correction{background:rgba(255,177,0,0.2); color:var(--amber); border:1px solid rgba(255,177,0,0.5);}
   .pill.rejected{background:rgba(229,72,77,0.2); color:var(--red); border:1px solid rgba(229,72,77,0.5);}
   .undo-btn{background:var(--surfaceL); border:1px solid var(--border); color:var(--text); font-size:11px; padding:6px 10px; border-radius:6px;}
   .footer-note{text-align:center; color:var(--muted); font-size:12.5px; margin-top:60px; border-top:1px solid var(--border);
@@ -91,9 +94,9 @@
   <div class="flow">
     <div class="flow-step">1. Entra con tu nombre</div><span class="flow-arrow">→</span>
     <div class="flow-step">2. Mira el video</div><span class="flow-arrow">→</span>
-    <div class="flow-step">3. Edita el copy</div><span class="flow-arrow">→</span>
+    <div class="flow-step">3. Edita copy y transcripción</div><span class="flow-arrow">→</span>
     <div class="flow-step">4. Guarda</div><span class="flow-arrow">→</span>
-    <div class="flow-step">5. Aprueba o rechaza</div>
+    <div class="flow-step">5. Aprueba, pide corrección o rechaza</div>
   </div>
 
   <h2 class="section">Pantalla 1 — Al entrar</h2>
@@ -125,19 +128,28 @@
       <div class="field-label" style="position:relative;">Por qué se eligió este momento <span class="badge" style="top:-6px; right:0;">2</span></div>
       <div class="readonly-box">Manifiesto del panel: "si quieren comunicar, comuniquen bien; si no, váyanse a la chucha".</div>
       <div class="field-label" style="position:relative;">Transcripción del fragmento <span class="badge" style="top:-6px; right:0;">3</span></div>
-      <div class="readonly-box">y jamás lo voy a hacer porque le tengo respeto también a la gente católica y de Colo-Colo...</div>
+      <div class="edit-box">y jamás lo voy a hacer porque le tengo respeto también a la gente católica y de Colo-Colo...</div>
+      <div class="comment-warn">ⓘ Corregir acá no cambia el subtítulo del video ya generado — queda anotado para reprocesar.</div>
       <div class="field-label" style="position:relative;">Copy Instagram <span class="badge" style="top:-6px; right:0;">4</span></div>
       <div class="edit-box">Acá no se dice cualquier estupidez para juntar seguidores...</div>
       <div class="field-label">Copy TikTok</div>
       <div class="edit-box">Pendejos, si van a comunicar, comuniquen bien...</div>
       <div class="field-label">Título de YouTube</div>
       <div class="edit-box">"Si quieren comunicar, comuniquen bien": palo a los que hablan por seguidores</div>
-      <div class="field-label" style="position:relative;">Comentarios sobre el video (opcional) <span class="badge" style="top:-6px; right:0;">5</span></div>
+      <div class="field-label">Descripción de YouTube</div>
+      <div class="edit-box">Un panelista responde a las críticas por hablar sin filtro en el programa...</div>
+      <div class="btn-row" style="margin-top:16px;"><span class="badge" style="top:-30px; left:0;">5</span><div class="btn">💾 Guardar cambios</div></div>
+      <div class="btn-caption">Guarda tus ediciones de texto sin decidir todavía si se aprueba.</div>
+      <div class="field-label" style="position:relative;">Comentarios sobre el video (opcional) <span class="badge" style="top:-6px; right:0;">6</span></div>
       <div class="comment-box"><div class="ph">Ej: "extender 5 segundos al final", "agregar el logo de tal marca"</div>
         <div class="comment-warn">ⓘ No se ejecutan automáticamente: quedan anotados para procesarse a mano.</div></div>
-      <div class="btn-row"><span class="badge" style="top:-30px; left:0;">6</span><div class="btn">💾 Guardar cambios</div></div>
-      <div class="btn-row"><span class="badge" style="top:-8px; left:60px;">7</span><div class="btn approve">✓ Aprobar</div>
-        <span class="badge" style="top:-8px; right:60px;">8</span><div class="btn reject">✕ Rechazar</div></div>
+      <div style="font-size:11px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.04em; margin-top:18px;">¿Qué corresponde acá?</div>
+      <div class="btn-row" style="margin-top:10px;"><span class="badge" style="top:-8px; left:0;">7</span><div class="btn approve">✓ Aprobar</div></div>
+      <div class="btn-caption">El video y el copy están listos, tal cual, para publicarse.</div>
+      <div class="btn-row"><span class="badge" style="top:-8px; left:0;">8</span><div class="btn correction">🔧 Corrección de video</div></div>
+      <div class="btn-caption">El contenido sirve, pero el video necesita un ajuste antes de salir — se detalla en "Comentarios sobre el video", que pasa a ser obligatorio.</div>
+      <div class="btn-row"><span class="badge" style="top:-8px; left:0;">9</span><div class="btn reject">✕ Rechazar</div></div>
+      <div class="btn-caption">Este momento no se va a publicar.</div>
     </div>
   </div>
   <div class="legend">
@@ -146,16 +158,18 @@
     <div class="legend-item"><span class="legend-num">2</span><span class="legend-name">Por qué se eligió este momento</span>
       <div class="legend-body">Explicación de la IA (solo lectura). Contexto rápido sin escuchar todo el programa.</div></div>
     <div class="legend-item"><span class="legend-num">3</span><span class="legend-name">Transcripción del fragmento</span>
-      <div class="legend-body">Texto exacto (solo lectura). Sirve para chequear que el copy no distorsione lo dicho.</div></div>
+      <div class="legend-body">Editable, igual que el copy. Corregirla <b>no regenera el subtítulo</b> del video ya hecho — queda anotada para reprocesar más tarde.</div></div>
     <div class="legend-item"><span class="legend-num">4</span><span class="legend-name">Los 4 campos de copy</span>
       <div class="legend-body">Todos editables. <b>Por qué importa:</b> es lo primero que la gente lee antes de decidir si mira el video. <b>Qué gana el proyecto:</b> mejor copy → más alcance → más argumentos para el media kit con sponsors.</div></div>
-    <div class="legend-item"><span class="legend-num">5</span><span class="legend-name">Comentarios sobre el video</span>
-      <div class="legend-body">Campo libre para pedir cambios en el video. <b>No se ejecuta solo</b> — es una nota para Seba, como un post-it.</div></div>
-    <div class="legend-item"><span class="legend-num">6</span><span class="legend-name">Guardar cambios</span>
-      <div class="legend-body">Guarda tus ediciones sin aprobar/rechazar. <b>Úsalo primero</b> si editaste algo.</div></div>
+    <div class="legend-item"><span class="legend-num">5</span><span class="legend-name">Guardar cambios</span>
+      <div class="legend-body">Guarda tus ediciones sin decidir todavía. <b>Opcional</b>: los 3 botones de decisión de abajo también guardan automáticamente lo que hayas editado, aunque no hayas tocado este botón antes.</div></div>
+    <div class="legend-item"><span class="legend-num">6</span><span class="legend-name">Comentarios sobre el video</span>
+      <div class="legend-body">Campo libre para pedir cambios en el video. <b>No se ejecuta solo</b> — es una nota para Seba, como un post-it. Se vuelve obligatorio si elegís "Corrección de video".</div></div>
     <div class="legend-item"><span class="legend-num">7</span><span class="legend-name">Aprobar</span>
-      <div class="legend-body">Marca el clip como listo para publicar.</div></div>
-    <div class="legend-item"><span class="legend-num">8</span><span class="legend-name">Rechazar</span>
+      <div class="legend-body">Marca el clip como listo para publicar tal cual.</div></div>
+    <div class="legend-item"><span class="legend-num">8</span><span class="legend-name">Corrección de video</span>
+      <div class="legend-body">El copy sirve pero el video necesita un ajuste antes de salir. Exige detallar qué falta en "Comentarios sobre el video".</div></div>
+    <div class="legend-item"><span class="legend-num">9</span><span class="legend-name">Rechazar</span>
       <div class="legend-body">Descarta el clip, con nota opcional de por qué.</div></div>
   </div>
 
@@ -166,6 +180,8 @@
     <div class="mockup-body">
       <div class="hist-row"><div>Candidato-04 — "¡Comuniquen bien!"<br><span style="color:var(--muted); font-size:10.5px;">Revisado por Seba</span></div>
         <span class="pill approved">Aprobado</span></div>
+      <div class="hist-row"><div>Candidato-05 — "El clásico paralelo"<br><span style="color:var(--muted); font-size:10.5px;">Revisado por Cristián</span></div>
+        <span class="pill correction">Corrección de video</span></div>
       <div class="hist-row"><div>Candidato-02 — "Clásicos entre paredes"<br><span style="color:var(--muted); font-size:10.5px;">Revisado por Seba</span></div>
         <div style="display:flex; align-items:center; gap:8px;"><span class="pill rejected">Rechazado</span><div class="undo-btn">↺ Deshacer</div></div>
         <span class="badge" style="top:-10px; right:-6px;">1</span></div>
@@ -173,7 +189,7 @@
   </div>
   <div class="legend">
     <div class="legend-item"><span class="legend-num">1</span><span class="legend-name">Deshacer</span>
-      <div class="legend-body">Devuelve el clip a "Pendiente". Pide confirmación antes de ejecutarlo.</div></div>
+      <div class="legend-body">Devuelve el clip a "Pendiente", sea cual sea su estado (aprobado, corrección de video o rechazado). Pide confirmación antes de ejecutarlo.</div></div>
   </div>
 
   <div class="footer-note">

@@ -13,6 +13,7 @@ const EDITABLE_FIELDS = [
   'youtube_titulo',
   'youtube_descripcion',
   'comentarios_video',
+  'transcripcion',
 ]
 
 function App() {
@@ -45,7 +46,7 @@ function App() {
     const { data, error: fetchError } = await supabase
       .from('clips')
       .select('*')
-      .in('estado', ['aprobado', 'rechazado'])
+      .in('estado', ['aprobado', 'correccion_video', 'rechazado'])
       .order('revisado_en', { ascending: false })
     if (fetchError) {
       setError(fetchError.message)
@@ -86,6 +87,17 @@ function App() {
     const payload = {}
     for (const key of EDITABLE_FIELDS) payload[key] = fields[key]
     payload.estado = 'aprobado'
+    payload.revisado_por = reviewer
+    payload.revisado_en = new Date().toISOString()
+    const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
+    if (updateError) throw updateError
+    setPendingClips((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  async function handleCorrection(id, fields) {
+    const payload = {}
+    for (const key of EDITABLE_FIELDS) payload[key] = fields[key]
+    payload.estado = 'correccion_video'
     payload.revisado_por = reviewer
     payload.revisado_en = new Date().toISOString()
     const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
@@ -225,6 +237,7 @@ function App() {
               clip={clip}
               onSave={handleSave}
               onApprove={handleApprove}
+              onCorrection={handleCorrection}
               onReject={handleReject}
             />
           ))}

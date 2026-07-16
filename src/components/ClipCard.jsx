@@ -4,6 +4,7 @@ import {
   Check,
   FloppyDisk,
   Info,
+  Wrench,
   X,
   SpinnerGap,
 } from '@phosphor-icons/react'
@@ -39,38 +40,43 @@ function Field({ label, value, onChange, multiline, rows = 3 }) {
   )
 }
 
-export default function ClipCard({ clip, onSave, onApprove, onReject }) {
+export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReject }) {
   const [fields, setFields] = useState({
     copy_instagram: clip.copy_instagram ?? '',
     copy_tiktok: clip.copy_tiktok ?? '',
     youtube_titulo: clip.youtube_titulo ?? '',
     youtube_descripcion: clip.youtube_descripcion ?? '',
     comentarios_video: clip.comentarios_video ?? '',
+    transcripcion: clip.transcripcion ?? '',
   })
   const [transcriptOpen, setTranscriptOpen] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const [rejectNotes, setRejectNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [approving, setApproving] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
   const [rejectingBusy, setRejectingBusy] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
-  const [errorMsg, setErrorMsg] = useState('')
+  const [saveError, setSaveError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [correctionError, setCorrectionError] = useState(false)
 
-  const busy = saving || approving || rejectingBusy
+  const busy = saving || approving || correcting || rejectingBusy
 
   function updateField(key, value) {
     setFields((prev) => ({ ...prev, [key]: value }))
+    if (key === 'comentarios_video' && correctionError) setCorrectionError(false)
   }
 
   async function handleSave() {
     setSaving(true)
-    setErrorMsg('')
+    setSaveError('')
     try {
       await onSave(clip.id, fields)
       setSavedFlash(true)
       setTimeout(() => setSavedFlash(false), 2000)
     } catch (err) {
-      setErrorMsg(err.message || 'No se pudo guardar. Probá de nuevo.')
+      setSaveError(err.message || 'No se pudo guardar. Probá de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -78,22 +84,38 @@ export default function ClipCard({ clip, onSave, onApprove, onReject }) {
 
   async function handleApprove() {
     setApproving(true)
-    setErrorMsg('')
+    setActionError('')
     try {
       await onApprove(clip.id, fields)
     } catch (err) {
-      setErrorMsg(err.message || 'No se pudo aprobar. Probá de nuevo.')
+      setActionError(err.message || 'No se pudo aprobar. Probá de nuevo.')
       setApproving(false)
+    }
+  }
+
+  async function handleCorrection() {
+    if (!fields.comentarios_video || !fields.comentarios_video.trim()) {
+      setCorrectionError(true)
+      return
+    }
+    setCorrectionError(false)
+    setCorrecting(true)
+    setActionError('')
+    try {
+      await onCorrection(clip.id, fields)
+    } catch (err) {
+      setActionError(err.message || 'No se pudo marcar para corrección. Probá de nuevo.')
+      setCorrecting(false)
     }
   }
 
   async function handleConfirmReject() {
     setRejectingBusy(true)
-    setErrorMsg('')
+    setActionError('')
     try {
       await onReject(clip.id, fields, rejectNotes)
     } catch (err) {
-      setErrorMsg(err.message || 'No se pudo rechazar. Probá de nuevo.')
+      setActionError(err.message || 'No se pudo rechazar. Probá de nuevo.')
       setRejectingBusy(false)
     }
   }
@@ -126,26 +148,33 @@ export default function ClipCard({ clip, onSave, onApprove, onReject }) {
           </div>
         )}
 
-        {clip.transcripcion && (
-          <details
-            open={transcriptOpen}
-            onToggle={(e) => setTranscriptOpen(e.target.open)}
-            className="rounded-xl border border-border overflow-hidden"
+        <details
+          open={transcriptOpen}
+          onToggle={(e) => setTranscriptOpen(e.target.open)}
+          className="rounded-xl border border-border overflow-hidden"
+        >
+          <summary
+            className="flex items-center justify-between gap-2 px-3.5 py-3 text-sm font-semibold text-foreground cursor-pointer select-none list-none"
           >
-            <summary
-              className="flex items-center justify-between gap-2 px-3.5 py-3 text-sm font-semibold text-foreground cursor-pointer select-none list-none"
-            >
-              Transcripción del fragmento
-              <CaretDown
-                size={18}
-                className={`text-muted-foreground transition-transform ${transcriptOpen ? 'rotate-180' : ''}`}
-              />
-            </summary>
-            <p className="px-3.5 pb-3.5 text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-              {clip.transcripcion}
+            Transcripción del fragmento
+            <CaretDown
+              size={18}
+              className={`text-muted-foreground transition-transform ${transcriptOpen ? 'rotate-180' : ''}`}
+            />
+          </summary>
+          <div className="px-3.5 pb-3.5 flex flex-col gap-2">
+            <textarea
+              rows={4}
+              value={fields.transcripcion}
+              onChange={(e) => updateField('transcripcion', e.target.value)}
+              className="w-full px-3.5 py-3 rounded-xl border border-border bg-background text-sm leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            />
+            <p className="flex items-start gap-1.5 text-xs text-warning">
+              <Info size={14} className="shrink-0 mt-0.5" />
+              Corregir acá no cambia el subtítulo del video ya generado — queda anotado para reprocesar.
             </p>
-          </details>
-        )}
+          </div>
+        </details>
 
         <div className="flex flex-col gap-3.5">
           <Field
@@ -173,28 +202,9 @@ export default function ClipCard({ clip, onSave, onApprove, onReject }) {
           />
         </div>
 
-        <div className="rounded-xl border border-warning-bg bg-warning-bg/60 px-3.5 py-3">
-          <label className="block">
-            <span className="flex items-start gap-1.5 text-sm font-semibold text-foreground mb-1.5">
-              Comentarios sobre el video (opcional)
-            </span>
-            <textarea
-              rows={2}
-              value={fields.comentarios_video}
-              onChange={(e) => updateField('comentarios_video', e.target.value)}
-              placeholder='Ej: "extender 5 segundos al final", "agregar el logo de tal marca"'
-              className="w-full px-3.5 py-3 rounded-xl border border-border bg-surface text-[15px] leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
-          </label>
-          <p className="flex items-start gap-1.5 text-xs text-warning mt-2">
-            <Info size={15} className="shrink-0 mt-0.5" />
-            Estos pedidos no se ejecutan automáticamente: quedan anotados para que se procesen a mano después.
-          </p>
-        </div>
-
-        {errorMsg && (
+        {saveError && (
           <p className="text-sm text-destructive font-medium" role="alert">
-            {errorMsg}
+            {saveError}
           </p>
         )}
 
@@ -217,31 +227,98 @@ export default function ClipCard({ clip, onSave, onApprove, onReject }) {
           )}
           Guardar cambios
         </button>
+        <p className="text-xs text-muted-foreground -mt-2.5 text-center">
+          Guarda tus ediciones de texto sin decidir todavía si se aprueba.
+        </p>
+
+        <div className="h-px bg-border" />
+
+        <div className="rounded-xl border border-warning-bg bg-warning-bg/60 px-3.5 py-3">
+          <label className="block">
+            <span className="flex items-start gap-1.5 text-sm font-semibold text-foreground mb-1.5">
+              Comentarios sobre el video (opcional)
+            </span>
+            <textarea
+              rows={2}
+              value={fields.comentarios_video}
+              onChange={(e) => updateField('comentarios_video', e.target.value)}
+              placeholder='Ej: "extender 5 segundos al final", "agregar el logo de tal marca"'
+              className="w-full px-3.5 py-3 rounded-xl border border-border bg-surface text-[15px] leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+            />
+          </label>
+          <p className="flex items-start gap-1.5 text-xs text-warning mt-2">
+            <Info size={15} className="shrink-0 mt-0.5" />
+            Estos pedidos no se ejecutan automáticamente: quedan anotados para que se procesen a mano después.
+          </p>
+        </div>
+
+        {actionError && (
+          <p className="text-sm text-destructive font-medium" role="alert">
+            {actionError}
+          </p>
+        )}
 
         {!rejecting ? (
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={handleApprove}
-              disabled={busy}
-              className="h-14 rounded-xl bg-accent text-accent-foreground font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
-            >
-              {approving ? (
-                <SpinnerGap size={18} className="animate-spin" />
-              ) : (
-                <Check size={20} weight="bold" />
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-semibold text-muted-foreground">¿Qué corresponde acá?</p>
+
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={handleApprove}
+                disabled={busy}
+                className="w-full h-14 rounded-xl bg-accent text-accent-foreground font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                {approving ? (
+                  <SpinnerGap size={18} className="animate-spin" />
+                ) : (
+                  <Check size={20} weight="bold" />
+                )}
+                Aprobar
+              </button>
+              <p className="text-xs text-muted-foreground px-1">
+                El video y el copy están listos, tal cual, para publicarse.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={handleCorrection}
+                disabled={busy}
+                className="w-full h-14 rounded-xl bg-warning text-warning-foreground font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                {correcting ? (
+                  <SpinnerGap size={18} className="animate-spin" />
+                ) : (
+                  <Wrench size={20} weight="bold" />
+                )}
+                Corrección de video
+              </button>
+              <p className="text-xs text-muted-foreground px-1">
+                El contenido sirve, pero el video necesita un ajuste antes de salir — detállalo abajo.
+              </p>
+              {correctionError && (
+                <p className="text-xs text-destructive font-medium px-1" role="alert">
+                  Contá qué necesita el video en "Comentarios sobre el video" antes de continuar.
+                </p>
               )}
-              Aprobar
-            </button>
-            <button
-              type="button"
-              onClick={() => setRejecting(true)}
-              disabled={busy}
-              className="h-14 rounded-xl bg-destructive text-destructive-foreground font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
-            >
-              <X size={20} weight="bold" />
-              Rechazar
-            </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => setRejecting(true)}
+                disabled={busy}
+                className="w-full h-14 rounded-xl bg-destructive text-destructive-foreground font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <X size={20} weight="bold" />
+                Rechazar
+              </button>
+              <p className="text-xs text-muted-foreground px-1">
+                Este momento no se va a publicar.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3.5 flex flex-col gap-3">

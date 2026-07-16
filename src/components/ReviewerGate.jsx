@@ -40,6 +40,9 @@ export default function ReviewerGate({ onSubmit }) {
           className="w-full h-14 px-4 rounded-xl border border-border bg-background text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
         <p className="text-xs text-muted-foreground mt-2">
+          No es una contraseña — solo sirve para saber quién revisó cada clip.
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
           Lo guardamos en este dispositivo para no volver a pedirlo.
         </p>
 
