@@ -248,7 +248,7 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
           </label>
           <p className="flex items-start gap-1.5 text-xs text-warning mt-2">
             <Info size={15} className="shrink-0 mt-0.5" />
-            Estos pedidos no se ejecutan automáticamente: quedan anotados para que se procesen a mano después.
+            Usá este campo solo si el video en sí (corte, formato, audio) necesita trabajo técnico. Si ya corregiste el copy o la transcripción arriba, no hace falta anotarlo acá — con "Guardar cambios" alcanza. Estos pedidos no se ejecutan automáticamente: quedan anotados para que se procesen a mano después.
           </p>
         </div>
 
@@ -293,10 +293,10 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
                 ) : (
                   <Wrench size={20} weight="bold" />
                 )}
-                Corrección de video
+                Corrección técnica de video
               </button>
               <p className="text-xs text-muted-foreground px-1">
-                El contenido sirve, pero el video necesita un ajuste antes de salir — detállalo abajo.
+                Usalo solo si el corte, formato o audio del video en sí necesita trabajo técnico — no para avisar que ya corregiste el copy o la transcripción arriba (eso se guarda solo con "Guardar cambios").
               </p>
               {correctionError && (
                 <p className="text-xs text-destructive font-medium px-1" role="alert">

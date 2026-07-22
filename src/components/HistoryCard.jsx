@@ -20,7 +20,7 @@ function formatDate(value) {
 
 const STATE_META = {
   aprobado: { label: 'Aprobado', Icon: CheckCircle, className: 'bg-accent/10 text-accent' },
-  correccion_video: { label: 'Corrección de video', Icon: Wrench, className: 'bg-warning-bg text-warning' },
+  correccion_video: { label: 'Corrección técnica de video', Icon: Wrench, className: 'bg-warning-bg text-warning' },
   rechazado: { label: 'Rechazado', Icon: XCircle, className: 'bg-destructive/10 text-destructive' },
 }
 
