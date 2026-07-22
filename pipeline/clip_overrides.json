@@ -1,0 +1,73 @@
+{
+  "_comentario": "Overrides editoriales por clip, usados por cortar_clip.py (build_copys/build_portadas) para el título SEO, el copy de cada red y hashtags extra. Si un clip no aparece aquí, se genera todo automáticamente (título = nombre de carpeta, contexto = primeras frases de la transcripción, hashtags = solo los base de config.COPYS_HASHTAGS_BASE).",
+  "_comentario_portadas_v2": "Campos del sistema de portadas v2 (todos opcionales, con fallback automático): 'titulo_portada' (titular corto y gritado en MAYÚSCULAS, máx. 5-6 palabras; si falta se recorta 'titulo_seo' a las primeras 6 palabras) · 'palabra_clave' (palabra del titular que se destaca en amarillo #FFD700; si falta se auto-detecta la palabra más larga que no sea muletilla) · 'frame_portada' (entero 1-N: número del candidato del contact sheet portada_candidatas.jpg a usar en vez del mejor automático) · 'imagen_fondo' (nombre de archivo dentro de ..\\recursos-portadas\\, para usar una foto propia en vez de un fotograma del clip) · 'vs_composicion' (true/false: fuerza o desactiva la composición de dos fotogramas con línea diagonal; si falta se activa solo cuando el 'titulo_portada' contiene 'vs').",
+
+  "arbitraje-indecente-wanderers": {
+    "titulo_portada": "¡ARBITRAJE INDECENTE!",
+    "palabra_clave": "INDECENTE",
+    "titulo_seo": "U de Chile vs Wanderers: el polémico arbitraje que opacó el triunfo azul en Valparaíso",
+    "contexto": "La U ganó 3-2 a Wanderers en Valparaíso, pero el arbitraje dejó mucho que desear: patadas sin sanción, un penal que no se cobró y hasta un cambio de árbitro de última hora (salió Claudio Díaz, entró Richard Alpert). Aun así, los azules siguen punteros del Grupo D, a un paso de los octavos de Copa Chile.",
+    "copy_instagram": "La U ganó 3-2 a Wanderers en Valparaíso, pero el arbitraje fue de terror: patadas que no se sancionaron, un penal que no se cobró y un cambio de árbitro a última hora. Aun así, los azules siguen punteros del Grupo D y a un paso de los octavos de Copa Chile.\n\n#UdeChile #LaU #VamosLaU #Wanderers #CopaChile #ArbitrajeChileno",
+    "youtube_titulo": "U de Chile ganó a Wanderers en Valparaíso en medio de un arbitraje polémico | Copa Chile",
+    "youtube_descripcion": "Repasamos las polémicas arbitrales en el triunfo de la U por 3-2 ante Wanderers en Valparaíso, por la Copa Chile. Comenta qué te pareció el arbitraje.",
+    "copy_tiktok": "esto pasó en Valparaíso 👀 la U ganó 3-2 pero el árbitro se mandó cada una... y encima lo cambiaron a última hora 😳\n\n#LaU #Wanderers #CopaChile #futbolchileno #UdeChile",
+    "hashtags_extra": ["#Wanderers", "#ArbitrajeChileno"]
+  },
+
+  "capitan-influencer": {
+    "titulo_portada": "¿MUSRRI VS INFLUENCER?",
+    "palabra_clave": "MUSRRI",
+    "vs_composicion": true,
+    "titulo_seo": "¿Debe el capitán de la U responderle a un influencer? El debate en Rayando el CDA",
+    "contexto": "En el programa debatimos si un capitán de la U debería bajar a pelear con un influencer que busca protagonismo. La comparación: ¿se imaginan a Johnny Herrera o a Musrri respondiéndole a alguien así? Un capitán tiene que dar el ejemplo, no entrar en polémicas con cabros que buscan su minuto de fama.",
+    "copy_instagram": "¿Se imaginan a Johnny Herrera o a Musrri respondiéndole a un influencer? En el programa debatimos si el capitán de la U debería bajar a esa pelea o simplemente ignorarla.\n\n#UdeChile #LaU #VamosLaU #CapitanDeLaU",
+    "youtube_titulo": "¿Debe el capitán de la U responderle a un influencer? | Rayando el CDA",
+    "youtube_descripcion": "Comentamos la polémica entre el capitán de Universidad de Chile y un influencer que busca protagonismo. ¿Tú qué opinas?",
+    "copy_tiktok": "un capitán no le contesta a cualquiera 💢 el debate del día en Rayando el CDA\n\n#LaU #UdeChile #Influencer #futbolchileno",
+    "hashtags_extra": ["#CapitanDeLaU"]
+  },
+
+  "hype-catolica": {
+    "titulo_portada": "¡QUEREMOS EL CLÁSICO!",
+    "palabra_clave": "CLÁSICO",
+    "titulo_seo": "U de Chile - Universidad Católica: el cruce de Copa Chile que ya ilusiona",
+    "contexto": "Si la U sale segunda de su grupo en Copa Chile, el rival de octavos sería la Católica. En el programa ya sueñan con ese cruce y recuerdan la vez que le ganaron a la Católica en el Monumental con Paqui en cancha.",
+    "copy_instagram": "Si la U sale segunda del grupo en Copa Chile, le tocaría la Católica en octavos. En el programa ya quieren que se dé: recuerdan cuando le ganaron en el Monumental con Paqui.\n\n#UdeChile #LaU #VamosLaU #UC #ClasicoUniversitario #CopaChile",
+    "youtube_titulo": "U de Chile podría enfrentar a la Católica en Copa Chile: así lo vive Rayando el CDA",
+    "youtube_descripcion": "Analizamos el posible cruce entre la U y la Católica en octavos de Copa Chile y por qué el panel ya quiere que se dé.",
+    "copy_tiktok": "ya quieren que le toque la Católica a la U en Copa Chile 😈🔵\n\n#LaU #UC #CopaChile #UdeChile #ClasicoUniversitario",
+    "hashtags_extra": ["#UC", "#ClasicoUniversitario"]
+  },
+
+  "oro-panamericanos": {
+    "titulo_portada": "¡ORO CON CRISIS DE PÁNICO!",
+    "palabra_clave": "ORO",
+    "titulo_seo": "Valentina Toro y el oro panamericano: \"lloraba, tenía crisis de pánico\"",
+    "contexto": "Valentina Toro cuenta cómo vivió su medalla de oro en los Juegos Panamericanos de Santiago: la presión de competir en casa, el llanto y la crisis de pánico antes de la final, que terminó ganando 8-0, la diferencia máxima. Un sueño hecho realidad que revivería mil veces.",
+    "copy_instagram": "Valentina Toro revive el día que ganó el oro en los Juegos Panamericanos de Santiago: la presión, el llanto previo a la final y la victoria 8-0 que la marcó para siempre.\n\n#UdeChile #VamosLaU #ValentinaToro #Panamericanos #OroParaChile",
+    "youtube_titulo": "Valentina Toro cuenta cómo vivió su medalla de oro en los Panamericanos de Santiago",
+    "youtube_descripcion": "La invitada de Rayando el CDA relata la presión, el llanto y la alegría de ganar el oro panamericano jugando en casa.",
+    "copy_tiktok": "lloró antes de ganar el oro 😭🥇 la historia de Valentina Toro en los Panamericanos de Santiago\n\n#Panamericanos #ValentinaToro #UdeChile #OroParaChile",
+    "hashtags_extra": ["#ValentinaToro", "#Panamericanos"]
+  },
+
+  "polemica-nico-castillo": {
+    "titulo_portada": "¿CUÁNTAS PATADAS PA ESTE?",
+    "palabra_clave": "PATADAS",
+    "titulo_seo": "La polémica de Nico Castillo: \"¿cuántas patadas en el hocico pa este?\"",
+    "contexto": "Recordamos la polémica entre Nico Castillo y la Vale por una talla que se les fue de las manos: \"¿cuántas patadas en el hocico pa este?\". Entre risas, cuentan cómo se resolvió todo puertas adentro, aunque a algunos hinchas de la Católica todavía les quedó dando vueltas.",
+    "copy_instagram": "\"¿Cuántas patadas en el hocico pa este?\": la talla de Nico Castillo que se hizo viral y terminó en polémica. Acá cuentan cómo quedó todo entre risas.\n\n#UdeChile #LaU #VamosLaU #NicoCastillo",
+    "youtube_titulo": "Nico Castillo y la frase que generó polémica: \"¿cuántas patadas en el hocico pa este?\"",
+    "youtube_descripcion": "La historia detrás de la talla de Nico Castillo que se hizo viral y cómo se resolvió la polémica.",
+    "copy_tiktok": "\"¿cuántas patadas en el hocico pa este?\" 😂💀 la talla de Nico Castillo que armó polémica\n\n#NicoCastillo #UdeChile #LaU #futbolchileno",
+    "hashtags_extra": ["#NicoCastillo"]
+  },
+
+  "candidato-09": {
+    "imagen_fondo": "candidato-09-panel.jpg"
+  },
+
+  "candidato-12": {
+    "frame_portada": 7
+  }
+}

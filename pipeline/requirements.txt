@@ -1,0 +1,12 @@
+faster-whisper
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
+Pillow
+opencv-python-headless<5
+numpy
+python-dotenv
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+supabase>=2.20,<3
+anthropic

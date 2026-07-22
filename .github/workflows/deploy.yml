@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,6 +20,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +30,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: app/package-lock.json
 
       - run: npm ci
 
@@ -34,7 +41,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: app/dist
 
   deploy:
     needs: build

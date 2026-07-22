@@ -1,0 +1,121 @@
+{
+  "_comentario": "Diccionario de nombres propios del universo de 'Rayando el CDA'. Usado por corregir_nombres.py (post-procesamiento de .srt/.json) y por transcribir.py (initial_prompt de faster-whisper). 'variantes' son formas mal transcritas ya detectadas (reemplazo exacto, case-insensitive, por palabra/frase completa). El corrector además intenta fuzzy matching contra 'correcto' para variantes no listadas. Mantener esta lista al día cuando se detecten nuevos errores.",
+  "terminos": [
+    {
+      "correcto": "Wanderers",
+      "tipo": "equipo",
+      "variantes": ["wanderers", "wanderes", "wonderers", "wanders", "wander"],
+      "notas": "Santiago Wanderers (Valparaíso). En el programa del 06/07 Whisper lo transcribió también como 'guardia' (ver correcciones_especiales, no se agrega aquí como variante genérica por ser una palabra común de alto riesgo de falso positivo)."
+    },
+    {
+      "correcto": "Fernando Gago",
+      "tipo": "persona",
+      "variantes": ["fernando gago"],
+      "notas": "'Gago' a secas ya se transcribe bien casi siempre; se deja el apellido suelto fuera de variantes para no sobre-corregir la palabra común 'gago'."
+    },
+    {
+      "correcto": "Johnny Herrera",
+      "tipo": "persona",
+      "variantes": ["john irrera", "yoni herrera", "joni herrera", "yhonny herrera", "jonny herrera"]
+    },
+    {
+      "correcto": "Musrri",
+      "tipo": "persona",
+      "variantes": ["murri", "musri", "muzri"]
+    },
+    {
+      "correcto": "Valentina Toro",
+      "tipo": "persona",
+      "variantes": ["balentina toro", "valentina toroh"],
+      "notas": "El apodo 'Vale Toro' es uso intencional del programa, no es un error de transcripción: no se corrige."
+    },
+    {
+      "correcto": "Nico Castillo",
+      "tipo": "persona",
+      "variantes": ["nico castiyo", "niko castillo"]
+    },
+    {
+      "correcto": "Marcelo Díaz",
+      "tipo": "persona",
+      "variantes": ["marcelo diaz"],
+      "notas": "El apodo 'Chelo Díaz' es uso intencional (apodo chileno de Marcelo), no se corrige. Ojo: 'chelo' también es jerga chilena ('está chelo' = fácil) y no debe tocarse fuera de 'chelo díaz'."
+    },
+    {
+      "correcto": "Azul Azul",
+      "tipo": "institucion",
+      "variantes": ["asul asul", "azul azules"]
+    },
+    {
+      "correcto": "ANFP",
+      "tipo": "institucion",
+      "variantes": ["anfp", "nfp", "enefepe", "a.n.f.p"]
+    },
+    {
+      "correcto": "Corfuch",
+      "tipo": "institucion",
+      "variantes": ["corfu", "corfech", "corfuch"]
+    },
+    {
+      "correcto": "la U",
+      "tipo": "apodo",
+      "variantes": []
+    },
+    {
+      "correcto": "la Chuncha",
+      "tipo": "apodo",
+      "variantes": ["la chunga"]
+    },
+    {
+      "correcto": "el Bulla",
+      "tipo": "apodo",
+      "variantes": ["el buya"]
+    },
+    {
+      "correcto": "el Romántico Viajero",
+      "tipo": "apodo",
+      "variantes": ["el romantico viajero"]
+    },
+    {
+      "correcto": "CDA",
+      "tipo": "institucion",
+      "variantes": ["c.d.a"]
+    },
+    {
+      "correcto": "Copa Chile",
+      "tipo": "torneo",
+      "variantes": ["copa chille"]
+    },
+    {
+      "correcto": "Larrivey",
+      "tipo": "persona",
+      "variantes": ["reveille"]
+    }
+  ],
+  "correcciones_especiales": [
+    {
+      "buscar": "la NFP",
+      "reemplazar": "la ANFP",
+      "motivo": "Whisper comió la 'A' inicial de ANFP en el programa del 06/07."
+    },
+    {
+      "buscar": "Wander Sierra",
+      "reemplazar": "Wanderers",
+      "motivo": "Mezcla de 'Wanderers' con un apellido inventado por Whisper."
+    },
+    {
+      "buscar": "ganarle a guardia",
+      "reemplazar": "ganarle a Wanderers",
+      "motivo": "'guardia' es palabra común, se corrige solo en esta frase exacta detectada en el .srt maestro del 06/07 para evitar falsos positivos en otros programas."
+    },
+    {
+      "buscar": "el segundo de guardia",
+      "reemplazar": "el segundo de Wanderers",
+      "motivo": "Mismo caso anterior: 'guardia' por 'Wanderers' (se refiere al equipo alterno/reserva de Wanderers)."
+    },
+    {
+      "buscar": "en el Osi para este",
+      "reemplazar": "en el hocico pa este",
+      "motivo": "Mishearing fonético de 'hocico' detectado en el clip polemica-nico-castillo."
+    }
+  ]
+}
