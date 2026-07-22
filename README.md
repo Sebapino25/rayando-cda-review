@@ -38,6 +38,7 @@ La tabla `clips` vive en el schema `rayando_cda` (no en `public`). Pasos necesar
 | `youtube_descripcion` | text | editable |
 | `razon` | text | solo lectura |
 | `transcripcion` | text | editable, colapsable — corregirla no regenera el subtítulo del video, queda anotada para reprocesar |
+| `transcripcion_original` | text | solo lectura, no la toca la app. Se copia de `transcripcion` automáticamente al insertar (trigger) y nunca se edita después salvo por `scripts/reprocesar_subtitulos.py`, que la resincroniza una vez que reprocesó el video. Sirve para detectar `transcripcion != transcripcion_original` = corrección pendiente de aplicar al video |
 | `comentarios_video` | text | editable, pedidos manuales (no se ejecutan solos); obligatoria si se elige "Corrección de video" |
 | `notas_revision` | text | notas al rechazar |
 | `revisado_por` | text | seteado por la app al aprobar, pedir corrección o rechazar |

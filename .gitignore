@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Python (no debería haber scripts de Python en este repo, pero por si acaso)
+__pycache__/
+*.pyc
+
 # Environment variables
 .env
 .env.*
