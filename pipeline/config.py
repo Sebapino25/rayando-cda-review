@@ -28,16 +28,21 @@ CLIP_PAD_SECONDS = 0.4  # margen de silencio agregado antes del inicio y despué
 CLIP_FADE_SECONDS = 0.25  # duración del fade-in/fade-out de video y audio (debe ser <= CLIP_PAD_SECONDS)
 
 SUBTITLE_FONT_NAME = "Arial"
-SUBTITLE_FONT_SIZE = 58
+# Subido de 58 a 64 (pedido de René: letra un poco más grande).
+SUBTITLE_FONT_SIZE = 64
 SUBTITLE_OUTLINE = 4
 SUBTITLE_SHADOW = 0
 SUBTITLE_MARGIN_L = 50
 SUBTITLE_MARGIN_R = 50
-# Subido de 140 a 300px: a 140 el bloque de subtítulos quedaba pegado al
-# borde inferior real (1920px de alto), justo donde Instagram/TikTok
-# superponen su propia UI (caption, música, botones). Sigue bien adentro de
-# la franja borrosa inferior, solo más arriba dentro de ella.
-SUBTITLE_MARGIN_V = 300
+# Historial: 140 (original) -> 300 (primera ronda) -> 400 (esta ronda, René
+# pidió aún más arriba tras ver el resultado real). Sigue dentro de la franja
+# borrosa inferior (~611px típico con VERTICAL_FOREGROUND_SCALE=1.15 y fuente
+# 16:9), pero con menos margen de sobra que antes — si algún cue llega a 3
+# líneas podría rozar el video real. Verificar con frame real antes de dar
+# por bueno; si sigue sin convencer o se corta, la próxima opción es acercar
+# más el video real (bajar VERTICAL_FOREGROUND_SCALE) en vez de seguir
+# subiendo el margen.
+SUBTITLE_MARGIN_V = 400
 
 # Máximo de palabras por pantalla al quemar subtítulos (ver
 # cortar_clip.split_into_captions). Antes se quemaba el segmento de Whisper
