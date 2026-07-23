@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import {
   CaretDown,
   Check,
+  DownloadSimple,
   FloppyDisk,
   Image as ImageIcon,
   Info,
@@ -10,6 +11,7 @@ import {
   X,
   SpinnerGap,
 } from '@phosphor-icons/react'
+import { downloadUrl } from '../lib/downloadUrl'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -179,6 +181,15 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
               )}
               {coverUrl ? 'Reemplazar portada' : 'Subir portada propia'}
             </button>
+            {coverUrl && (
+              <a
+                href={downloadUrl(coverUrl, `portada-${clip.id}.jpg`)}
+                className="w-fit flex items-center gap-1.5 text-sm font-semibold text-muted-foreground cursor-pointer"
+              >
+                <DownloadSimple size={16} weight="bold" />
+                Descargar portada
+              </a>
+            )}
             <input
               ref={fileInputRef}
               type="file"

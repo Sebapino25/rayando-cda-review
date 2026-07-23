@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown } from '@phosphor-icons/react'
+import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown, DownloadSimple } from '@phosphor-icons/react'
+import { downloadUrl } from '../lib/downloadUrl'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -79,6 +80,17 @@ export default function HistoryCard({ clip, onUndo }) {
             />
           </a>
 
+          {clip.portada_url && (
+            <a
+              href={downloadUrl(clip.portada_url, `portada-${clip.id}.jpg`)}
+              onClick={(e) => e.stopPropagation()}
+              title="Descargar portada"
+              className="shrink-0 self-start w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground"
+            >
+              <DownloadSimple size={15} weight="bold" />
+            </a>
+          )}
+
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
             <span
               className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${stateMeta.className}`}
@@ -112,6 +124,20 @@ export default function HistoryCard({ clip, onUndo }) {
             />
           </div>
           <div className="p-4 flex flex-col gap-3.5">
+            {clip.portada_url && (
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 w-16 aspect-[9/16] rounded-lg overflow-hidden bg-muted border border-border">
+                  <img src={clip.portada_url} alt="Portada" className="w-full h-full object-cover" />
+                </div>
+                <a
+                  href={downloadUrl(clip.portada_url, `portada-${clip.id}.jpg`)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-primary"
+                >
+                  <DownloadSimple size={16} weight="bold" />
+                  Descargar portada
+                </a>
+              </div>
+            )}
             <ReadOnlyField label="Copy Instagram" value={clip.copy_instagram} />
             <ReadOnlyField label="Copy TikTok" value={clip.copy_tiktok} />
             <ReadOnlyField label="Título de YouTube" value={clip.youtube_titulo} />
