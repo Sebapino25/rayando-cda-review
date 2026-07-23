@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   CaretDown,
   Check,
   FloppyDisk,
+  Image as ImageIcon,
   Info,
+  UploadSimple,
   Wrench,
   X,
   SpinnerGap,
@@ -40,7 +42,28 @@ function Field({ label, value, onChange, multiline, rows = 3 }) {
   )
 }
 
-export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReject }) {
+export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReject, onCoverUpload }) {
+  const fileInputRef = useRef(null)
+  const [coverUrl, setCoverUrl] = useState(clip.portada_url ?? '')
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const [coverError, setCoverError] = useState('')
+
+  async function handleCoverFileChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setUploadingCover(true)
+    setCoverError('')
+    try {
+      const url = await onCoverUpload(clip.id, file)
+      setCoverUrl(url)
+    } catch (err) {
+      setCoverError(err.message || 'No se pudo subir la portada. Probá de nuevo.')
+    } finally {
+      setUploadingCover(false)
+    }
+  }
+
   const [fields, setFields] = useState({
     copy_instagram: clip.copy_instagram ?? '',
     copy_tiktok: clip.copy_tiktok ?? '',
@@ -133,6 +156,44 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
       </div>
 
       <div className="p-4 sm:p-5 flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <div className="shrink-0 w-16 aspect-[9/16] rounded-lg overflow-hidden bg-muted border border-border flex items-center justify-center">
+            {coverUrl ? (
+              <img src={coverUrl} alt="Portada" className="w-full h-full object-cover" />
+            ) : (
+              <ImageIcon size={20} className="text-muted-foreground" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1 flex flex-col gap-1">
+            <span className="text-sm font-semibold text-foreground">Portada</span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingCover}
+              className="w-fit flex items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-40 cursor-pointer"
+            >
+              {uploadingCover ? (
+                <SpinnerGap size={16} className="animate-spin" />
+              ) : (
+                <UploadSimple size={16} weight="bold" />
+              )}
+              {coverUrl ? 'Reemplazar portada' : 'Subir portada propia'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleCoverFileChange}
+            />
+            {coverError && (
+              <p className="text-xs text-destructive font-medium" role="alert">
+                {coverError}
+              </p>
+            )}
+          </div>
+        </div>
+
         {clip.created_at && (
           <p className="text-xs text-muted-foreground -mb-1">
             Elegido el {formatDate(clip.created_at)}

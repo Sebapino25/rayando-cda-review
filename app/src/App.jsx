@@ -117,6 +117,27 @@ function App() {
     setPendingClips((prev) => prev.filter((c) => c.id !== id))
   }
 
+  async function handleCoverUpload(id, file) {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `custom/${id}-${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('portadas')
+      .upload(path, file, { contentType: file.type || 'image/jpeg' })
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage.from('portadas').getPublicUrl(path)
+    const portadaUrl = data.publicUrl
+
+    const { error: updateError } = await supabase
+      .from('clips')
+      .update({ portada_url: portadaUrl })
+      .eq('id', id)
+    if (updateError) throw updateError
+
+    setPendingClips((prev) => prev.map((c) => (c.id === id ? { ...c, portada_url: portadaUrl } : c)))
+    return portadaUrl
+  }
+
   async function handleUndo(id) {
     const payload = {
       estado: 'pendiente',
@@ -239,6 +260,7 @@ function App() {
               onApprove={handleApprove}
               onCorrection={handleCorrection}
               onReject={handleReject}
+              onCoverUpload={handleCoverUpload}
             />
           ))}
 

@@ -171,6 +171,25 @@ def actualizar_clip_supabase(supabase_id: str, payload: dict) -> None:
     supabase.table(config.SUPABASE_TABLE).update(payload).eq("id", supabase_id).execute()
 
 
+def subir_portada_storage(portada_path: Path, storage_path: str) -> str | None:
+    """Sube la portada vertical generada al bucket público 'portadas' de
+    Supabase Storage y devuelve su URL pública. Si el archivo no existe
+    (por ejemplo, portadas.build_portadas falló silenciosamente) devuelve
+    None sin cortar la publicación — la portada no es bloqueante.
+    René/Cristián pueden reemplazarla después desde la app de revisión."""
+    if not portada_path.exists():
+        print(f"  Aviso: no se encontró {portada_path}, se publica sin portada_url.")
+        return None
+    supabase = get_supabase_client()
+    data = portada_path.read_bytes()
+    supabase.storage.from_(config.SUPABASE_PORTADAS_BUCKET).upload(
+        storage_path,
+        data,
+        {"content-type": "image/jpeg", "upsert": "true"},
+    )
+    return supabase.storage.from_(config.SUPABASE_PORTADAS_BUCKET).get_public_url(storage_path)
+
+
 # ---------- Orquestación ----------
 
 def numero_clip(program_date: str, nombre_clip: str) -> int:
@@ -230,6 +249,16 @@ def publicar_clip(
     youtube_url = f"https://youtu.be/{video_id}"
     print(f"  Subido: {youtube_url}")
 
+    print("  Subiendo portada generada a Supabase Storage...")
+    portada_storage_path = f"{program_date}/{nombre_clip}.jpg"
+    try:
+        portada_url = subir_portada_storage(out_dir / "portada_vertical.jpg", portada_storage_path)
+    except Exception as e:
+        print(f"  ADVERTENCIA: no se pudo subir la portada a Storage ({e}). Se publica sin portada_url.")
+        portada_url = None
+    if portada_url:
+        print(f"  Portada: {portada_url}")
+
     payload = {
         "youtube_video_id": video_id,
         "titulo": titulo,
@@ -243,6 +272,7 @@ def publicar_clip(
         "timestamp_fin": timestamp_fin,
         "semana": program_date,
         "estado": "pendiente",
+        "portada_url": portada_url,
     }
     print(f"  Insertando en Supabase ({config.SUPABASE_SCHEMA}.{config.SUPABASE_TABLE})...")
     supabase_id = insertar_clip_supabase(payload)
@@ -254,6 +284,7 @@ def publicar_clip(
         f"YouTube video ID: {video_id}\n"
         f"YouTube URL: {youtube_url}\n"
         f"Supabase id: {supabase_id}\n"
+        f"Portada: {portada_url or '(no se pudo subir, revisar manualmente)'}\n"
         f"Estado: pendiente\n"
         f"Título subido (genérico, no final): {titulo}\n"
         f"Razón: {razon or '(no especificada)'}\n"
