@@ -185,6 +185,41 @@ def clip_segments(segments: list[dict], start: float, end: float) -> list[tuple[
     return clipped
 
 
+def split_into_captions(
+    clipped: list[tuple[float, float, str]], max_words: int | None = None
+) -> list[tuple[float, float, str]]:
+    """Divide cada segmento de Whisper (que puede ser una oración larga) en
+    fragmentos de hasta max_words palabras, para que el subtítulo quemado
+    muestre pocas palabras a la vez en vez de una oración entera (pedido de
+    René: subtítulos menos extensos). El tiempo de cada fragmento se reparte
+    proporcional a su cantidad de palabras dentro del segmento original —
+    no hay timestamps por palabra (Whisper corre sin word_timestamps), así
+    que esto es una aproximación, no un timing exacto por palabra. No toca
+    join_transcripcion/transcripcion_original: eso sigue usando el `clipped`
+    original, sin dividir."""
+    max_words = max_words or config.SUBTITLE_MAX_WORDS_PER_CUE
+    captions: list[tuple[float, float, str]] = []
+    for cs, ce, text in clipped:
+        words = text.split()
+        if not words:
+            continue
+        n = len(words)
+        n_chunks = max(1, -(-n // max_words))  # división entera hacia arriba
+        base, extra = divmod(n, n_chunks)
+        duration = ce - cs
+        idx = 0
+        t = cs
+        for i in range(n_chunks):
+            size = base + (1 if i < extra else 0)
+            chunk_text = " ".join(words[idx : idx + size])
+            idx += size
+            is_last = i == n_chunks - 1
+            chunk_end = ce if is_last else t + duration * (size / n)
+            captions.append((t, chunk_end, chunk_text))
+            t = chunk_end
+    return captions
+
+
 def build_clip_srt(clipped: list[tuple[float, float, str]], out_srt: Path) -> None:
     lines = []
     for idx, (cs, ce, text) in enumerate(clipped, start=1):
@@ -468,8 +503,9 @@ def cortar_y_publicar(
             clipped = [(cs + pad_offset, ce + pad_offset, text) for cs, ce, text in clipped]
         has_subtitles = bool(clipped)
         if has_subtitles:
-            build_clip_srt(clipped, out_dir / "subtitulos.srt")
-            build_clip_ass(clipped, out_dir / "subtitulos.ass")
+            captions = split_into_captions(clipped)
+            build_clip_srt(captions, out_dir / "subtitulos.srt")
+            build_clip_ass(captions, out_dir / "subtitulos.ass")
         else:
             print("  La transcripción no tiene texto en este rango. Vertical sin subtítulos.")
 

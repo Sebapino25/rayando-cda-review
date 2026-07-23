@@ -33,7 +33,20 @@ SUBTITLE_OUTLINE = 4
 SUBTITLE_SHADOW = 0
 SUBTITLE_MARGIN_L = 50
 SUBTITLE_MARGIN_R = 50
-SUBTITLE_MARGIN_V = 140
+# Subido de 140 a 300px: a 140 el bloque de subtítulos quedaba pegado al
+# borde inferior real (1920px de alto), justo donde Instagram/TikTok
+# superponen su propia UI (caption, música, botones). Sigue bien adentro de
+# la franja borrosa inferior, solo más arriba dentro de ella.
+SUBTITLE_MARGIN_V = 300
+
+# Máximo de palabras por pantalla al quemar subtítulos (ver
+# cortar_clip.split_into_captions). Antes se quemaba el segmento de Whisper
+# completo tal cual (a veces una oración entera de 15-20 palabras); ahora se
+# divide en fragmentos cortos, repartiendo el tiempo del segmento original
+# proporcional a la cantidad de palabras de cada fragmento (no hay timestamps
+# por palabra porque Whisper corre sin word_timestamps, así que es una
+# aproximación, no timing exacto por palabra).
+SUBTITLE_MAX_WORDS_PER_CUE = 7
 
 # Cuánto se agranda el video en primer plano del vertical antes de recortarlo de
 # vuelta al ancho del canvas (1.0 = tal cual, sin zoom; ocupa solo el ancho
