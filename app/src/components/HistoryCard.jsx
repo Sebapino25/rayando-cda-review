@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown, DownloadSimple } from '@phosphor-icons/react'
+import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown, DownloadSimple, Trash } from '@phosphor-icons/react'
 import { downloadUrl } from '../lib/downloadUrl'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
@@ -36,12 +36,13 @@ function ReadOnlyField({ label, value }) {
   )
 }
 
-export default function HistoryCard({ clip, onUndo }) {
+export default function HistoryCard({ clip, onUndo, onCoverRemove }) {
   const stateMeta = STATE_META[clip.estado] ?? STATE_META.rechazado
   const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
   const [undoing, setUndoing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [expanded, setExpanded] = useState(false)
+  const [removingCover, setRemovingCover] = useState(false)
 
   async function handleUndo() {
     const confirmed = window.confirm('¿Seguro que quieres deshacer esta revisión?')
@@ -53,6 +54,19 @@ export default function HistoryCard({ clip, onUndo }) {
     } catch (err) {
       setErrorMsg(err.message || 'No se pudo deshacer. Probá de nuevo.')
       setUndoing(false)
+    }
+  }
+
+  async function handleCoverRemove() {
+    if (!window.confirm('¿Quitar la portada actual? Vuelve a quedar en blanco hasta que alguien suba otra.')) return
+    setRemovingCover(true)
+    setErrorMsg('')
+    try {
+      await onCoverRemove(clip.id)
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo quitar la portada. Probá de nuevo.')
+    } finally {
+      setRemovingCover(false)
     }
   }
 
@@ -129,13 +143,28 @@ export default function HistoryCard({ clip, onUndo }) {
                 <div className="shrink-0 w-16 aspect-[9/16] rounded-lg overflow-hidden bg-muted border border-border">
                   <img src={clip.portada_url} alt="Portada" className="w-full h-full object-cover" />
                 </div>
-                <a
-                  href={downloadUrl(clip.portada_url, `portada-${clip.id}.jpg`)}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-primary"
-                >
-                  <DownloadSimple size={16} weight="bold" />
-                  Descargar portada
-                </a>
+                <div className="flex flex-col gap-1.5 items-start">
+                  <a
+                    href={downloadUrl(clip.portada_url, `portada-${clip.id}.jpg`)}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-primary"
+                  >
+                    <DownloadSimple size={16} weight="bold" />
+                    Descargar portada
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleCoverRemove}
+                    disabled={removingCover}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-destructive disabled:opacity-40 cursor-pointer"
+                  >
+                    {removingCover ? (
+                      <SpinnerGap size={16} className="animate-spin" />
+                    ) : (
+                      <Trash size={16} weight="bold" />
+                    )}
+                    Quitar portada
+                  </button>
+                </div>
               </div>
             )}
             <ReadOnlyField label="Copy Instagram" value={clip.copy_instagram} />

@@ -6,6 +6,7 @@ import {
   FloppyDisk,
   Image as ImageIcon,
   Info,
+  Trash,
   UploadSimple,
   Wrench,
   X,
@@ -44,10 +45,11 @@ function Field({ label, value, onChange, multiline, rows = 3 }) {
   )
 }
 
-export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReject, onCoverUpload }) {
+export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReject, onCoverUpload, onCoverRemove }) {
   const fileInputRef = useRef(null)
   const [coverUrl, setCoverUrl] = useState(clip.portada_url ?? '')
   const [uploadingCover, setUploadingCover] = useState(false)
+  const [removingCover, setRemovingCover] = useState(false)
   const [coverError, setCoverError] = useState('')
 
   async function handleCoverFileChange(e) {
@@ -63,6 +65,20 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
       setCoverError(err.message || 'No se pudo subir la portada. Probá de nuevo.')
     } finally {
       setUploadingCover(false)
+    }
+  }
+
+  async function handleCoverRemoveClick() {
+    if (!window.confirm('¿Quitar la portada actual? Vuelve a quedar en blanco hasta que alguien suba otra.')) return
+    setRemovingCover(true)
+    setCoverError('')
+    try {
+      await onCoverRemove(clip.id)
+      setCoverUrl('')
+    } catch (err) {
+      setCoverError(err.message || 'No se pudo quitar la portada. Probá de nuevo.')
+    } finally {
+      setRemovingCover(false)
     }
   }
 
@@ -189,6 +205,21 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
                 <DownloadSimple size={16} weight="bold" />
                 Descargar portada
               </a>
+            )}
+            {coverUrl && (
+              <button
+                type="button"
+                onClick={handleCoverRemoveClick}
+                disabled={removingCover}
+                className="w-fit flex items-center gap-1.5 text-sm font-semibold text-destructive disabled:opacity-40 cursor-pointer"
+              >
+                {removingCover ? (
+                  <SpinnerGap size={16} className="animate-spin" />
+                ) : (
+                  <Trash size={16} weight="bold" />
+                )}
+                Quitar portada
+              </button>
             )}
             <input
               ref={fileInputRef}

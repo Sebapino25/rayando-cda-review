@@ -138,6 +138,36 @@ function App() {
     return portadaUrl
   }
 
+  async function handleCoverRemove(id) {
+    const clip = pendingClips.find((c) => c.id === id) || historyClips.find((c) => c.id === id)
+    const currentUrl = clip?.portada_url
+
+    const { error: updateError } = await supabase
+      .from('clips')
+      .update({ portada_url: null })
+      .eq('id', id)
+    if (updateError) throw updateError
+
+    if (currentUrl) {
+      const marker = '/object/public/portadas/'
+      const idx = currentUrl.indexOf(marker)
+      if (idx !== -1) {
+        const path = currentUrl.slice(idx + marker.length)
+        // Best-effort: si falla el borrado del archivo en Storage no es grave
+        // (mismo criterio que ya se usa con videos huérfanos de YouTube) — lo
+        // que importa es que portada_url quede en null.
+        try {
+          await supabase.storage.from('portadas').remove([path])
+        } catch {
+          // no-op
+        }
+      }
+    }
+
+    setPendingClips((prev) => prev.map((c) => (c.id === id ? { ...c, portada_url: null } : c)))
+    setHistoryClips((prev) => prev.map((c) => (c.id === id ? { ...c, portada_url: null } : c)))
+  }
+
   async function handleUndo(id) {
     const payload = {
       estado: 'pendiente',
@@ -261,6 +291,7 @@ function App() {
               onCorrection={handleCorrection}
               onReject={handleReject}
               onCoverUpload={handleCoverUpload}
+              onCoverRemove={handleCoverRemove}
             />
           ))}
 
@@ -275,7 +306,7 @@ function App() {
 
         {!loading && !error && tab === 'historial' &&
           historyClips.map((clip) => (
-            <HistoryCard key={clip.id} clip={clip} onUndo={handleUndo} />
+            <HistoryCard key={clip.id} clip={clip} onUndo={handleUndo} onCoverRemove={handleCoverRemove} />
           ))}
       </main>
     </div>
