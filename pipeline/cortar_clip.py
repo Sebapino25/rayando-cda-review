@@ -99,6 +99,30 @@ def ffprobe_duration(path: Path) -> float:
     return float(result.stdout.strip())
 
 
+def ffprobe_dimensions(path: Path) -> tuple[int, int]:
+    cmd = [
+        "ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "csv=s=x:p=0", str(path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if result.returncode != 0:
+        raise RuntimeError(f"ffprobe falló para {path}: {result.stderr}")
+    w_str, h_str = result.stdout.strip().split("x")
+    return int(w_str), int(h_str)
+
+
+def _foreground_height(src_w: int, src_h: int, fg_w: int) -> int:
+    """Replica el cálculo de altura que hace ffmpeg en `scale={fg_w}:-2`
+    (mantiene el aspect ratio de la fuente, redondea al par más cercano hacia
+    abajo). Se usa para saber cuánto blur queda arriba/abajo del video real
+    en el vertical, sin tener que correr ffmpeg dos veces."""
+    scaled_h = int(fg_w * src_h / src_w)
+    if scaled_h % 2:
+        scaled_h -= 1
+    return scaled_h
+
+
 def cut_recode(src: Path, start: float, end: float, dst: Path, fade_seconds: float = 0.0) -> None:
     duration = end - start
     cmd = [
@@ -220,29 +244,51 @@ def _logo_overlay_xy() -> tuple[str, str]:
     return posiciones[config.LOGO_POSICION]
 
 
-def build_vertical(out_dir: Path, has_subtitles: bool) -> None:
+def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | None = None) -> None:
     w, h = config.VERTICAL_WIDTH, config.VERTICAL_HEIGHT
     fg_w = int(w * config.VERTICAL_FOREGROUND_SCALE)
     logo_w = max(2, int(w * config.LOGO_ANCHO_RATIO) // 2 * 2)
     x_expr, y_expr = _logo_overlay_xy()
+
+    src_w, src_h = ffprobe_dimensions(out_dir / "horizontal_original.mp4")
+    fg_h = _foreground_height(src_w, src_h, fg_w)
+    band_h = (h - fg_h) // 2
+
+    top_offset = 0
+    if config.LOGO_POSICION.startswith("top"):
+        _, logo_h = portadas.logo_footprint_px(w)
+        top_offset = config.LOGO_MARGEN_PX + logo_h + config.VIDEO_TITULO_LOGO_GAP_PX
+
+    titulo_png = None
+    if titulo_portada and band_h - top_offset >= config.VIDEO_TITULO_MIN_USABLE_PX:
+        titulo_png = out_dir / "titulo_video.png"
+        portadas.render_video_titulo_png(titulo_png, w, band_h, titulo_portada, top_offset)
 
     filter_complex = (
         f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
         f"crop={w}:{h},gblur=sigma=20[bg];"
         f"[0:v]scale={fg_w}:-2:force_original_aspect_ratio=decrease,crop={w}:ih[fg];"
         f"[bg][fg]overlay=(W-w)/2:(H-h)/2[base];"
-        f"[1:v]scale={logo_w}:-2,format=rgba,colorchannelmixer=aa={config.LOGO_OPACIDAD}[logo];"
-        f"[base][logo]overlay={x_expr}:{y_expr}[withlogo]"
+    )
+    cmd = ["ffmpeg", "-y", "-i", "horizontal_original.mp4", "-i", str(config.LOGO_PATH)]
+    if titulo_png:
+        filter_complex += "[base][2:v]overlay=0:0[basetitle];"
+        cmd += ["-i", str(titulo_png)]
+        base_label = "basetitle"
+    else:
+        base_label = "base"
+
+    logo_w_expr = f"scale={logo_w}:-2,format=rgba,colorchannelmixer=aa={config.LOGO_OPACIDAD}[logo]"
+    filter_complex += (
+        f"[1:v]{logo_w_expr};"
+        f"[{base_label}][logo]overlay={x_expr}:{y_expr}[withlogo]"
     )
     if has_subtitles:
         filter_complex += ";[withlogo]subtitles=subtitulos.ass[outv]"
     else:
         filter_complex += ";[withlogo]null[outv]"
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", "horizontal_original.mp4",
-        "-i", str(config.LOGO_PATH),
+    cmd += [
         "-filter_complex", filter_complex,
         "-map", "[outv]", "-map", "0:a",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
@@ -427,16 +473,19 @@ def cortar_y_publicar(
         else:
             print("  La transcripción no tiene texto en este rango. Vertical sin subtítulos.")
 
-    print("Generando versión vertical 9:16 con fondo desenfocado, logo" + (" y subtítulos..." if has_subtitles else "..."))
-    build_vertical(out_dir, has_subtitles)
+    print("Generando copys (con IA si hay API key)...")
+    copys = build_copys(out_dir, nombre, clipped)
+    overrides = _cargar_overrides(nombre)
+    print(f"  Copys.md listo, titulo_portada: {copys.titulo_portada!r}")
+
+    print("Generando versión vertical 9:16 con fondo desenfocado, titulo_portada, logo" + (" y subtítulos..." if has_subtitles else "..."))
+    build_vertical(out_dir, has_subtitles, copys.titulo_portada)
     vertical_path = out_dir / "vertical.mp4"
     print(f"  Vertical listo: {vertical_path}")
 
     print("Generando portadas...")
-    copys = build_copys(out_dir, nombre, clipped)
-    overrides = _cargar_overrides(nombre)
     portadas.build_portadas(out_dir, horizontal_path, copys.titulo_portada, overrides)
-    print(f"  Portadas y copys.md listos en: {out_dir}")
+    print(f"  Portadas listas en: {out_dir}")
 
     transcripcion_texto = join_transcripcion(clipped)
     metadata = {

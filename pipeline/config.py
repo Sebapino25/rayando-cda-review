@@ -40,7 +40,19 @@ SUBTITLE_MARGIN_V = 140
 # completo pero queda "chico" verticalmente con mucho blur arriba/abajo). Un
 # valor > 1.0 hace zoom (recorta un poco los bordes izq/der) y el video se ve
 # más grande/protagonista, con menos blur visible.
-VERTICAL_FOREGROUND_SCALE = 1.35
+VERTICAL_FOREGROUND_SCALE = 1.15
+
+# --- Texto de titulo_portada en la franja superior de relleno (blur) del
+# vertical (ver build_vertical en cortar_clip.py). Se dibuja debajo del logo,
+# dentro del espacio libre que deja VERTICAL_FOREGROUND_SCALE arriba del
+# video real. Los ratios son sobre el alto *disponible* (la franja menos el
+# espacio que ocupa el logo), no sobre el alto del canvas completo.
+VIDEO_TITULO_MARGEN_PX = 60
+VIDEO_TITULO_MAX_LINEAS = 3
+VIDEO_TITULO_FONT_SIZE_MAX_RATIO = 0.34
+VIDEO_TITULO_FONT_SIZE_MIN_RATIO = 0.14
+VIDEO_TITULO_LOGO_GAP_PX = 20  # separación extra debajo del logo, cuando el logo está arriba
+VIDEO_TITULO_MIN_USABLE_PX = 120  # si el espacio libre bajo el logo es menor a esto, no se agrega texto
 
 # --- Logo (overlay permanente en todos los verticales) ---
 LOGO_PATH = BASE_DIR / "Logo PNG.png"
@@ -127,6 +139,7 @@ YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 SUPABASE_SCHEMA = "rayando_cda"
 SUPABASE_TABLE = "clips"
+SUPABASE_PORTADAS_BUCKET = "portadas"
 
 # Clips que no pasan la validación técnica no se suben; queda registrado acá
 # en vez de fallar en silencio.

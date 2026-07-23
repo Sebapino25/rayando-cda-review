@@ -205,6 +205,46 @@ def _logo_position(w: int, logo_w: int, logo_h: int, margen: int) -> tuple[int, 
     return x, margen
 
 
+def logo_footprint_px(width: int) -> tuple[int, int]:
+    """Ancho/alto en px que ocupa el logo overlay a un ancho de canvas dado
+    (mismo cálculo de escala que build_vertical en cortar_clip.py)."""
+    logo = Image.open(config.LOGO_PATH)
+    logo_w = max(2, int(width * config.LOGO_ANCHO_RATIO) // 2 * 2)
+    logo_h = int(logo.height * logo_w / logo.width)
+    return logo_w, logo_h
+
+
+def render_video_titulo_png(out_path: Path, width: int, height: int, titulo: str, top_offset: int = 0) -> None:
+    """Genera un PNG transparente (width x height) con titulo_portada en
+    tipografía Anton (mismo estilo que la portada: blanco con contorno negro,
+    palabra clave en amarillo), centrado en el espacio libre debajo de
+    top_offset. Pensado para superponerse en la franja superior de relleno
+    (blur) del vertical, ver build_vertical en cortar_clip.py."""
+    canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+
+    margen = config.VIDEO_TITULO_MARGEN_PX
+    max_width = width - margen * 2
+    usable_height = height - top_offset
+
+    max_size = max(24, int(usable_height * config.VIDEO_TITULO_FONT_SIZE_MAX_RATIO))
+    min_size = max(14, int(usable_height * config.VIDEO_TITULO_FONT_SIZE_MIN_RATIO))
+    font, lines = _fit_title(
+        draw, titulo.upper(), config.PORTADA_FONT_PATH, max_width,
+        config.VIDEO_TITULO_MAX_LINEAS, max_size, min_size,
+    )
+    bbox = font.getbbox("AÁÑQypg")
+    line_height = int((bbox[3] - bbox[1]) * 1.28)
+    total_text_h = line_height * len(lines)
+    stroke_width = max(2, int(font.size * config.PORTADA_TEXTO_STROKE_RATIO))
+
+    text_top = top_offset + (usable_height - total_text_h) / 2
+    palabra_clave = _detectar_palabra_clave(titulo, None)
+    _draw_title_lines(draw, lines, font, palabra_clave, text_top, line_height, width, stroke_width)
+
+    canvas.save(out_path)
+
+
 def _compose_vs_background(img_left: Image.Image, img_right: Image.Image, w: int, h: int) -> Image.Image:
     left = _crop_to_cover(img_left, w, h)
     right = _crop_to_cover(img_right, w, h)
