@@ -10,3 +10,4 @@ google-auth-httplib2
 google-auth-oauthlib
 supabase>=2.20,<3
 anthropic
+requests

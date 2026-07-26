@@ -153,11 +153,21 @@ COPYS_HASHTAGS_BASE = ["#UdeChile", "#LaU", "#VamosLaU", "#RayandoElCDA"]
 YOUTUBE_TITULO_TEMPLATE = "Rayando el CDA - candidato {fecha} - clip {n}"
 YOUTUBE_CATEGORY_ID = "17"  # Sports
 YOUTUBE_PRIVACY_STATUS = "unlisted"
-YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube"]
 
 SUPABASE_SCHEMA = "rayando_cda"
 SUPABASE_TABLE = "clips"
 SUPABASE_PORTADAS_BUCKET = "portadas"
+SUPABASE_CLIPS_VIDEO_BUCKET = "clips-video"
+
+# --- Publicación final automática (ver publicar_automatico.py) ---
+# Ambos en False por defecto: nada se publica solo. Se prenden a mano cuando
+# el flujo esté validado y el equipo quiera activarlo.
+AUTO_PUBLICAR_YOUTUBE = False
+AUTO_PUBLICAR_INSTAGRAM = False
+# Cuánto esperar (segundos) a que un contenedor de media de Instagram
+# (Reels) termine de procesar el video antes de publicarlo.
+INSTAGRAM_CONTAINER_TIMEOUT_S = 60
 
 # Clips que no pasan la validación técnica no se suben; queda registrado acá
 # en vez de fallar en silencio.
