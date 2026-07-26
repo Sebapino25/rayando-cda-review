@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidad — Rayando el CDA</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+  :root{
+    --bg:#0B1730; --bg2:#0F1E3D; --surface:#152847; --border:#284370;
+    --text:#F5F3EE; --muted:#93A6C9; --amber:#FFB100;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:'Inter',sans-serif; color:var(--text);
+    background:radial-gradient(circle at top left, var(--bg2), var(--bg) 60%);
+    padding:48px 16px 80px;}
+  .wrap{max-width:720px;margin:0 auto;}
+  h1{font-family:'Oswald',sans-serif; font-size:30px; font-weight:700; margin:0 0 4px;}
+  .updated{color:var(--muted); font-size:13px; margin-bottom:40px;}
+  h2{font-family:'Oswald',sans-serif; font-size:17px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--amber); margin:36px 0 10px; border-bottom:1px solid var(--border); padding-bottom:8px;}
+  p, li{font-size:14.5px; line-height:1.7; color:var(--text);}
+  p{margin:0 0 12px;}
+  ul{margin:0 0 12px; padding-left:22px;}
+  a{color:var(--amber);}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px 24px; margin-top:8px;}
+  .footer-note{text-align:center; color:var(--muted); font-size:12.5px; margin-top:56px;
+    border-top:1px solid var(--border); padding-top:20px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Política de Privacidad</h1>
+  <div class="updated">Rayando el CDA · última actualización: 26 de julio de 2026</div>
+
+  <div class="card">
+    <h2>1. Alcance de esta política</h2>
+    <p>Esta política describe cómo Rayando el CDA maneja los datos en el contexto de su integración con
+    TikTok for Developers, usada para publicar automáticamente clips del programa en la cuenta oficial
+    @rayandoelcda. No aplica a datos de otros usuarios de TikTok, ya que esta integración no interactúa
+    con cuentas de terceros.</p>
+
+    <h2>2. Qué datos se recopilan</h2>
+    <ul>
+      <li>Un token de acceso de la propia cuenta de TikTok de Rayando el CDA (@rayandoelcda), autorizado
+      por su administrador para permitir la publicación automática de contenido.</li>
+      <li>No se recopilan datos personales de espectadores, seguidores u otros usuarios de TikTok.</li>
+      <li>No se accede a mensajes privados, contactos ni datos de terceros a través de esta integración.</li>
+    </ul>
+
+    <h2>3. Cómo se usan estos datos</h2>
+    <p>El token de acceso se usa exclusivamente para publicar, mediante la Content Posting API de TikTok,
+    los videos verticales que produce Rayando el CDA a partir de su programa. No se usa con ningún otro fin.</p>
+
+    <h2>4. Con quién se comparten</h2>
+    <p>Estos datos no se venden, alquilan ni comparten con terceros. Solo son accedidos por el equipo
+    técnico de Rayando el CDA para operar la publicación automática.</p>
+
+    <h2>5. Almacenamiento y seguridad</h2>
+    <p>El token de acceso se guarda en variables de entorno del servidor que ejecuta el proceso de
+    publicación, fuera de cualquier repositorio público, y no queda expuesto a usuarios finales.</p>
+
+    <h2>6. Control y revocación</h2>
+    <p>El administrador de la cuenta @rayandoelcda puede revocar el acceso de esta integración en
+    cualquier momento desde la configuración de aplicaciones conectadas en TikTok, deteniendo de
+    inmediato cualquier publicación automática futura.</p>
+
+    <h2>7. Cambios en esta política</h2>
+    <p>Esta política puede actualizarse. La fecha de la última actualización queda indicada arriba.</p>
+
+    <h2>8. Contacto</h2>
+    <p>Consultas sobre esta política: <a href="mailto:seba.pino.v@gmail.com">seba.pino.v@gmail.com</a></p>
+  </div>
+
+  <div class="footer-note">Rayando el CDA</div>
+</div>
+</body>
+</html>
