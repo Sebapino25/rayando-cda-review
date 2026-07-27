@@ -112,6 +112,7 @@ function App() {
     payload.revisado_por = reviewer
     payload.revisado_en = new Date().toISOString()
     payload.notas_revision = notasRevision || null
+    payload.video_url = null
     const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
     if (updateError) throw updateError
 

@@ -43,7 +43,8 @@ export async function esperarContenedorListo(
   const inicio = Date.now()
   while (Date.now() - inicio < config.containerTimeoutMs) {
     const resp = await fetchImpl(
-      `${GRAPH_API_BASE}/${creationId}?fields=status_code&access_token=${config.accessToken}`,
+      `${GRAPH_API_BASE}/${creationId}?fields=status_code`,
+      { headers: { Authorization: `Bearer ${config.accessToken}` } },
     )
     if (!resp.ok) {
       throw new Error(`Instagram: error consultando el contenedor (${resp.status}): ${await resp.text()}`)

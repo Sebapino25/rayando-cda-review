@@ -1,12 +1,11 @@
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts'
 import { enviarAlerta } from '../_shared/email.ts'
-import { excedeLimite } from './pin.ts'
+import { excedeLimite, VENTANA_MINUTOS_PIN, MAX_INTENTOS_PIN } from './pin.ts'
 import { obtenerAccessTokenYoutube, publicarYoutube } from './youtube.ts'
 import { publicarReel } from './instagram.ts'
 import { publicarTiktok } from './tiktok.ts'
 
 const CLAIM_EXPIRA_MINUTOS = 10
-const RATE_LIMIT_VENTANA_MINUTOS = 10
 
 // CORS: la función se llama desde el navegador (app React) vía
 // supabase.functions.invoke(), que dispara un preflight OPTIONS porque
@@ -44,7 +43,7 @@ Deno.serve(async (req: Request) => {
   const supabase = getSupabaseAdmin()
 
   // --- Rate limit de intentos fallidos de PIN ---
-  const desde = new Date(Date.now() - RATE_LIMIT_VENTANA_MINUTOS * 60_000).toISOString()
+  const desde = new Date(Date.now() - VENTANA_MINUTOS_PIN * 60_000).toISOString()
   const { count: intentosRecientes, error: countError } = await supabase
     .from('pin_intentos')
     .select('*', { count: 'exact', head: true })
@@ -56,10 +55,17 @@ Deno.serve(async (req: Request) => {
     )
   }
   if (excedeLimite(intentosRecientes ?? 0)) {
-    await enviarAlerta(
-      'Rayando el CDA: demasiados intentos de PIN',
-      `Se superó el límite de intentos de PIN (${intentosRecientes} en los últimos ${RATE_LIMIT_VENTANA_MINUTOS} minutos). Alguien podría estar intentando adivinarlo.`,
-    )
+    // Solo se manda la alerta en la request exacta que cruza el umbral, no en
+    // cada request posterior mientras se siga por encima del límite — si no,
+    // alguien puede agotar la cuota diaria de Resend con solo seguir
+    // pegándole al endpoint (y ese mismo Resend es el único canal de alerta
+    // si el refresco de token de Instagram falla más adelante).
+    if (intentosRecientes === MAX_INTENTOS_PIN) {
+      await enviarAlerta(
+        'Rayando el CDA: demasiados intentos de PIN',
+        `Se superó el límite de intentos de PIN (${intentosRecientes} en los últimos ${VENTANA_MINUTOS_PIN} minutos). Alguien podría estar intentando adivinarlo.`,
+      )
+    }
     return new Response(JSON.stringify({ error: 'Demasiados intentos fallidos, esperá unos minutos.' }), {
       status: 429,
       headers: jsonHeaders,
@@ -204,6 +210,22 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({ error: `Se publicó pero no se pudo actualizar el registro: ${finalError.message}` }),
       { status: 500, headers: jsonHeaders },
     )
+  }
+
+  // Best-effort: borrar el video de Storage ahora que ya se publicó en todas
+  // las redes habilitadas. Los uploads a cut-time hacen que el bucket
+  // clips-video crezca sin límite si nadie lo limpia (mismo criterio que el
+  // borrado al rechazar un clip, del lado del frontend) — un fallo acá no
+  // debe afectar la respuesta: el clip ya quedó publicado=true.
+  const marker = '/object/public/clips-video/'
+  const idx = reclamada.video_url.indexOf(marker)
+  if (idx !== -1) {
+    const path = reclamada.video_url.slice(idx + marker.length)
+    try {
+      await supabase.storage.from('clips-video').remove([path])
+    } catch (e) {
+      console.error(`No se pudo borrar el video de Storage para el clip ${clipId}:`, e)
+    }
   }
 
   return new Response(JSON.stringify({ ok: true, clip: publicado }), { status: 200, headers: jsonHeaders })

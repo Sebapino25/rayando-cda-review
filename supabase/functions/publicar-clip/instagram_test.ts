@@ -6,7 +6,8 @@ const sinEsperar = async (_ms: number) => {}
 
 Deno.test('publicarReel crea contenedor, espera FINISHED y publica', async () => {
   const llamadas: string[] = []
-  const fakeFetch = async (url: string | URL) => {
+  let headersEstado: HeadersInit | undefined
+  const fakeFetch = async (url: string | URL, init?: RequestInit) => {
     const u = url.toString()
     llamadas.push(u)
     if (u.includes('/media_publish')) {
@@ -16,6 +17,7 @@ Deno.test('publicarReel crea contenedor, espera FINISHED y publica', async () =>
       return new Response(JSON.stringify({ id: 'creation-1' }), { status: 200 })
     }
     if (u.includes('status_code')) {
+      headersEstado = init?.headers
       return new Response(JSON.stringify({ status_code: 'FINISHED' }), { status: 200 })
     }
     throw new Error(`URL no esperada en el test: ${u}`)
@@ -30,6 +32,11 @@ Deno.test('publicarReel crea contenedor, espera FINISHED y publica', async () =>
   )
   assertEquals(mediaId, 'media-final-1')
   assertEquals(llamadas.some((u) => u.includes('creation-1')), true)
+  // El token no debe viajar en la URL del polling de estado (se filtraría en
+  // logs/errores de red) — tiene que ir en el header Authorization.
+  const urlEstado = llamadas.find((u) => u.includes('status_code'))
+  assertEquals(urlEstado?.includes('access_token'), false)
+  assertEquals((headersEstado as Record<string, string> | undefined)?.Authorization, 'Bearer token-ig')
 })
 
 Deno.test('publicarReel reintenta mientras el status_code es IN_PROGRESS y corta en FINISHED', async () => {

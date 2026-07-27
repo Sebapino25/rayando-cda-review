@@ -1,0 +1,5 @@
+[functions.publicar-clip]
+verify_jwt = true
+
+[functions.refrescar-token-instagram]
+verify_jwt = true
