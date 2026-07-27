@@ -35,3 +35,4 @@ youtube_token.json
 *.njsproj
 *.sln
 *.sw?
+deno.lock
