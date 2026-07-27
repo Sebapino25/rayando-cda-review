@@ -93,3 +93,19 @@ alter table rayando_cda.pin_intentos enable row level security;
 -- Supabase, ir a Project Settings > API > Exposed schemas y agregar
 -- "rayando_cda" (junto a "public"). Sin esto, el cliente falla con un error
 -- PGRST106 aunque el GRANT de arriba esté bien.
+
+-- --- Corrección de seguridad: políticas de Storage en clips-video ---
+-- Hallazgo Crítico de la revisión final del branch de publicación final: el
+-- bucket clips-video (Storage) tenía policies que le daban a "anon" DELETE,
+-- INSERT y UPDATE sin restricción sobre todo el bucket. Con INSERT/UPDATE,
+-- cualquiera con la anon key pública (embebida en el bundle de GitHub Pages)
+-- podía reemplazar el video de un clip aprobado por contenido arbitrario,
+-- que después se publicaría de verdad al aprobar con el PIN. No hay ningún
+-- flujo legítimo del lado del navegador que necesite insertar o actualizar
+-- en este bucket (la subida real la hace publicar.py con la service role
+-- key). Se deja DELETE para anon (necesario para el rechazo best-effort de
+-- la app, ver handleReject en app/src/App.jsx). Ya aplicado contra el
+-- proyecto real; este bloque documenta el cambio para que quede reproducible
+-- si las policies del bucket se recrean desde cero.
+drop policy if exists clips_video_anon_insert on storage.objects;
+drop policy if exists clips_video_anon_update on storage.objects;
