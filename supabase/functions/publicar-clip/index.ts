@@ -8,21 +8,37 @@ import { publicarTiktok } from './tiktok.ts'
 const CLAIM_EXPIRA_MINUTOS = 10
 const RATE_LIMIT_VENTANA_MINUTOS = 10
 
+// CORS: la función se llama desde el navegador (app React) vía
+// supabase.functions.invoke(), que dispara un preflight OPTIONS porque
+// manda Authorization + Content-Type: application/json entre orígenes
+// distintos. Sin estos headers en TODAS las respuestas (incluidas las de
+// error), el navegador bloquea la request antes de que llegue al handler.
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
+
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Método no permitido' }), { status: 405 })
+    return new Response(JSON.stringify({ error: 'Método no permitido' }), { status: 405, headers: jsonHeaders })
   }
 
   let body: { clip_id?: string; pin?: string; dry_run?: boolean }
   try {
     body = await req.json()
   } catch {
-    return new Response(JSON.stringify({ error: 'Body inválido, se espera JSON' }), { status: 400 })
+    return new Response(JSON.stringify({ error: 'Body inválido, se espera JSON' }), { status: 400, headers: jsonHeaders })
   }
 
   const { clip_id: clipId, pin, dry_run: dryRun = false } = body
   if (!clipId || !pin) {
-    return new Response(JSON.stringify({ error: 'Faltan clip_id y/o pin' }), { status: 400 })
+    return new Response(JSON.stringify({ error: 'Faltan clip_id y/o pin' }), { status: 400, headers: jsonHeaders })
   }
 
   const supabase = getSupabaseAdmin()
@@ -36,7 +52,7 @@ Deno.serve(async (req: Request) => {
   if (countError) {
     return new Response(
       JSON.stringify({ error: `No se pudo chequear el límite de intentos: ${countError.message}` }),
-      { status: 500 },
+      { status: 500, headers: jsonHeaders },
     )
   }
   if (excedeLimite(intentosRecientes ?? 0)) {
@@ -46,6 +62,7 @@ Deno.serve(async (req: Request) => {
     )
     return new Response(JSON.stringify({ error: 'Demasiados intentos fallidos, esperá unos minutos.' }), {
       status: 429,
+      headers: jsonHeaders,
     })
   }
 
@@ -53,7 +70,7 @@ Deno.serve(async (req: Request) => {
   const pinEsperado = Deno.env.get('PUBLISH_PIN')
   if (!pinEsperado || pin !== pinEsperado) {
     await supabase.from('pin_intentos').insert({})
-    return new Response(JSON.stringify({ error: 'PIN incorrecto' }), { status: 401 })
+    return new Response(JSON.stringify({ error: 'PIN incorrecto' }), { status: 401, headers: jsonHeaders })
   }
 
   // --- Reclamar la fila de forma atómica (evita duplicados por doble click) ---
@@ -71,12 +88,13 @@ Deno.serve(async (req: Request) => {
   if (claimError) {
     return new Response(JSON.stringify({ error: `No se pudo reclamar el clip: ${claimError.message}` }), {
       status: 500,
+      headers: jsonHeaders,
     })
   }
   if (!reclamada) {
     return new Response(
       JSON.stringify({ error: 'El clip ya se está publicando, ya se publicó, o no está en estado aprobado.' }),
-      { status: 409 },
+      { status: 409, headers: jsonHeaders },
     )
   }
 
@@ -86,7 +104,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         error: 'Falta video_url en este clip (es anterior a este subsistema) — re-procesar el clip o subir el video a Storage a mano.',
       }),
-      { status: 422 },
+      { status: 422, headers: jsonHeaders },
     )
   }
 
@@ -98,7 +116,7 @@ Deno.serve(async (req: Request) => {
         clip: reclamada,
         mensaje: 'Dry-run OK: PIN válido, clip reclamable, video_url presente. No se publicó nada real.',
       }),
-      { status: 200 },
+      { status: 200, headers: jsonHeaders },
     )
   }
 
@@ -167,7 +185,7 @@ Deno.serve(async (req: Request) => {
   if (errores.length > 0) {
     await supabase.from('clips').update({ ...actualizacion, publicando_en: null }).eq('id', clipId)
     await enviarAlerta(`Rayando el CDA: falló la publicación de un clip (${clipId})`, errores.join('\n'))
-    return new Response(JSON.stringify({ error: errores.join(' | ') }), { status: 502 })
+    return new Response(JSON.stringify({ error: errores.join(' | ') }), { status: 502, headers: jsonHeaders })
   }
 
   const { data: publicado, error: finalError } = await supabase
@@ -184,9 +202,9 @@ Deno.serve(async (req: Request) => {
     )
     return new Response(
       JSON.stringify({ error: `Se publicó pero no se pudo actualizar el registro: ${finalError.message}` }),
-      { status: 500 },
+      { status: 500, headers: jsonHeaders },
     )
   }
 
-  return new Response(JSON.stringify({ ok: true, clip: publicado }), { status: 200 })
+  return new Response(JSON.stringify({ ok: true, clip: publicado }), { status: 200, headers: jsonHeaders })
 })
