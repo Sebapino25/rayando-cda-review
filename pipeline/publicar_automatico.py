@@ -239,7 +239,8 @@ def procesar_fila(row: dict, apply: bool) -> None:
             print("  [dry-run] Instagram: subiría vertical.mp4, crearía el Reel y lo publicaría.")
             exitos["instagram"] = True
         else:
-            carpeta = None
+            carpeta: Path | None = None
+            saltar_publicacion = False
             if not row.get("video_url"):
                 print("  Instagram: video_url ausente, buscando carpeta local...")
                 carpetas = reprocesar_subtitulos.encontrar_carpetas_candidatas(row)
@@ -251,12 +252,12 @@ def procesar_fila(row: dict, apply: bool) -> None:
                     print(f"    ERROR: {mensaje}")
                     publicar.registrar_error(nombre_clip, f"Instagram: {mensaje}")
                     exitos["instagram"] = False
-                    carpeta = "saltar"  # marcador para no caer al try de abajo
+                    saltar_publicacion = True
                 else:
                     carpeta = carpetas[0]
                     print(f"    Carpeta local: {carpeta}")
 
-            if carpeta != "saltar":
+            if not saltar_publicacion:
                 try:
                     media_id = publicar_reel(row, carpeta)
                     publicar.actualizar_clip_supabase(clip_id, {"instagram_media_id": media_id})
