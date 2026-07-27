@@ -76,10 +76,16 @@ App (React, GitHub Pages) — pestaña "Pendientes":
 App — pestaña "Historial":
   clips con estado='aprobado' AND publicado=false muestran botón
   "Publicar en redes" (NUEVO)
-        │  click + PIN
+        │  click → modal de confirmación (NUEVO): muestra plataformas
+        │  habilitadas, título de YouTube y copy de Instagram tal como van
+        │  a publicarse — última instancia humana antes de algo público
+        │  e irreversible
+        │  confirmar + PIN
         ▼
 Supabase Edge Function `publicar-clip` (NUEVO, TypeScript/Deno):
-  1. valida PIN contra secreto de la función (PUBLISH_PIN)
+  1. valida PIN contra secreto de la función (PUBLISH_PIN); un intento
+     fallido no cuenta contra el estado del clip pero sí queda registrado
+     (ver "Manejo de errores" — límite de intentos y alerta)
   2. lee la fila del clip (service role)
   3. valida estado='aprobado' AND publicado=false (defensa server-side,
      no confía solo en que la UI ya filtró)
@@ -110,6 +116,17 @@ cron semanal vía Supabase scheduled functions) chequea si el token de
 Instagram vence dentro de los próximos ~10 días y, si es así, envía un email
 de aviso con el link para renovarlo manualmente.
 
+## Verificación previa requerida (antes de implementar)
+
+- **Publishing status del proyecto de Google Cloud (OAuth de YouTube).** Si
+  el proyecto sigue en modo "Testing" (no verificado/publicado) en Google
+  Cloud Console > OAuth consent screen, el refresh token vence solo a los 7
+  días — mucho antes que el problema ya conocido de Instagram (60 días). Hay
+  que chequear el "Publishing status" antes de asumir que el refresh token
+  de YouTube es estable sin supervisión. Si está en Testing, pasarlo a
+  producción (o, si no es viable esta semana, agregar YouTube al mismo aviso
+  semanal de vencimiento de token que ya se construye para Instagram).
+
 ## Componentes nuevos/modificados
 
 | Componente | Cambio |
@@ -118,7 +135,7 @@ de aviso con el link para renovarlo manualmente.
 | `pipeline/supabase_migration_clips.sql` | agrega columna `video_url text`; **además** se corrige para reflejar el schema real (`portada_url`, `instagram_media_id` ya existen en la tabla real pero no estaban en este archivo — drift a corregir) |
 | `supabase/functions/publicar-clip/` | nuevo, Edge Function que hace la publicación real |
 | `supabase/functions/revisar-token-instagram/` | nuevo, Edge Function programada de aviso de vencimiento |
-| `app/src/components/HistoryCard.jsx` | botón "Publicar en redes" (visible en clips aprobados no publicados) + prompt de PIN + estados de carga/error |
+| `app/src/components/HistoryCard.jsx` | botón "Publicar en redes" (visible en clips aprobados no publicados) + modal de confirmación (resumen de qué se va a publicar y dónde) + prompt de PIN + estados de carga/error |
 | Secretos de la Edge Function (Supabase) | `PUBLICAR_YOUTUBE=true`, `PUBLICAR_INSTAGRAM=true`, `PUBLICAR_TIKTOK=false`, `PUBLISH_PIN`, credenciales de YouTube/Instagram/TikTok, `RESEND_API_KEY`, email destino |
 | `pipeline/config.py` | sin cambios en los flags `AUTO_PUBLICAR_*` (siguen gobernando solo el fallback manual `publicar_automatico.py`, en False por defecto) |
 | `pipeline/publicar_automatico.py` | pasa a ser fallback manual documentado, ya no el camino principal; se documenta ese cambio de rol |
@@ -130,7 +147,17 @@ de aviso con el link para renovarlo manualmente.
   idempotencia ya existente: `instagram_media_id` seteado = no volver a
   publicar ahí). El clip queda `publicado=false` y reintentable.
 - **PIN incorrecto**: la función devuelve 401, la app muestra el error
-  inline, no se toca la fila.
+  inline, no se toca la fila. La Edge Function queda expuesta como endpoint
+  público en internet, protegida solo por el PIN — se agrega un límite de
+  intentos fallidos por ventana de tiempo (ej. 5 intentos / 10 minutos,
+  usando una tabla simple en Supabase para contarlos) y un email de alerta
+  si se supera, para tener visibilidad de intentos de fuerza bruta.
+- **`video_url` ausente**: puede pasar en clips que quedaron `aprobado`/
+  `publicado=false` de antes de este cambio (no tenían `video_url` porque
+  recién se empieza a llenar con este subsistema). La función corta con un
+  error explícito ("falta video_url — re-procesar el clip o subir el video a
+  Storage a mano") en vez de fallar con un error críptico de la API de
+  Instagram.
 - **Edge Function inalcanzable / error de red**: la app muestra el error,
   ningún estado cambia en Supabase — reintentable.
 - **Cualquier falla de publicación**: dispara email de alerta con el detalle
@@ -167,3 +194,8 @@ de aviso con el link para renovarlo manualmente.
 - TikTok se construye pero no se activa esta semana: la app de TikTok
   Developers ni siquiera fue enviada a revisión (el formulario quedó en
   Draft al perderse los datos al pasar de Sandbox a Production).
+- **Expectativa honesta sobre TikTok**: se construye contra la documentación
+  actual de la Content Posting API sin poder probarlo en producción (la app
+  no está aprobada). Es probable que cuando se apruebe — probablemente
+  semanas después, sin el dueño del proyecto activo — haga falta un ajuste
+  antes de que funcione de verdad. No se promete "activar y listo".
