@@ -55,17 +55,13 @@ Deno.serve(async (req: Request) => {
     )
   }
   if (excedeLimite(intentosRecientes ?? 0)) {
-    // Solo se manda la alerta en la request exacta que cruza el umbral, no en
-    // cada request posterior mientras se siga por encima del límite — si no,
-    // alguien puede agotar la cuota diaria de Resend con solo seguir
-    // pegándole al endpoint (y ese mismo Resend es el único canal de alerta
-    // si el refresco de token de Instagram falla más adelante).
-    if (intentosRecientes === MAX_INTENTOS_PIN) {
-      await enviarAlerta(
-        'Rayando el CDA: demasiados intentos de PIN',
-        `Se superó el límite de intentos de PIN (${intentosRecientes} en los últimos ${VENTANA_MINUTOS_PIN} minutos). Alguien podría estar intentando adivinarlo.`,
-      )
-    }
+    // La alerta NO se manda acá: mientras se está bloqueado por este 429 no
+    // se llega nunca al insert de pin_intentos, así que intentosRecientes
+    // queda congelado y este bloque se ejecutaría en cada request del
+    // bloqueo (o ninguna, si varias requests concurrentes empujan el
+    // conteo de un salto por encima del umbral). La alerta se manda una
+    // sola vez, en el momento exacto en que el insert cruza el umbral —
+    // ver más abajo, en la rama de PIN incorrecto.
     return new Response(JSON.stringify({ error: 'Demasiados intentos fallidos, esperá unos minutos.' }), {
       status: 429,
       headers: jsonHeaders,
@@ -75,7 +71,19 @@ Deno.serve(async (req: Request) => {
   // --- Validar PIN ---
   const pinEsperado = Deno.env.get('PUBLISH_PIN')
   if (!pinEsperado || pin !== pinEsperado) {
+    // Se manda la alerta solo en el insert que empuja el conteo al umbral
+    // por primera vez: una vez alcanzado, todas las requests siguientes se
+    // frenan en el 429 de arriba antes de llegar a este insert, así que
+    // esto ocurre a lo sumo una vez por breach (salvo carreras en paralelo,
+    // que son un caso raro y acotado, no el spam sin límite del bug original).
+    const alcanzaLimite = (intentosRecientes ?? 0) + 1 === MAX_INTENTOS_PIN
     await supabase.from('pin_intentos').insert({})
+    if (alcanzaLimite) {
+      await enviarAlerta(
+        'Rayando el CDA: demasiados intentos de PIN',
+        `Se alcanzó el límite de intentos de PIN (${MAX_INTENTOS_PIN} en los últimos ${VENTANA_MINUTOS_PIN} minutos). Alguien podría estar intentando adivinarlo.`,
+      )
+    }
     return new Response(JSON.stringify({ error: 'PIN incorrecto' }), { status: 401, headers: jsonHeaders })
   }
 
