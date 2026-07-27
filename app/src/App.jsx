@@ -114,6 +114,22 @@ function App() {
     payload.notas_revision = notasRevision || null
     const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
     if (updateError) throw updateError
+
+    const clip = pendingClips.find((c) => c.id === id)
+    if (clip?.video_url) {
+      const marker = '/object/public/clips-video/'
+      const idx = clip.video_url.indexOf(marker)
+      if (idx !== -1) {
+        const path = clip.video_url.slice(idx + marker.length)
+        try {
+          await supabase.storage.from('clips-video').remove([path])
+        } catch {
+          // Best-effort, igual que el borrado de portadas: si falla, queda
+          // un archivo huérfano ocasional en vez de bloquear el rechazo.
+        }
+      }
+    }
+
     setPendingClips((prev) => prev.filter((c) => c.id !== id))
   }
 
