@@ -1,6 +1,18 @@
-"""Publicación final (pública) de clips ya aprobados: pasa el video de
-YouTube de "no listado" a "público" (con el título/descripción ya revisados
-por el equipo) y publica el Reel en Instagram (@rayandoelcda).
+"""Publicación final (pública) de clips ya aprobados — FALLBACK MANUAL.
+
+Desde el subsistema de publicación final desde la app (ver
+docs/superpowers/specs/2026-07-27-publicacion-final-redes-design.md), el
+camino principal es el botón "Publicar en redes" de la app (Historial),
+que dispara la Edge Function `publicar-clip`. Este script queda como
+respaldo manual, para forzar una publicación desde la PC local si la Edge
+Function falla o no está disponible.
+
+Pasa el video de YouTube de "no listado" a "público" (con el título/
+descripción ya revisados por el equipo) y publica el Reel en Instagram
+(@rayandoelcda). Usa row['video_url'] (subido por publicar.py al cortar el
+clip) cuando está presente; si falta (clips de antes de este subsistema),
+sube el video desde la carpeta local encontrada por correlación de
+contenido.
 
 Cada plataforma se activa por separado con los flags de config.py
 (AUTO_PUBLICAR_YOUTUBE / AUTO_PUBLICAR_INSTAGRAM), ambos en False por
@@ -86,18 +98,6 @@ def _ig_env(nombre: str) -> str:
     return valor
 
 
-def subir_video_storage(video_path: Path, storage_path: str) -> str:
-    """Sube vertical.mp4 al bucket público clips-video de Supabase Storage y
-    devuelve su URL pública (necesaria porque la Graph API de Instagram pide
-    una URL, no un archivo subido directo)."""
-    supabase = publicar.get_supabase_client()
-    data = video_path.read_bytes()
-    supabase.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).upload(
-        storage_path, data, {"content-type": "video/mp4", "upsert": "true"}
-    )
-    return supabase.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).get_public_url(storage_path)
-
-
 def crear_contenedor_reel(video_url: str, caption: str, cover_url: str | None) -> str:
     ig_user_id = _ig_env("INSTAGRAM_BUSINESS_ACCOUNT_ID")
     token = _ig_env("INSTAGRAM_ACCESS_TOKEN")
@@ -148,18 +148,23 @@ def publicar_contenedor(creation_id: str) -> str:
     return resp.json()["id"]
 
 
-def publicar_reel(row: dict, carpeta: Path) -> str:
-    """Sube vertical.mp4 a Storage, crea el contenedor REELS (con la portada
-    ya generada como cover_url, no hace falta una nueva para Instagram),
-    espera a que termine de procesar y publica. Devuelve el media_id."""
-    vertical_path = carpeta / "vertical.mp4"
-    if not vertical_path.exists():
-        raise RuntimeError(f"No existe {vertical_path}")
-
-    storage_path = f"{row.get('semana')}/{carpeta.name}.mp4"
-    print(f"    Subiendo {vertical_path.name} a Storage ({config.SUPABASE_CLIPS_VIDEO_BUCKET}/{storage_path})...")
-    video_url = subir_video_storage(vertical_path, storage_path)
-    print(f"    Video URL: {video_url}")
+def publicar_reel(row: dict, carpeta: Path | None) -> str:
+    """Publica el Reel de Instagram. Usa row['video_url'] (subido por
+    publicar.py al cortar el clip) si está presente — es el camino esperado
+    para clips nuevos. Si falta (clips de antes de este subsistema), cae al
+    comportamiento viejo: sube vertical.mp4 desde la carpeta local
+    encontrada por correlación de contenido."""
+    video_url = row.get("video_url")
+    if not video_url:
+        if carpeta is None:
+            raise RuntimeError("No hay video_url en la fila y no se encontró carpeta local para subir el video a mano.")
+        vertical_path = carpeta / "vertical.mp4"
+        if not vertical_path.exists():
+            raise RuntimeError(f"No existe {vertical_path}")
+        storage_path = f"{row.get('semana')}/{carpeta.name}.mp4"
+        print(f"    video_url ausente en la fila, subiendo {vertical_path.name} a Storage ({config.SUPABASE_CLIPS_VIDEO_BUCKET}/{storage_path})...")
+        video_url = publicar.subir_video_storage(vertical_path, storage_path)
+        print(f"    Video URL: {video_url}")
 
     caption = row.get("copy_instagram") or ""
     cover_url = row.get("portada_url")
@@ -182,7 +187,7 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,estado,publicado,semana,youtube_video_id,titulo,youtube_titulo,"
         "youtube_descripcion,copy_instagram,portada_url,instagram_media_id,"
-        "transcripcion_original"
+        "transcripcion_original,video_url"
     )
     query = supabase.table(config.SUPABASE_TABLE).select(columnas)
     if clip_id:
@@ -234,19 +239,24 @@ def procesar_fila(row: dict, apply: bool) -> None:
             print("  [dry-run] Instagram: subiría vertical.mp4, crearía el Reel y lo publicaría.")
             exitos["instagram"] = True
         else:
-            print("  Instagram: buscando carpeta local...")
-            carpetas = reprocesar_subtitulos.encontrar_carpetas_candidatas(row)
-            if len(carpetas) != 1:
-                mensaje = (
-                    f"No se encontró una única carpeta local (encontradas: {len(carpetas)}) "
-                    "cuyo subtitulos.srt calce EXACTO con transcripcion_original."
-                )
-                print(f"    ERROR: {mensaje}")
-                publicar.registrar_error(nombre_clip, f"Instagram: {mensaje}")
-                exitos["instagram"] = False
-            else:
-                carpeta = carpetas[0]
-                print(f"    Carpeta local: {carpeta}")
+            carpeta = None
+            if not row.get("video_url"):
+                print("  Instagram: video_url ausente, buscando carpeta local...")
+                carpetas = reprocesar_subtitulos.encontrar_carpetas_candidatas(row)
+                if len(carpetas) != 1:
+                    mensaje = (
+                        f"No se encontró una única carpeta local (encontradas: {len(carpetas)}) "
+                        "cuyo subtitulos.srt calce EXACTO con transcripcion_original, y la fila no tiene video_url."
+                    )
+                    print(f"    ERROR: {mensaje}")
+                    publicar.registrar_error(nombre_clip, f"Instagram: {mensaje}")
+                    exitos["instagram"] = False
+                    carpeta = "saltar"  # marcador para no caer al try de abajo
+                else:
+                    carpeta = carpetas[0]
+                    print(f"    Carpeta local: {carpeta}")
+
+            if carpeta != "saltar":
                 try:
                     media_id = publicar_reel(row, carpeta)
                     publicar.actualizar_clip_supabase(clip_id, {"instagram_media_id": media_id})
