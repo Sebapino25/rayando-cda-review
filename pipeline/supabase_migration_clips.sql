@@ -50,6 +50,45 @@ alter default privileges for role postgres in schema rayando_cda grant all on ta
 -- policies explícitas para esos roles (y sus GRANT correspondientes).
 alter table rayando_cda.clips enable row level security;
 
+-- --- Publicación final desde la app (ver docs/superpowers/specs/2026-07-27-publicacion-final-redes-design.md) ---
+alter table rayando_cda.clips add column if not exists video_url text;
+alter table rayando_cda.clips add column if not exists publicando_en timestamptz;
+alter table rayando_cda.clips add column if not exists tiktok_publish_id text;
+
+-- Corrección de drift: estas dos ya existen en la tabla real (las usa
+-- publicar.py/publicar_automatico.py/la app) pero no estaban documentadas
+-- en este archivo — se agregaron en algún momento fuera de este script.
+alter table rayando_cda.clips add column if not exists portada_url text;
+alter table rayando_cda.clips add column if not exists instagram_media_id text;
+
+-- Token de Instagram vigente, refrescado automáticamente por la Edge
+-- Function refrescar-token-instagram (cron semanal). Fila única forzada
+-- por el check constraint sobre "id".
+create table if not exists rayando_cda.instagram_token (
+    id boolean primary key default true,
+    access_token text not null,
+    vence_en timestamptz,
+    actualizado_en timestamptz not null default now(),
+    constraint instagram_token_fila_unica check (id)
+);
+
+-- Intentos fallidos de PIN contra publicar-clip (rate limiting de un
+-- endpoint público). Solo se insertan filas en intentos fallidos.
+create table if not exists rayando_cda.pin_intentos (
+    id bigint generated always as identity primary key,
+    creado_en timestamptz not null default now()
+);
+
+grant all on table rayando_cda.instagram_token to service_role;
+grant all on table rayando_cda.pin_intentos to service_role;
+
+alter table rayando_cda.instagram_token enable row level security;
+alter table rayando_cda.pin_intentos enable row level security;
+-- Sin policies para anon/authenticated a propósito: instagram_token tiene
+-- el access token vigente de Instagram, pin_intentos es el contador de
+-- seguridad del PIN. Solo service_role (Edge Functions) las toca — nunca
+-- deben quedar expuestas al schema "Exposed" que usa la app con la anon key.
+
 -- Paso manual obligatorio, no se puede hacer por SQL: en el dashboard de
 -- Supabase, ir a Project Settings > API > Exposed schemas y agregar
 -- "rayando_cda" (junto a "public"). Sin esto, el cliente falla con un error
