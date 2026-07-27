@@ -3,7 +3,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase
 // automáticamente en toda Edge Function — no hace falta configurarlos
 // como secretos custom.
-export function getSupabaseAdmin(): SupabaseClient {
+export function getSupabaseAdmin(): SupabaseClient<any, any, 'rayando_cda'> {
   const url = Deno.env.get('SUPABASE_URL')
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!url || !key) {
