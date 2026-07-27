@@ -181,6 +181,28 @@ function App() {
     loadPending()
   }
 
+  async function handlePublicar(id, pin) {
+    const { data, error: invokeError } = await supabase.functions.invoke('publicar-clip', {
+      body: { clip_id: id, pin },
+    })
+    if (invokeError) {
+      let mensaje = invokeError.message
+      if (invokeError.context) {
+        try {
+          const body = await invokeError.context.json()
+          if (body?.error) mensaje = body.error
+        } catch {
+          // el body no era JSON parseable, se usa el mensaje genérico
+        }
+      }
+      throw new Error(mensaje)
+    }
+    setHistoryClips((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...data.clip } : c))
+    )
+    return data
+  }
+
   if (!reviewer) {
     return <ReviewerGate onSubmit={handleReviewerSubmit} />
   }
@@ -306,7 +328,7 @@ function App() {
 
         {!loading && !error && tab === 'historial' &&
           historyClips.map((clip) => (
-            <HistoryCard key={clip.id} clip={clip} onUndo={handleUndo} onCoverRemove={handleCoverRemove} />
+            <HistoryCard key={clip.id} clip={clip} onUndo={handleUndo} onCoverRemove={handleCoverRemove} onPublicar={handlePublicar} />
           ))}
       </main>
     </div>

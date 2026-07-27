@@ -36,13 +36,14 @@ function ReadOnlyField({ label, value }) {
   )
 }
 
-export default function HistoryCard({ clip, onUndo, onCoverRemove }) {
+export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar }) {
   const stateMeta = STATE_META[clip.estado] ?? STATE_META.rechazado
   const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
   const [undoing, setUndoing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [expanded, setExpanded] = useState(false)
   const [removingCover, setRemovingCover] = useState(false)
+  const [publicando, setPublicando] = useState(false)
 
   async function handleUndo() {
     const confirmed = window.confirm('¿Seguro que quieres deshacer esta revisión?')
@@ -67,6 +68,32 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove }) {
       setErrorMsg(err.message || 'No se pudo quitar la portada. Probá de nuevo.')
     } finally {
       setRemovingCover(false)
+    }
+  }
+
+  async function handlePublicar() {
+    const resumen = [
+      'Se va a publicar de verdad, ahora mismo:',
+      '',
+      `Título de YouTube: ${clip.youtube_titulo || '(sin título)'}`,
+      `Copy de Instagram: ${clip.copy_instagram || '(sin copy)'}`,
+      '',
+      'Esto pasa el video a público en YouTube y publica el Reel en Instagram. No se puede deshacer.',
+      '¿Confirmás?',
+    ].join('\n')
+    if (!window.confirm(resumen)) return
+
+    const pin = window.prompt('PIN para publicar:')
+    if (!pin) return
+
+    setPublicando(true)
+    setErrorMsg('')
+    try {
+      await onPublicar(clip.id, pin)
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo publicar. Probá de nuevo.')
+    } finally {
+      setPublicando(false)
     }
   }
 
@@ -201,6 +228,23 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove }) {
           <p className="text-sm text-destructive font-medium" role="alert">
             {errorMsg}
           </p>
+        )}
+        {clip.estado === 'aprobado' && !clip.publicado && (
+          <button
+            type="button"
+            onClick={handlePublicar}
+            disabled={publicando}
+            className="self-start flex items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-40 cursor-pointer"
+          >
+            {publicando ? <SpinnerGap size={15} className="animate-spin" /> : <CheckCircle size={15} weight="bold" />}
+            Publicar en redes
+          </button>
+        )}
+        {clip.publicado && (
+          <span className="self-start flex items-center gap-1.5 text-sm font-semibold text-accent">
+            <CheckCircle size={15} weight="fill" />
+            Publicado
+          </span>
         )}
         <button
           type="button"
