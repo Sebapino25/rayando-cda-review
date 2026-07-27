@@ -47,9 +47,9 @@ Developers sea aprobada (hoy ni siquiera fue enviada a revisión).
 - No se implementa un sistema de login completo (Supabase Auth) — se usa un
   PIN validado del lado servidor, decisión explícita del usuario para no
   sumar ese trabajo esta semana.
-- No se automatiza el refresco del token de Instagram (vence cada ~60 días)
-  — en cambio, se avisa por email antes de que venza, para que el usuario lo
-  renueve a mano cuando corresponda.
+- No hay recuperación automática si Meta revoca o invalida el token de
+  Instagram por completo (requeriría re-consentimiento humano de nuevo) —
+  ese caso sí termina en un email de alerta, no hay forma de evitarlo.
 - No se publica realmente a TikTok todavía — el código queda listo pero
   detrás de un flag apagado, igual que YouTube/Instagram lo estuvieron hasta
   ahora.
@@ -86,10 +86,16 @@ Supabase Edge Function `publicar-clip` (NUEVO, TypeScript/Deno):
   1. valida PIN contra secreto de la función (PUBLISH_PIN); un intento
      fallido no cuenta contra el estado del clip pero sí queda registrado
      (ver "Manejo de errores" — límite de intentos y alerta)
-  2. lee la fila del clip (service role)
-  3. valida estado='aprobado' AND publicado=false (defensa server-side,
-     no confía solo en que la UI ya filtró)
-  4. por cada plataforma con su flag habilitado — la Edge Function tiene sus
+  2. **reclama la fila de forma atómica** antes de llamar a ninguna API
+     externa: `UPDATE clips SET publicando_en=now() WHERE id=:id AND
+     estado='aprobado' AND publicado=false AND (publicando_en IS NULL OR
+     publicando_en < now() - interval '10 minutes') RETURNING *` (columna
+     `publicando_en`, NUEVA — ver "Componentes"). Si el UPDATE no afecta
+     ninguna fila, devuelve 409 ("ya se está publicando o ya se publicó")
+     sin tocar ninguna API externa. La ventana de 10 minutos permite que un
+     intento trabado (crash, timeout) se pueda reintentar solo, en vez de
+     dejar la fila bloqueada para siempre.
+  3. por cada plataforma con su flag habilitado — la Edge Function tiene sus
      propios flags como secretos de Supabase (`PUBLICAR_YOUTUBE` /
      `PUBLICAR_INSTAGRAM` / `PUBLICAR_TIKTOK`; no lee `pipeline/config.py`,
      que es un archivo local y no está desplegado en Supabase). YouTube e
@@ -98,23 +104,40 @@ Supabase Edge Function `publicar-clip` (NUEVO, TypeScript/Deno):
      publicación real solo ocurre si alguien apretó el botón + puso el PIN.
      TikTok queda en `false` hasta que la app sea aprobada:
      - YouTube: PATCH del video (privacyStatus=public, title, description)
-       usando un refresh token de larga duración guardado como secreto
-       de la función (ya no depende de youtube_token.json local)
+       pidiendo un access token nuevo con el refresh token de larga
+       duración guardado como secreto de la función (ya no depende de
+       youtube_token.json local)
      - Instagram: crea contenedor REELS con video_url + portada_url
        (cover_url), espera a que termine de procesar, publica, guarda
-       instagram_media_id
+       instagram_media_id. El access token se lee de la tabla
+       `rayando_cda.instagram_token` (ver más abajo), no de un secreto
+       estático — se mantiene fresco solo (ver refresco automático abajo)
      - TikTok: mismo patrón (Content Posting API, PULL_FROM_URL con
-       video_url) pero solo se ejecuta si AUTO_PUBLICAR_TIKTOK=true
-  5. si todas las plataformas habilitadas terminan bien: publicado=true,
-     publicado_en=now()
-  6. si alguna falla: publicado sigue false (reintentable con otro click),
+       video_url) pero solo se ejecuta si PUBLICAR_TIKTOK=true
+  4. si todas las plataformas habilitadas terminan bien: `publicado=true`,
+     `publicado_en=now()`
+  5. si alguna falla: revierte `publicando_en=null` dejando `publicado=false`
+     (reintentable con otro click, sin esperar los 10 minutos de expiración),
      se envía un email de alerta (Resend) con el detalle
+
+Del lado del cliente (`HistoryCard.jsx`), el botón se deshabilita apenas se
+hace click (antes de esperar la respuesta) como defensa adicional contra el
+doble click — el guard real y definitivo es el `UPDATE` atómico del punto 2,
+esto es solo para evitar la llamada duplicada obvia.
 ```
 
-Adicionalmente, una segunda Edge Function programada (`revisar-token-instagram`,
-cron semanal vía Supabase scheduled functions) chequea si el token de
-Instagram vence dentro de los próximos ~10 días y, si es así, envía un email
-de aviso con el link para renovarlo manualmente.
+**Refresco automático del token de Instagram.** `pipeline/.env.example` ya
+documenta que el token de Instagram se refresca vía `GET
+https://graph.instagram.com/refresh_access_token` sin interacción humana —
+dado que el objetivo es que esto corra sin que el usuario tenga que hacer
+nada, se automatiza del todo en vez de solo avisar: el token vigente se
+guarda en una tabla nueva de una sola fila, `rayando_cda.instagram_token`
+(`access_token text`, `vence_en timestamptz`, `actualizado_en timestamptz`).
+Una Edge Function programada (`refrescar-token-instagram`, cron semanal)
+llama al refresh y actualiza esa fila. `publicar-clip` lee el token de ahí,
+no de un secreto estático. Si el refresh en sí falla (ej. Meta revocó el
+token, requiere volver a loguear manualmente), ahí sí se envía el email de
+alerta — es el único caso que queda como tarea manual para el usuario.
 
 ## Verificación previa requerida (antes de implementar)
 
@@ -123,29 +146,46 @@ de aviso con el link para renovarlo manualmente.
   Cloud Console > OAuth consent screen, el refresh token vence solo a los 7
   días — mucho antes que el problema ya conocido de Instagram (60 días). Hay
   que chequear el "Publishing status" antes de asumir que el refresh token
-  de YouTube es estable sin supervisión. Si está en Testing, pasarlo a
-  producción (o, si no es viable esta semana, agregar YouTube al mismo aviso
-  semanal de vencimiento de token que ya se construye para Instagram).
+  de YouTube es estable sin supervisión. A diferencia de Instagram, un
+  refresh token de Google no tiene una llamada de "extender" — si está en
+  Testing, la única solución real es pasar el proyecto a producción. Si no
+  es viable esta semana, un fallo de auth de YouTube ya cae en el mecanismo
+  genérico de alerta por email (ver "Manejo de errores"), así que al menos
+  no falla en silencio, aunque siga siendo una tarea manual pendiente.
 
 ## Componentes nuevos/modificados
 
 | Componente | Cambio |
 |---|---|
 | `pipeline/publicar.py` | suma la subida de `vertical.mp4` a Supabase Storage (lógica movida desde `publicar_automatico.py`) y guarda `video_url` al insertar |
-| `pipeline/supabase_migration_clips.sql` | agrega columna `video_url text`; **además** se corrige para reflejar el schema real (`portada_url`, `instagram_media_id` ya existen en la tabla real pero no estaban en este archivo — drift a corregir) |
-| `supabase/functions/publicar-clip/` | nuevo, Edge Function que hace la publicación real |
-| `supabase/functions/revisar-token-instagram/` | nuevo, Edge Function programada de aviso de vencimiento |
-| `app/src/components/HistoryCard.jsx` | botón "Publicar en redes" (visible en clips aprobados no publicados) + modal de confirmación (resumen de qué se va a publicar y dónde) + prompt de PIN + estados de carga/error |
-| Secretos de la Edge Function (Supabase) | `PUBLICAR_YOUTUBE=true`, `PUBLICAR_INSTAGRAM=true`, `PUBLICAR_TIKTOK=false`, `PUBLISH_PIN`, credenciales de YouTube/Instagram/TikTok, `RESEND_API_KEY`, email destino |
+| `pipeline/supabase_migration_clips.sql` | agrega columnas `video_url text` y `publicando_en timestamptz`; **además** se corrige para reflejar el schema real (`portada_url`, `instagram_media_id` ya existen en la tabla real pero no estaban en este archivo — drift a corregir); agrega la tabla nueva `rayando_cda.instagram_token` (fila única: `access_token text`, `vence_en timestamptz`, `actualizado_en timestamptz`) |
+| `supabase/functions/publicar-clip/` | nuevo, Edge Function que hace la publicación real (con claim atómico vía `publicando_en`) |
+| `supabase/functions/refrescar-token-instagram/` | nuevo, Edge Function programada (cron semanal) que refresca el token de Instagram y actualiza `rayando_cda.instagram_token`; alerta por email solo si el refresh falla |
+| `app/src/components/HistoryCard.jsx` | botón "Publicar en redes" (visible en clips aprobados no publicados, deshabilitado apenas se clickea) + modal de confirmación (resumen de qué se va a publicar y dónde) + prompt de PIN + estados de carga/error |
+| `app/src/App.jsx` (`handleReject`) | suma borrado best-effort de `video_url` en Storage al rechazar (mismo patrón que `handleCoverRemove`) |
+| Secretos de la Edge Function (Supabase) | `PUBLICAR_YOUTUBE=true`, `PUBLICAR_INSTAGRAM=true`, `PUBLICAR_TIKTOK=false`, `PUBLISH_PIN`, `YOUTUBE_CLIENT_ID`, `YOUTUBE_CLIENT_SECRET`, `YOUTUBE_REFRESH_TOKEN`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET` (usados solo por el refresco automático, no por `publicar-clip`, que lee el token vigente de la tabla), credenciales de TikTok (a definir cuando se apruebe la app), `RESEND_API_KEY`, email destino |
 | `pipeline/config.py` | sin cambios en los flags `AUTO_PUBLICAR_*` (siguen gobernando solo el fallback manual `publicar_automatico.py`, en False por defecto) |
 | `pipeline/publicar_automatico.py` | pasa a ser fallback manual documentado, ya no el camino principal; se documenta ese cambio de rol |
 
 ## Manejo de errores
 
+- **Doble click / reintento concurrente**: el `UPDATE ... RETURNING`
+  atómico sobre `publicando_en` (ver Arquitectura) hace que una segunda
+  invocación mientras la primera sigue en curso reciba 409 sin llamar a
+  ninguna API externa — evita Reels/publicaciones duplicadas. Si una
+  invocación se cae sin llegar a revertir `publicando_en`, la fila queda
+  reintentable sola después de 10 minutos.
 - **Falla parcial por plataforma**: cada plataforma es independiente; el
   fallo de una no reintenta las que ya salieron bien (mismo chequeo de
   idempotencia ya existente: `instagram_media_id` seteado = no volver a
   publicar ahí). El clip queda `publicado=false` y reintentable.
+- **Storage huérfano al rechazar un clip**: como ahora se sube el video a
+  Storage al momento del corte (no al publicar), un clip que termina
+  `rechazado` deja su `vertical.mp4` en el bucket sin usarlo. Al pasar a
+  `estado='rechazado'` se borra el archivo de Storage best-effort (mismo
+  patrón que ya usa `handleCoverRemove` en `App.jsx` para portadas — si el
+  borrado falla no bloquea el rechazo, solo queda un archivo huérfano
+  ocasional en vez de todos).
 - **PIN incorrecto**: la función devuelve 401, la app muestra el error
   inline, no se toca la fila. La Edge Function queda expuesta como endpoint
   público en internet, protegida solo por el PIN — se agrega un límite de
@@ -161,10 +201,13 @@ de aviso con el link para renovarlo manualmente.
 - **Edge Function inalcanzable / error de red**: la app muestra el error,
   ningún estado cambia en Supabase — reintentable.
 - **Cualquier falla de publicación**: dispara email de alerta con el detalle
-  del error (mismo mecanismo/servicio, Resend, usado por el aviso de
-  vencimiento de token).
-- **Token de Instagram vencido**: se distingue explícitamente en el mensaje
-  de error (vs. un fallo transitorio de red) para que el email sea accionable.
+  del error (mismo mecanismo/servicio, Resend, usado por la alerta de
+  refresco fallido de Instagram).
+- **Token de Instagram sin refrescar / inválido en el momento de publicar**:
+  se distingue explícitamente en el mensaje de error (vs. un fallo
+  transitorio de red) para que el email sea accionable — a esta altura ya
+  debería haber llegado antes la alerta del refresco semanal fallido, así
+  que este caso sería la segunda señal del mismo problema, no la primera.
 
 ## Testing
 
