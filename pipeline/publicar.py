@@ -190,6 +190,20 @@ def subir_portada_storage(portada_path: Path, storage_path: str) -> str | None:
     return supabase.storage.from_(config.SUPABASE_PORTADAS_BUCKET).get_public_url(storage_path)
 
 
+def subir_video_storage(video_path: Path, storage_path: str) -> str:
+    """Sube el vertical.mp4 final al bucket público clips-video de Supabase
+    Storage y devuelve su URL pública. A diferencia de la portada, esto NO
+    es opcional: sin video_url la publicación final (Edge Function
+    publicar-clip) no tiene forma de acceder al archivo — una falla acá se
+    propaga, no hay fallback silencioso como en subir_portada_storage."""
+    supabase = get_supabase_client()
+    data = video_path.read_bytes()
+    supabase.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).upload(
+        storage_path, data, {"content-type": "video/mp4", "upsert": "true"}
+    )
+    return supabase.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).get_public_url(storage_path)
+
+
 # ---------- Orquestación ----------
 
 def numero_clip(program_date: str, nombre_clip: str) -> int:
@@ -259,6 +273,11 @@ def publicar_clip(
     if portada_url:
         print(f"  Portada: {portada_url}")
 
+    print("  Subiendo vertical.mp4 a Supabase Storage...")
+    video_storage_path = f"{program_date}/{nombre_clip}.mp4"
+    video_url = subir_video_storage(video_path, video_storage_path)
+    print(f"  Video URL: {video_url}")
+
     payload = {
         "youtube_video_id": video_id,
         "titulo": titulo,
@@ -273,6 +292,7 @@ def publicar_clip(
         "semana": program_date,
         "estado": "pendiente",
         "portada_url": portada_url,
+        "video_url": video_url,
     }
     print(f"  Insertando en Supabase ({config.SUPABASE_SCHEMA}.{config.SUPABASE_TABLE})...")
     supabase_id = insertar_clip_supabase(payload)
@@ -285,6 +305,7 @@ def publicar_clip(
         f"YouTube URL: {youtube_url}\n"
         f"Supabase id: {supabase_id}\n"
         f"Portada: {portada_url or '(no se pudo subir, revisar manualmente)'}\n"
+        f"Video URL: {video_url}\n"
         f"Estado: pendiente\n"
         f"Título subido (genérico, no final): {titulo}\n"
         f"Razón: {razon or '(no especificada)'}\n"
