@@ -36,3 +36,4 @@ youtube_token.json
 *.sln
 *.sw?
 deno.lock
+supabase/.temp/
