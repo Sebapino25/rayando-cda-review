@@ -248,6 +248,42 @@ qué IDs de Supabase.
 `.env`, `youtube_token.json` y `errores_publicacion.log` están en
 `.gitignore` — nunca se suben a git.
 
+## Disparador automático (Task Scheduler)
+
+Una tarea de Windows Task Scheduler llamada `RayandoCDA_AutoProcesar`
+arranca `auto_procesar_loop.ps1` al iniciar sesión, que cada 5 minutos
+corre `auto_procesar.ps1`: si hay una grabación nueva en `grabaciones\`
+(sin transcripción todavía y sin cambios en los últimos 5 min, para no
+agarrar un archivo que OBS todavía está escribiendo), corre
+`transcribir.py` + `procesar_programa.py` sola.
+
+**Notificaciones por mail (vía Resend):**
+- Al terminar bien: aviso a todo el equipo (`seba.pino.v@gmail.com`,
+  `Cristian.fajardoc@gmail.com`, `arriagada.rene@gmail.com`) con el link a
+  la app para revisar los clips nuevos.
+- Si falla: aviso solo a `seba.pino.v@gmail.com`, con las últimas líneas
+  del log de esa corrida incluidas en el mail. El log completo queda en
+  `pipeline\logs_auto\<nombre-grabación>.log`.
+
+**Para registrar la tarea (primera vez en una PC nueva, o para
+re-registrarla si hace falta):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File pipeline\registrar_tarea_programada.ps1
+```
+
+Es idempotente — mata cualquier loop manual que haya quedado corriendo y
+vuelve a crear la tarea desde cero. Corre solo mientras la sesión de
+Windows esté iniciada (no requiere guardar la contraseña de la cuenta).
+
+**Para revisar el estado:**
+
+```powershell
+Get-ScheduledTask -TaskName RayandoCDA_AutoProcesar | Select-Object TaskName, State
+Get-ScheduledTaskInfo -TaskName RayandoCDA_AutoProcesar
+Get-Content pipeline\logs_auto\loop.log -Tail 10
+```
+
 ## Diccionario de nombres propios y corrección automática
 
 `diccionario.json` contiene los términos correctos del universo del programa
