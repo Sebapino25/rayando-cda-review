@@ -1,4 +1,4 @@
-# Registra (o re-registra) la tarea de Task Scheduler "RayandoCDA_AutoProcesar":
+﻿# Registra (o re-registra) la tarea de Task Scheduler "RayandoCDA_AutoProcesar":
 # arranca auto_procesar_loop.ps1 al iniciar sesión de este usuario, sin pedir
 # ni guardar contraseña. Idempotente: si la tarea ya existe, la borra y la
 # vuelve a crear. Además mata cualquier loop que haya quedado corriendo a

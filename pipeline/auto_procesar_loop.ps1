@@ -1,4 +1,4 @@
-# Loop de respaldo mientras se resuelve el registro en Task Scheduler
+﻿# Loop de respaldo mientras se resuelve el registro en Task Scheduler
 # (ver auto_procesar.ps1 para la lógica real de detección/procesamiento).
 # Corre indefinidamente, revisando cada 5 minutos. Pensado para lanzarse
 # como proceso independiente (Start-Process -WindowStyle Hidden), no como
