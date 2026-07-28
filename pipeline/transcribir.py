@@ -92,12 +92,16 @@ def load_model_and_start(video_path: Path, model_size: str):
     except Exception as e:
         print(f"No se pudo usar GPU ({e}).")
         print(f"Cargando modelo '{model_size}' en CPU ({config.WHISPER_COMPUTE_TYPE_CPU})...")
-        model = WhisperModel(
-            model_size, device="cpu", compute_type=config.WHISPER_COMPUTE_TYPE_CPU
-        )
-        first, iterator, info = _start_transcription(model, video_path)
-        print("Modelo corriendo en CPU.")
-        return first, iterator, info
+        try:
+            model = WhisperModel(
+                model_size, device="cpu", compute_type=config.WHISPER_COMPUTE_TYPE_CPU
+            )
+            first, iterator, info = _start_transcription(model, video_path)
+            print("Modelo corriendo en CPU.")
+            return first, iterator, info
+        except Exception as e2:
+            print(f"Falló también en CPU ({e2}).")
+            raise
 
 
 def format_srt_timestamp(seconds: float) -> str:
