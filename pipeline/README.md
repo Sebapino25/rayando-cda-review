@@ -238,6 +238,10 @@ qué IDs de Supabase.
    saltarse RLS). Las variables de YouTube (`YOUTUBE_CLIENT_ID`/
    `YOUTUBE_CLIENT_SECRET`) ya quedaron completadas a partir del
    `client_secret_*.json` que ya tenías descargado de Google Cloud Console.
+   También completa `RESEND_API_KEY` (dashboard de Resend) — sin ella, el
+   disparador automático (ver sección "Disparador automático" más abajo) no
+   puede mandar los mails de aviso/error; el resto de las variables está
+   documentado en `.env.example`.
 4. `pip install -r requirements.txt` (agrega `python-dotenv`,
    `google-api-python-client`, `google-auth-oauthlib` y `supabase`).
 5. La **primera vez** que cortes y subas un clip, se abrirá el navegador para

@@ -17,6 +17,9 @@ Add-Content -Path $LogLoop -Value "$(Get-Date -Format o) Loop de respaldo inicia
 while ($true) {
     try {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ScriptReal
+        if ($LASTEXITCODE -ne 0) {
+            Add-Content -Path $LogLoop -Value "$(Get-Date -Format o) auto_procesar.ps1 salió con código $LASTEXITCODE (revisar pipeline\logs_auto\auto_procesar_errores.log si existe)."
+        }
     } catch {
         Add-Content -Path $LogLoop -Value "$(Get-Date -Format o) Error en la corrida: $_"
     }

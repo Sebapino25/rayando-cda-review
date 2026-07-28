@@ -19,6 +19,13 @@ $ErrorActionPreference = "Continue"
 # chequeos de $LASTEXITCODE de más abajo, que no dependen de esta
 # preferencia.
 
+# Fuerza UTF-8 tanto para Add-Content como para el redirect *>> (que en
+# Windows PowerShell 5.1 usa Out-File por debajo, con UTF-16LE por defecto).
+# Sin esto, $logFile queda con encodings mezclados y Obtener-TailLog (más
+# abajo) lee texto ilegible con bytes nulos en las porciones UTF-16LE.
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+$PSDefaultParameterValues['Add-Content:Encoding'] = 'utf8'
+
 $BaseDir = "C:\Users\sebap\OneDrive\Escritorio\RayandoelCDA"
 $PipelineDir = "C:\Users\sebap\rayando-cda\pipeline"
 $GrabacionesDir = Join-Path $BaseDir "grabaciones"
@@ -32,13 +39,17 @@ function Get-DotEnvValue($key, $envFile) {
     return ($line -split "=", 2)[1].Trim().Trim('"')
 }
 
+if (-not (Test-Path $LogsDir)) { New-Item -ItemType Directory -Path $LogsDir | Out-Null }
+
 $ResendApiKey = Get-DotEnvValue "RESEND_API_KEY" (Join-Path $PipelineDir ".env")
-if (-not $ResendApiKey) { throw "Falta RESEND_API_KEY en pipeline\.env (copiá .env.example y completá el valor)." }
+if (-not $ResendApiKey) {
+    $msg = "Falta RESEND_API_KEY en pipeline\.env (copiá .env.example y completá el valor)."
+    Add-Content -Path (Join-Path $LogsDir "auto_procesar_errores.log") -Value "$(Get-Date -Format o) $msg"
+    throw $msg
+}
 $AlertEmail = "seba.pino.v@gmail.com"
 $TeamEmails = @($AlertEmail, "Cristian.fajardoc@gmail.com", "arriagada.rene@gmail.com")
 $AppUrl = "https://sebapino25.github.io/rayando-cda-review/"
-
-if (-not (Test-Path $LogsDir)) { New-Item -ItemType Directory -Path $LogsDir | Out-Null }
 
 function Enviar-Alerta($asunto, $cuerpo, $destinatarios = @($AlertEmail)) {
     try {
