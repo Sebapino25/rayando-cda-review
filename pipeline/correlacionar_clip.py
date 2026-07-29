@@ -111,13 +111,53 @@ def _siguiente_version_dir(carpeta: Path) -> Path:
     return carpeta / f"v{n}"
 
 
+# Archivos que respaldar_version_anterior mueve a vN\ (y que
+# restaurar_version_respaldada devuelve a su lugar si el reproceso falla).
+ARCHIVOS_VERSIONADOS = ("vertical.mp4", "subtitulos.srt", "subtitulos.ass", "horizontal_original.mp4")
+
+
 def respaldar_version_anterior(carpeta: Path) -> Path:
     """Mueve vertical.mp4 + subtitulos.srt/.ass (y horizontal_original.mp4,
     si existe) a una subcarpeta vN\\ antes de sobreescribirlos."""
     destino = _siguiente_version_dir(carpeta)
     destino.mkdir(parents=True, exist_ok=False)
-    for nombre in ("vertical.mp4", "subtitulos.srt", "subtitulos.ass", "horizontal_original.mp4"):
+    for nombre in ARCHIVOS_VERSIONADOS:
         origen = carpeta / nombre
         if origen.exists():
             shutil.move(str(origen), str(destino / nombre))
     return destino
+
+
+def restaurar_version_respaldada(carpeta: Path, destino: Path) -> None:
+    """Deshace respaldar_version_anterior: borra los archivos nuevos
+    (posiblemente parciales) que quedaron en la carpeta y devuelve los del
+    respaldo vN\\ a su lugar, eliminando la carpeta vN\\ si queda vacía.
+
+    Es crítico para el reproceso de video: la carpeta local de un clip solo
+    se puede encontrar comparando el texto de subtitulos.srt contra
+    transcripcion_original de la fila (ver encontrar_carpetas_candidatas).
+    Si un reproceso falla a mitad de camino (ffmpeg, validación, YouTube,
+    Storage o el update de Supabase), el subtitulos.srt de la carpeta ya
+    corresponde al rango NUEVO mientras la fila sigue con el texto VIEJO, y
+    la carpeta queda para siempre imposible de correlacionar. Restaurar deja
+    la carpeta exactamente como estaba antes del intento, para que el
+    siguiente reintento vuelva a encontrarla y reporte el error real.
+
+    NO toca portada_vertical.jpg / portada_horizontal.jpg: esas no se
+    respaldan (limitación conocida y aceptada), así que borrarlas perdería
+    las originales sin poder recuperarlas."""
+    if not destino.exists():
+        return
+    for nombre in ARCHIVOS_VERSIONADOS:
+        nuevo = carpeta / nombre
+        respaldado = destino / nombre
+        if nuevo.exists():
+            nuevo.unlink()
+        if respaldado.exists():
+            shutil.move(str(respaldado), str(nuevo))
+    try:
+        destino.rmdir()
+    except OSError:
+        # Quedó algo más adentro (no debería): se deja la carpeta vN\ para
+        # inspección manual en vez de borrar archivos a ciegas.
+        pass
