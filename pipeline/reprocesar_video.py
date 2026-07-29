@@ -290,3 +290,52 @@ def procesar_fila(row: dict, apply: bool) -> bool:
     print(f"  Listo. Clip vuelve a 'pendiente' para revisión. youtube_video_id: {video_id_anterior} -> {nuevo_video_id}")
     print(f"  NOTA: el video anterior ({video_id_anterior}) sigue en YouTube como no listado; bórralo a mano si ya no sirve.")
     return True
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Busca clips en estado='correccion_video', interpreta el pedido de "
+            "comentarios_video con IA y, si hay confianza, vuelve a cortar el clip "
+            "con el nuevo in/out y lo sube de nuevo. Nunca adivina: si algo es "
+            "ambiguo o de baja confianza, aborta esa fila sin tocar nada."
+        )
+    )
+    parser.add_argument(
+        "--apply", action="store_true",
+        help="Ejecuta de verdad. Sin este flag corre en dry-run (solo muestra qué haría).",
+    )
+    parser.add_argument(
+        "--clip-id", default=None,
+        help="Procesa solo este id de rayando_cda.clips (para probar contra un solo clip).",
+    )
+    parser.add_argument(
+        "--uno", action="store_true",
+        help="Procesa solo la fila pendiente más antigua (pensado para el disparador "
+             "automático: deja que la siguiente corrida procese el resto).",
+    )
+    args = parser.parse_args()
+
+    supabase = publicar.get_supabase_client()
+    filas = buscar_pendientes(supabase, args.clip_id)
+
+    if not filas:
+        if args.clip_id:
+            print(f"El clip {args.clip_id} no está en estado='correccion_video'.")
+        else:
+            print("No hay clips pendientes de corrección de video.")
+        sys.exit(0)
+
+    if args.uno:
+        filas = filas[:1]
+
+    print(f"{'[APPLY]' if args.apply else '[DRY-RUN]'} {len(filas)} clip(s) pendiente(s) de corrección.")
+    resultados = [procesar_fila(row, apply=args.apply) for row in filas]
+
+    if all(resultados):
+        sys.exit(3 if args.apply else 0)
+    sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
