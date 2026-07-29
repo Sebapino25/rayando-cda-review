@@ -20,6 +20,7 @@ procese el resto).
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -126,6 +127,23 @@ class EjecutarError(Exception):
     """Falló un paso técnico al ejecutar la corrección (recorte, validación o subida)."""
 
 
+def _titulo_portada_de_copys(carpeta: Path) -> str | None:
+    """Lee el título de portada ORIGINAL desde copys.md (línea `**Portada:**
+    ...`), el mismo archivo que escribió cortar_clip.build_copys() al cortar
+    el clip por primera vez. Los copys curados no se regeneran en una
+    corrección de video (solo cambia el rango de tiempo), así que este es el
+    título correcto a reusar — evita depender de clip_overrides.json, que
+    para la mayoría de los clips NO tiene una entrada titulo_portada (ver
+    docs de clip_overrides.json), lo cual dejaría titulo_portada en None y
+    hacía fallar portadas.build_portadas() para el caso común. Devuelve None
+    si copys.md no existe o no tiene la línea esperada (fallback al llamador)."""
+    copys_path = carpeta / "copys.md"
+    if not copys_path.exists():
+        return None
+    match = re.search(r"\*\*Portada:\*\*\s*(.+)", copys_path.read_text(encoding="utf-8"))
+    return match.group(1).strip() if match else None
+
+
 def _ejecutar_recorte(carpeta: Path, video_path: Path, nuevo_inicio: float, nuevo_fin: float, nombre_clip: str):
     """Re-corta horizontal+vertical (subtítulos/logo/portada) con el nuevo
     rango, reusando las funciones de cortar_clip.py. Devuelve
@@ -155,7 +173,7 @@ def _ejecutar_recorte(carpeta: Path, video_path: Path, nuevo_inicio: float, nuev
         cortar_clip.build_clip_ass(captions, carpeta / "subtitulos.ass")
 
     overrides = cortar_clip._cargar_overrides(nombre_clip)
-    titulo_portada = overrides.get("titulo_portada")
+    titulo_portada = _titulo_portada_de_copys(carpeta) or overrides.get("titulo_portada")
     try:
         cortar_clip.build_vertical(carpeta, has_subtitles, titulo_portada)
     except Exception as e:
