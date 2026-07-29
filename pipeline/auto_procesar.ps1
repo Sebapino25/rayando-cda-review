@@ -107,3 +107,27 @@ foreach ($rec in $candidatos) {
 
     break
 }
+
+# --- Corrección automática de in/out points pedida por el equipo editorial ---
+# Un solo clip por corrida (--uno), igual que el procesamiento de
+# grabaciones más arriba: si hay más de uno pendiente, la siguiente
+# corrida (5 min después) procesa el resto.
+$logCorreccion = Join-Path $LogsDir "correccion_video.log"
+Push-Location $PipelineDir
+try {
+    & python reprocesar_video.py --apply --uno *>> $logCorreccion
+    $exitCode = $LASTEXITCODE
+} finally {
+    Pop-Location
+}
+
+if ($exitCode -eq 3) {
+    Enviar-Alerta "Rayando el CDA: se aplicó una corrección de video" `
+        "Se aplicó un pedido de corrección de video automáticamente. Entrá a la app para revisar el clip corregido: $AppUrl`n`nLog: $logCorreccion" `
+        $TeamEmails
+} elseif ($exitCode -eq 1) {
+    $tail = Obtener-TailLog $logCorreccion
+    Enviar-Alerta "Rayando el CDA: falló la corrección automática de video" `
+        "Falló o no se pudo interpretar con confianza un pedido de corrección de video.`n`nÚltimas líneas del log ($logCorreccion):`n$tail`n`nEl clip queda en estado='correccion_video' sin tocar; revisar y corregir a mano si hace falta (ver pipeline/README.md)."
+}
+# exitCode 0 (nada pendiente): no se manda mail.

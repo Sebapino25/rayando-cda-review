@@ -269,6 +269,18 @@ agarrar un archivo que OBS todavía está escribiendo), corre
   del log de esa corrida incluidas en el mail. El log completo queda en
   `pipeline\logs_auto\<nombre-grabación>.log`.
 
+**Corrección automática de video:** además de procesar grabaciones
+nuevas, cada corrida también revisa si hay algún clip en
+`estado='correccion_video'` (pedido de ajustar el in/out point vía
+`comentarios_video` en la app de revisión) y, si lo hay, corre
+`reprocesar_video.py --apply --uno` para interpretarlo con IA y volver a
+cortar el clip solo. Si la IA no tiene confianza en el pedido, o no se
+puede encontrar la carpeta local del clip sin ambigüedad, el clip queda
+sin tocar en `estado='correccion_video'` y llega un mail solo a
+`seba.pino.v@gmail.com` con el detalle — nunca se adivina un corte. Si
+sale bien, el clip vuelve a `estado='pendiente'` y el equipo recibe el
+mismo tipo de aviso que al terminar de procesar una grabación nueva.
+
 **Para registrar la tarea (primera vez en una PC nueva, o para
 re-registrarla si hace falta):**
 
