@@ -275,11 +275,34 @@ nuevas, cada corrida también revisa si hay algún clip en
 `comentarios_video` en la app de revisión) y, si lo hay, corre
 `reprocesar_video.py --apply --uno` para interpretarlo con IA y volver a
 cortar el clip solo. Si la IA no tiene confianza en el pedido, o no se
-puede encontrar la carpeta local del clip sin ambigüedad, el clip queda
-sin tocar en `estado='correccion_video'` y llega un mail solo a
-`seba.pino.v@gmail.com` con el detalle — nunca se adivina un corte. Si
-sale bien, el clip vuelve a `estado='pendiente'` y el equipo recibe el
-mismo tipo de aviso que al terminar de procesar una grabación nueva.
+puede encontrar la carpeta local del clip sin ambigüedad, aborta antes de
+tocar ningún archivo — nunca se adivina un corte. Y si falla un paso
+técnico más adelante (ffmpeg, validación, YouTube, Storage o el update de
+Supabase), el clip se **restaura automáticamente a su versión anterior**
+deshaciendo el respaldo `vN\`, para que la carpeta siga siendo
+correlacionable y el siguiente intento reporte el error real. En los dos
+casos el clip queda en `estado='correccion_video'` y llega un mail solo a
+`seba.pino.v@gmail.com` con el detalle. Si sale bien, el clip vuelve a
+`estado='pendiente'` y el equipo recibe el mismo tipo de aviso que al
+terminar de procesar una grabación nueva.
+
+**Un pedido que falla no se reintenta solo.** Después de un intento
+fallido queda un marcador en
+`pipeline\logs_auto\correccion_video_fallos.log` (clip id + hash de
+`comentarios_video`), y las corridas automáticas saltean esa fila mientras
+el texto del pedido no cambie. Así una sola fila trabada no gasta una
+llamada a la API de Anthropic con la transcripción completa ni manda un
+mail cada 5 minutos (Resend corta alrededor de 100 mails diarios en el
+plan gratis, y pasado ese límite se perderían **todas** las alertas del
+pipeline), y tampoco bloquea a los demás pedidos pendientes. Para
+destrabarlo: editá `comentarios_video` en la app (el hash cambia y se
+reintenta solo), o forzá el reintento a mano con
+
+```powershell
+python reprocesar_video.py --apply --clip-id <id>
+```
+
+(`--clip-id` ignora el marcador a propósito).
 
 **Para registrar la tarea (primera vez en una PC nueva, o para
 re-registrarla si hace falta):**

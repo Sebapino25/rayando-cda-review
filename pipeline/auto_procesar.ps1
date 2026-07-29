@@ -113,6 +113,13 @@ foreach ($rec in $candidatos) {
 # grabaciones más arriba: si hay más de uno pendiente, la siguiente
 # corrida (5 min después) procesa el resto.
 $logCorreccion = Join-Path $LogsDir "correccion_video.log"
+# Centinela: si el bloque de abajo ni siquiera logra LANZAR python (exe no
+# encontrado, permisos, etc.), $ErrorActionPreference="Continue" deja seguir y
+# $LASTEXITCODE conservaría el valor del bloque de grabaciones de más arriba —
+# potencialmente 0, que acá se leería como "nada pendiente" y se tragaría el
+# fallo en silencio. -1 no lo devuelve nunca reprocesar_video.py, así que cae
+# en la rama de alerta de abajo.
+$exitCode = -1
 Push-Location $PipelineDir
 try {
     & python reprocesar_video.py --apply --uno *>> $logCorreccion
@@ -125,9 +132,16 @@ if ($exitCode -eq 3) {
     Enviar-Alerta "Rayando el CDA: se aplicó una corrección de video" `
         "Se aplicó un pedido de corrección de video automáticamente. Entrá a la app para revisar el clip corregido: $AppUrl`n`nLog: $logCorreccion" `
         $TeamEmails
-} elseif ($exitCode -eq 1) {
+} elseif ($exitCode -ne 0) {
+    # Cualquier código distinto de 0 y 3 es un fallo: 1 (abortó o falló un
+    # paso técnico), el centinela -1 (ni siquiera arrancó python) o un código
+    # inesperado. Alerta solo al dueño del proyecto.
     $tail = Obtener-TailLog $logCorreccion
-    Enviar-Alerta "Rayando el CDA: falló la corrección automática de video" `
-        "Falló o no se pudo interpretar con confianza un pedido de corrección de video.`n`nÚltimas líneas del log ($logCorreccion):`n$tail`n`nEl clip queda en estado='correccion_video' sin tocar; revisar y corregir a mano si hace falta (ver pipeline/README.md)."
+    $cuerpo = "Falló o no se pudo interpretar con confianza un pedido de corrección de video (código $exitCode)."
+    $cuerpo += "`n`nÚltimas líneas del log ($logCorreccion):`n$tail"
+    $cuerpo += "`n`nEl clip queda en estado='correccion_video': si abortó antes de tocar archivos (pedido ambiguo, carpeta no encontrada) quedó tal cual estaba, y si falló a mitad del reproceso se restauró automáticamente a su versión anterior. El log de arriba dice cuál de los dos casos fue."
+    $cuerpo += "`n`nOJO: este pedido NO se vuelve a intentar solo mientras el texto de comentarios_video no cambie (para no gastar API ni saturar los mails cada 5 minutos). Corregí el pedido en la app, o corré la corrección a mano con --clip-id (ver pipeline/README.md)."
+    Enviar-Alerta "Rayando el CDA: falló la corrección automática de video" $cuerpo
 }
-# exitCode 0 (nada pendiente): no se manda mail.
+# exitCode 0 (nada pendiente, o todo lo pendiente ya falló antes con el mismo
+# texto): no se manda mail.
