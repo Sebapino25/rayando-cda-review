@@ -112,19 +112,37 @@ def interpretar_correccion(comentarios_video: str, segments: list[dict]) -> Inte
 
     client = _client()
     try:
-        response = client.messages.create(
+        # Streaming + max_tokens=16000, igual que detectar_momentos.py: el
+        # prompt es la transcripción completa del programa (~45k tokens de
+        # entrada) con thinking adaptativo, así que 4096 se queda corto y el
+        # JSON puede cortarse. Además esta llamada corre dentro del loop de
+        # auto_procesar.ps1 (cada 5 minutos): sin streaming, una request lenta
+        # con max_tokens alto puede colgar el disparador (el SDK directamente
+        # rechaza requests no-streaming que estima que van a superar el
+        # timeout HTTP).
+        with client.messages.stream(
             model=MODEL,
-            max_tokens=4096,
+            max_tokens=16000,
             thinking={"type": "adaptive"},
             system=SYSTEM_PROMPT,
             output_config={"format": {"type": "json_schema", "schema": _SCHEMA}},
             messages=[{"role": "user", "content": mensaje_usuario}],
-        )
+        ) as stream:
+            response = stream.get_final_message()
     except Exception as e:
         raise InterpretacionError(f"Llamada a la API de Anthropic falló: {e}") from e
 
     if response.stop_reason == "refusal":
         raise InterpretacionError("La API de Anthropic rechazó la solicitud (stop_reason=refusal)")
+
+    if response.stop_reason == "max_tokens":
+        # Distinto de "no tiene el formato esperado": el JSON está bien
+        # formado conceptualmente pero quedó cortado por el límite de tokens.
+        raise InterpretacionError(
+            "La respuesta de la API se cortó por el límite de tokens "
+            "(stop_reason=max_tokens): el JSON quedó incompleto. "
+            "Subir max_tokens en interpretar_correccion.py."
+        )
 
     try:
         texto = next(b.text for b in response.content if b.type == "text")
