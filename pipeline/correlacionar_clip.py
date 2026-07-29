@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import difflib
 import re
+import shutil
 from pathlib import Path
 
 import config
@@ -101,3 +102,22 @@ def candidata_mas_parecida(row: dict) -> tuple[Path, float] | None:
         if mejor is None or ratio > mejor[1]:
             mejor = (carpeta, ratio)
     return mejor
+
+
+def _siguiente_version_dir(carpeta: Path) -> Path:
+    n = 1
+    while (carpeta / f"v{n}").exists():
+        n += 1
+    return carpeta / f"v{n}"
+
+
+def respaldar_version_anterior(carpeta: Path) -> Path:
+    """Mueve vertical.mp4 + subtitulos.srt/.ass (y horizontal_original.mp4,
+    si existe) a una subcarpeta vN\\ antes de sobreescribirlos."""
+    destino = _siguiente_version_dir(carpeta)
+    destino.mkdir(parents=True, exist_ok=False)
+    for nombre in ("vertical.mp4", "subtitulos.srt", "subtitulos.ass", "horizontal_original.mp4"):
+        origen = carpeta / nombre
+        if origen.exists():
+            shutil.move(str(origen), str(destino / nombre))
+    return destino

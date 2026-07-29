@@ -22,7 +22,6 @@ ejecutar de verdad, y --clip-id para probar contra un solo clip.
 """
 
 import argparse
-import shutil
 import sys
 from pathlib import Path
 
@@ -34,6 +33,7 @@ from correlacionar_clip import (
     candidata_mas_parecida,
     encontrar_carpetas_candidatas,
     parse_srt,
+    respaldar_version_anterior,
 )
 
 try:
@@ -71,27 +71,6 @@ def redistribuir_texto(
         if chunk:
             resultado.append((cs, ce, " ".join(chunk)))
     return resultado
-
-
-def _siguiente_version_dir(carpeta: Path) -> Path:
-    n = 1
-    while (carpeta / f"v{n}").exists():
-        n += 1
-    return carpeta / f"v{n}"
-
-
-def respaldar_version_anterior(carpeta: Path) -> Path:
-    """Mueve vertical.mp4 + subtitulos.srt/.ass a una subcarpeta vN\\ antes
-    de sobreescribirlos — misma convención manual descrita en el README
-    ("Antes de regenerar un clip ya publicado conviene mover manualmente los
-    archivos viejos a una subcarpeta v1\\")."""
-    destino = _siguiente_version_dir(carpeta)
-    destino.mkdir(parents=True, exist_ok=False)
-    for nombre in ("vertical.mp4", "subtitulos.srt", "subtitulos.ass"):
-        origen = carpeta / nombre
-        if origen.exists():
-            shutil.move(str(origen), str(destino / nombre))
-    return destino
 
 
 def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
