@@ -22,8 +22,6 @@ ejecutar de verdad, y --clip-id para probar contra un solo clip.
 """
 
 import argparse
-import difflib
-import re
 import shutil
 import sys
 from pathlib import Path
@@ -31,43 +29,17 @@ from pathlib import Path
 import config
 import cortar_clip
 import publicar
+from correlacionar_clip import (
+    _normalizar,
+    candidata_mas_parecida,
+    encontrar_carpetas_candidatas,
+    parse_srt,
+)
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
     pass
-
-
-SRT_TIME_RE = re.compile(r"(\d{2}):(\d{2}):(\d{2}),(\d{3})")
-
-
-def _srt_timestamp_to_seconds(ts: str) -> float:
-    hh, mm, ss, ms = SRT_TIME_RE.match(ts.strip()).groups()
-    return int(hh) * 3600 + int(mm) * 60 + int(ss) + int(ms) / 1000
-
-
-def parse_srt(path: Path) -> list[tuple[float, float, str]]:
-    """Lee un subtitulos.srt ya generado por cortar_clip.build_clip_srt y
-    devuelve la misma estructura (cs, ce, text) que build_clip_srt/
-    build_clip_ass reciben, para poder reusar esas funciones tal cual."""
-    content = path.read_text(encoding="utf-8").strip()
-    if not content:
-        return []
-    segmentos = []
-    for bloque in re.split(r"\n\s*\n", content):
-        lineas = bloque.strip().splitlines()
-        if len(lineas) < 3:
-            continue
-        inicio_str, fin_str = (t.strip() for t in lineas[1].split("-->"))
-        inicio = _srt_timestamp_to_seconds(inicio_str)
-        fin = _srt_timestamp_to_seconds(fin_str)
-        texto = " ".join(lineas[2:]).strip()
-        segmentos.append((inicio, fin, texto))
-    return segmentos
-
-
-def _normalizar(texto: str | None) -> str:
-    return " ".join((texto or "").split())
 
 
 def redistribuir_texto(
@@ -99,63 +71,6 @@ def redistribuir_texto(
         if chunk:
             resultado.append((cs, ce, " ".join(chunk)))
     return resultado
-
-
-def encontrar_carpetas_candidatas(row: dict) -> list[Path]:
-    """Busca TODAS las carpetas locales (clips\\<semana>\\<nombre>\\) cuyo
-    subtitulos.srt (texto unido) calza EXACTO con transcripcion_original de
-    esta fila. En el caso sano esto devuelve una sola carpeta; quien llama
-    es responsable de detenerse (no adivinar) si la lista queda vacía o
-    tiene más de un elemento — ver procesar_fila()."""
-    semana = row.get("semana") or ""
-    fecha_dir = config.CLIPS_DIR / str(semana)
-    if not fecha_dir.is_dir():
-        return []
-
-    objetivo = _normalizar(row.get("transcripcion_original"))
-    if not objetivo:
-        return []
-
-    coincidencias = []
-    for carpeta in sorted(p for p in fecha_dir.iterdir() if p.is_dir()):
-        srt_path = carpeta / "subtitulos.srt"
-        if not srt_path.exists():
-            continue
-        segmentos = parse_srt(srt_path)
-        texto = _normalizar(" ".join(t for _, _, t in segmentos))
-        if texto == objetivo:
-            coincidencias.append(carpeta)
-    return coincidencias
-
-
-def candidata_mas_parecida(row: dict) -> tuple[Path, float] | None:
-    """Diagnóstico para cuando no hubo match exacto: entre todas las
-    carpetas de la misma semana, devuelve la que más se parece (ratio de
-    difflib) a transcripcion_original, junto con el ratio. Es solo
-    informativo — nunca se usa para elegir la carpeta a procesar, para no
-    terminar quemando subtítulos sobre el video de otro clip por una
-    diferencia de un espacio o un símbolo que en realidad merece revisión
-    humana, no una adivinanza automática."""
-    semana = row.get("semana") or ""
-    fecha_dir = config.CLIPS_DIR / str(semana)
-    if not fecha_dir.is_dir():
-        return None
-
-    objetivo = _normalizar(row.get("transcripcion_original"))
-    if not objetivo:
-        return None
-
-    mejor: tuple[Path, float] | None = None
-    for carpeta in sorted(p for p in fecha_dir.iterdir() if p.is_dir()):
-        srt_path = carpeta / "subtitulos.srt"
-        if not srt_path.exists():
-            continue
-        segmentos = parse_srt(srt_path)
-        texto = _normalizar(" ".join(t for _, _, t in segmentos))
-        ratio = difflib.SequenceMatcher(None, texto, objetivo).ratio()
-        if mejor is None or ratio > mejor[1]:
-            mejor = (carpeta, ratio)
-    return mejor
 
 
 def _siguiente_version_dir(carpeta: Path) -> Path:
