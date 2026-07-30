@@ -28,9 +28,13 @@ del archivo) sin tener que hacerlo a mano en el dashboard de Supabase.
 - 3 pestañas en vez de 2: **Pendientes** (sin cambios) → **Por publicar**
   → **Publicados**.
 - Botón "Eliminar" en clips de "Por publicar" y "Publicados".
-- Al publicar de verdad (Edge Function `publicar-clip`, cuando marca
-  `publicado=true`), borrar `vertical.mp4` de Supabase Storage
-  (`clips-video`) en el mismo paso.
+
+**Corrección tras releer el código real:** el borrado de `vertical.mp4` de
+Storage al publicar (`publicado=true`) **ya está implementado** —
+`supabase/functions/publicar-clip/index.ts:223-237` ya lo hace,
+best-effort, en el mismo paso. No es un no-objetivo nuevo, es trabajo que
+ya existía y no se había verificado al escribir la primera versión de
+este spec. No hace falta ninguna tarea para esto.
 
 ## No-objetivos
 
@@ -79,19 +83,7 @@ supabase.from('clips').select('*')
   .order('publicado_en', { ascending: false })
 ```
 
-### 2. Borrado del video al publicar
-
-En `supabase/functions/publicar-clip/index.ts`, en el mismo paso donde
-hoy se marca `publicado: true, publicado_en: ...` (línea ~207), agregar
-el borrado best-effort del archivo en `clips-video` (mismo patrón que ya
-usa `handleReject` en `App.jsx` para borrar el video al rechazar: extraer
-el path de `video_url`, `storage.from('clips-video').remove([path])`,
-nunca bloquear la respuesta si falla). El `<iframe>` de YouTube en
-`HistoryCard.jsx` usa `youtube_video_id` directo, no `video_url`, así que
-la vista previa del clip en "Publicados" sigue funcionando igual después
-de este borrado.
-
-### 3. Botón "Eliminar"
+### 2. Botón "Eliminar"
 
 Nuevo botón en `HistoryCard.jsx`, visible en "Por publicar" y
 "Publicados" (no en "Pendientes"). Con confirmación (`window.confirm`,
@@ -108,7 +100,7 @@ No toca YouTube. Si el clip ya está publicado en Instagram/YouTube
 público, la publicación real en esas plataformas queda intacta — esto
 solo borra el registro interno del sistema de revisión.
 
-### 4. Errores
+### 3. Errores
 
 Mismo criterio que ya usa el resto de la app: el borrado de Storage es
 best-effort (si falla, se ignora — un archivo huérfano ocasional no es
