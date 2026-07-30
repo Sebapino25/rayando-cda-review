@@ -62,10 +62,16 @@ este spec. No hace falta ninguna tarea para esto.
   clips en corrección de video pendiente aparecen acá mezclados con los
   aprobados, distinguidos por el badge de estado que ya existe
   (`STATE_META` en `HistoryCard.jsx`).
-- **Publicados** (`publicado=true`): la sección nueva de respaldo. Mismo
-  tipo de card que "Por publicar", pero sin el botón "Publicar en redes"
-  (ya está publicado) ni "Deshacer" (no aplica a algo ya publicado de
-  verdad) — solo lectura + "Quitar portada" + "Eliminar".
+- **Publicados** (`publicado=true`): la sección nueva de respaldo. **Es un
+  registro, no un reproductor**: el usuario piensa borrar el video real de
+  YouTube una vez publicado, así que esta pestaña no puede depender de que
+  siga existiendo. Mismo tipo de card que "Por publicar", pero sin la
+  miniatura/link a YouTube ni el `<iframe>` embebido (ambos ocultos si
+  `clip.publicado`), sin "Publicar en redes" (ya está publicado) ni
+  "Deshacer" (no aplica a algo ya publicado de verdad) — queda: badge de
+  estado, título, quién y cuándo revisó, la portada (se mantiene, es
+  liviana), los copys/transcripción de solo lectura, "Quitar portada" y
+  "Eliminar".
 
 Query de cada pestaña (mismo patrón que `loadPending`/`loadHistory` hoy en
 `App.jsx`):

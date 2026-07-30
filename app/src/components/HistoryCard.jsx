@@ -117,25 +117,27 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
     <article className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
       <details open={expanded} onToggle={(e) => setExpanded(e.target.open)}>
         <summary className="flex gap-3 p-4 cursor-pointer select-none list-none">
-          <a
-            href={`https://www.youtube.com/watch?v=${clip.youtube_video_id}`}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="relative shrink-0 w-28 sm:w-32 aspect-video rounded-lg overflow-hidden bg-muted"
-          >
-            <img
-              src={`https://img.youtube.com/vi/${clip.youtube_video_id}/hqdefault.jpg`}
-              alt=""
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            <ArrowSquareOut
-              size={16}
-              weight="bold"
-              className="absolute bottom-1 right-1 text-white drop-shadow"
-            />
-          </a>
+          {!clip.publicado && (
+            <a
+              href={`https://www.youtube.com/watch?v=${clip.youtube_video_id}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="relative shrink-0 w-28 sm:w-32 aspect-video rounded-lg overflow-hidden bg-muted"
+            >
+              <img
+                src={`https://img.youtube.com/vi/${clip.youtube_video_id}/hqdefault.jpg`}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              <ArrowSquareOut
+                size={16}
+                weight="bold"
+                className="absolute bottom-1 right-1 text-white drop-shadow"
+              />
+            </a>
+          )}
 
           {clip.portada_url && (
             <a
@@ -171,15 +173,17 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
         </summary>
 
         <div className="border-t border-border">
-          <div className="aspect-video bg-black">
-            <iframe
-              className="w-full h-full"
-              src={`https://www.youtube.com/embed/${clip.youtube_video_id}`}
-              title={clip.youtube_titulo || 'Clip'}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
+          {!clip.publicado && (
+            <div className="aspect-video bg-black">
+              <iframe
+                className="w-full h-full"
+                src={`https://www.youtube.com/embed/${clip.youtube_video_id}`}
+                title={clip.youtube_titulo || 'Clip'}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
           <div className="p-4 flex flex-col gap-3.5">
             {clip.portada_url && (
               <div className="flex items-center gap-3">
