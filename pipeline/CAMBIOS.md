@@ -1,3 +1,42 @@
+# Cambios aplicados — publicación final, disparador automático y corrección de video (27-30/07)
+
+Tres subsistemas construidos en la misma semana para que el ciclo completo
+(programa grabado → clips revisados → publicados) corra con mínima
+intervención manual. Detalle completo en cada spec/plan bajo
+`docs/superpowers/`; acá el resumen.
+
+## 1. Publicación final desde la app (27/07)
+
+Botón "Publicar en redes" en Historial: publica de verdad en YouTube
+(público) e Instagram (Reels) vía Edge Functions de Supabase
+(`publicar-clip`, `refrescar-token-instagram`), con confirmación + PIN.
+TikTok construido pero con el flag apagado (falta resubmitir el Developer
+App). Corrección de seguridad aplicada de paso: el bucket `clips-video` le
+daba a `anon` INSERT/UPDATE sin restricción — revocado, solo DELETE.
+
+## 2. Disparador automático semanal (28/07)
+
+Tarea de Task Scheduler (`RayandoCDA_AutoProcesar`) que arranca
+`auto_procesar_loop.ps1` al iniciar sesión; cada 5 minutos revisa si hay
+una grabación nueva y corre `transcribir.py` + `procesar_programa.py`
+sola. Notificaciones por mail (Resend): al equipo si sale bien, solo al
+dueño del proyecto con tail del log si falla.
+
+## 3. Corrección automática de video (29-30/07)
+
+Cuando el equipo pide "Corrección de video" (ajuste de in/out point) vía
+`comentarios_video`, un módulo nuevo (`interpretar_correccion.py`)
+interpreta el pedido con IA contra la transcripción completa y, si hay
+confianza, `reprocesar_video.py` re-corta el clip solo — enganchado al
+mismo disparador automático del punto 2. Nunca adivina: si la IA no está
+segura o no encuentra la carpeta local del clip, aborta y avisa solo al
+dueño del proyecto. Si falla un paso técnico después de respaldar la
+versión anterior, el clip se restaura automáticamente. Un pedido fallido
+no se reintenta solo hasta que cambie el texto (evita gastar la cuota de
+mail y de API en un pedido trabado).
+
+---
+
 # Cambios aplicados — rediseño de portadas v2 (09/07)
 
 Feedback que originó este cambio: las portadas v1 no funcionaban como

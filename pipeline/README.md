@@ -6,11 +6,20 @@ localmente con OBS) y publicarlos en redes sociales.
 
 ## Estado del proyecto
 
-**Fase 1 implementada**: procesamiento local (transcripción y corte de clips) +
-subida a YouTube como no listado y registro en Supabase para revisión editorial.
-Todavía no hay publicación automática a Instagram/TikTok, ni publicación final
-(pública) a YouTube — eso sigue siendo trabajo manual de René en la tabla de
-Supabase.
+El pipeline corre de punta a punta sin intervención manual: una grabación
+nueva se transcribe, se detectan candidatos a clip automáticamente (o se usa
+una lista ya confirmada), se cortan y se suben a YouTube como no listados
+para revisión editorial — todo disparado solo cada 5 minutos (ver
+"Disparador automático" más abajo). Una vez que el equipo aprueba un clip en
+la app de revisión, el botón "Publicar en redes" lo publica de verdad en
+YouTube (público) e Instagram (Reels) vía Supabase Edge Functions, y si
+pide una corrección de in/out point, se re-corta solo con IA (ver
+"Corrección automática de video" más abajo).
+
+Lo único pendiente es TikTok: el código de publicación ya está construido
+pero con el flag apagado, porque el Developer App de TikTok nunca se
+resubmitió para revisión (se perdió el formulario al pasar de
+Sandbox a Producción).
 
 ## Flujo del sistema
 
@@ -36,8 +45,9 @@ Grabación OBS (.mkv)
         →  deja resumen.txt local como respaldo (no es el review principal)
         │
         ▼
- (fase futura: publicación final/pública a Instagram / TikTok / YouTube,
-  una vez que René aprueba el clip en Supabase)
+ Aprobación en la app de revisión → botón "Publicar en redes" → publica de
+ verdad en YouTube (público) e Instagram (Reels) vía Supabase Edge
+ Functions (ver app/README.md). TikTok queda pendiente (flag apagado).
 ```
 
 ## Estructura de carpetas
@@ -195,6 +205,44 @@ archivos viejos a una subcarpeta `v1\` dentro de la carpeta del clip, por si
 se necesita comparar después (así se hizo al aplicar el feedback editorial
 del 06/07).
 
+## Procesamiento automático de un programa completo
+
+En vez de cortar clips uno por uno a mano, `procesar_programa.py` orquesta
+todo un programa de punta a punta: detecta candidatos, corta cada uno
+(reusando `cortar_clip.cortar_y_publicar()`) y publica, sin intervención
+manual en el medio. Es lo que corre el disparador automático (ver más
+abajo) sobre cada grabación nueva.
+
+```powershell
+python procesar_programa.py "2026-07-06 23-13-36.mkv"
+```
+
+Requiere que la grabación ya esté transcrita (`transcribir.py`).
+
+**Detección de candidatos**: si existe
+`clips\<fecha>\candidatos_<fecha>.json` (una lista de objetos con `numero`,
+`timestamp_inicio`, `timestamp_fin`, `duracion_seg` y `razon` — el mismo
+formato que ya se guardaba a mano antes de automatizar esto), se usan esos
+candidatos directo, respetando su `numero` para el nombre de carpeta
+(`candidato-01`, etc.) — es el caso de haber corrido `detectar_momentos.py`
+aparte, revisado la lista y confirmado el JSON. Si ese archivo no existe,
+`detectar_momentos.py` detecta los candidatos en vivo con la API de
+Anthropic sobre la transcripción completa (prioriza humor, declaraciones
+fuertes sobre la U/la dirigencia, y momentos con carga emocional real; los
+timestamps siempre calzan con límites de segmento reales de Whisper, nunca
+un segundo inventado).
+
+En ambos casos, antes de cortar se descartan candidatos que se superpongan
+con clips ya cortados para esa fecha de programa (comparando contra
+`metadata.json` de cada carpeta existente), para no duplicar el mismo
+momento entre corridas manuales y automáticas.
+
+Para solo ver qué candidatos detectaría la IA sin cortar ni subir nada:
+
+```powershell
+python detectar_momentos.py "2026-07-06 23-13-36.mkv"
+```
+
 ## Publicación (YouTube no listado + Supabase)
 
 Al final de `cortar_clip.py` se corre automáticamente `publicar.py`:
@@ -303,6 +351,14 @@ python reprocesar_video.py --apply --clip-id <id>
 ```
 
 (`--clip-id` ignora el marcador a propósito).
+
+**Nota sobre Avast**: Avast puede poner en cuarentena (borrar)
+`auto_procesar_loop.ps1` y/o `registrar_tarea_programada.ps1` al
+bloquearlos por contenido, no por ser malware real — ya pasó una vez en
+este equipo. Si alguno de los dos desaparece del todo, agregá una
+excepción en Avast para la carpeta `pipeline\` y restauralos desde git
+(`git checkout -- pipeline\auto_procesar_loop.ps1
+pipeline\registrar_tarea_programada.ps1`).
 
 **Para registrar la tarea (primera vez en una PC nueva, o para
 re-registrarla si hace falta):**
@@ -491,10 +547,10 @@ modelo de Whisper, tamaño del formato vertical, escala del video en primer
 plano, duración máxima de reel, estilo de subtítulos, logo, portadas, copys)
 están centralizados en `config.py`.
 
-## Próximos pasos (fuera de la Fase 1)
+## Pendiente
 
-- Detección automática de mejores momentos para sugerir clips (hoy `inicio`/
-  `fin`/`razon` los elige una persona a mano al cortar el clip).
-- Publicación final (pública) a Instagram (Reels) y TikTok, y paso de
-  "publicar de verdad" en YouTube (pasar de no listado a público) una vez que
-  René aprueba el clip en `rayando_cda.clips`.
+- **TikTok**: código de publicación construido en la Edge Function
+  `publicar-clip`, pero apagado (`PUBLICAR_TIKTOK=false` en los secrets de
+  Supabase) — falta resubmitir el Developer App de TikTok para revisión,
+  con video de demo. No está bloqueado por código, solo por rehacer ese
+  trámite.

@@ -39,10 +39,17 @@ La tabla `clips` vive en el schema `rayando_cda` (no en `public`). Pasos necesar
 | `razon` | text | solo lectura |
 | `transcripcion` | text | editable, colapsable — corregirla no regenera el subtítulo del video, queda anotada para reprocesar |
 | `transcripcion_original` | text | solo lectura, no la toca la app. Se copia de `transcripcion` automáticamente al insertar (trigger) y nunca se edita después salvo por `scripts/reprocesar_subtitulos.py`, que la resincroniza una vez que reprocesó el video. Sirve para detectar `transcripcion != transcripcion_original` = corrección pendiente de aplicar al video |
-| `comentarios_video` | text | editable, pedidos manuales (no se ejecutan solos); obligatoria si se elige "Corrección de video" |
+| `comentarios_video` | text | editable; obligatoria si se elige "Corrección de video". Un pedido de ajustar el in/out point se aplica solo (IA interpreta el texto y re-corta, ver `pipeline/reprocesar_video.py`); otros tipos de pedido siguen siendo manuales |
 | `notas_revision` | text | notas al rechazar |
-| `revisado_por` | text | seteado por la app al aprobar, pedir corrección o rechazar |
-| `revisado_en` | timestamptz | seteado por la app al aprobar, pedir corrección o rechazar |
+| `revisado_por` | text | seteado por la app al aprobar, pedir corrección o rechazar; se limpia si una corrección de video se aplica sola (vuelve a `pendiente` para revisión fresca) |
+| `revisado_en` | timestamptz | seteado por la app al aprobar, pedir corrección o rechazar; mismo comportamiento que `revisado_por` en una corrección automática |
+| `publicado` | boolean | `true` una vez que la Edge Function `publicar-clip` publicó de verdad — la app usa esto para no mostrar el botón "Publicar en redes" en un clip ya publicado |
+| `publicado_en` | timestamptz | seteado junto con `publicado=true` |
+| `video_url` | text | URL pública del `vertical.mp4` en Supabase Storage (bucket `clips-video`) — la usa la Edge Function `publicar-clip` para publicar de verdad |
+| `portada_url` | text | URL pública de la portada en Supabase Storage (bucket `portadas`) |
+| `publicando_en` | timestamptz | claim atómico: seteado por la Edge Function `publicar-clip` al empezar a publicar, para evitar dos publicaciones simultáneas del mismo clip |
+| `instagram_media_id` | text | id del media de Instagram publicado, seteado por `publicar-clip` |
+| `tiktok_publish_id` | text | id de publicación de TikTok, seteado por `publicar-clip` (hoy sin efecto real: `PUBLICAR_TIKTOK=false`, ver `pipeline/README.md`) |
 
 ## Datos de prueba (QA)
 
