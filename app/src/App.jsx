@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap, Question } from '@phosphor-icons/react'
+import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap, Question, CheckCircle } from '@phosphor-icons/react'
 import { supabase } from './lib/supabaseClient'
 import { ORDER_COLUMN } from './lib/constants'
 import { getReviewerName, setReviewerName } from './lib/reviewer'
@@ -21,6 +21,7 @@ function App() {
   const [tab, setTab] = useState('pendientes')
   const [pendingClips, setPendingClips] = useState([])
   const [historyClips, setHistoryClips] = useState([])
+  const [publishedClips, setPublishedClips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -47,6 +48,7 @@ function App() {
       .from('clips')
       .select('*')
       .in('estado', ['aprobado', 'correccion_video', 'rechazado'])
+      .eq('publicado', false)
       .order('revisado_en', { ascending: false })
     if (fetchError) {
       setError(fetchError.message)
@@ -56,11 +58,28 @@ function App() {
     setLoading(false)
   }, [])
 
+  const loadPublished = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    const { data, error: fetchError } = await supabase
+      .from('clips')
+      .select('*')
+      .eq('publicado', true)
+      .order('publicado_en', { ascending: false })
+    if (fetchError) {
+      setError(fetchError.message)
+    } else {
+      setPublishedClips(data ?? [])
+    }
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     if (!reviewer) return
     if (tab === 'pendientes') loadPending()
-    else loadHistory()
-  }, [reviewer, tab, loadPending, loadHistory])
+    else if (tab === 'historial') loadHistory()
+    else loadPublished()
+  }, [reviewer, tab, loadPending, loadHistory, loadPublished])
 
   function handleReviewerSubmit(name) {
     setReviewerName(name)
@@ -220,6 +239,43 @@ function App() {
     return data
   }
 
+  async function handleDelete(id) {
+    const clip = historyClips.find((c) => c.id === id) || publishedClips.find((c) => c.id === id)
+
+    if (clip?.video_url) {
+      const marker = '/object/public/clips-video/'
+      const idx = clip.video_url.indexOf(marker)
+      if (idx !== -1) {
+        const path = clip.video_url.slice(idx + marker.length)
+        try {
+          await supabase.storage.from('clips-video').remove([path])
+        } catch {
+          // Best-effort, igual que el borrado de video al rechazar/publicar:
+          // un archivo huérfano ocasional no debe bloquear el borrado de la fila.
+        }
+      }
+    }
+
+    if (clip?.portada_url) {
+      const marker = '/object/public/portadas/'
+      const idx = clip.portada_url.indexOf(marker)
+      if (idx !== -1) {
+        const path = clip.portada_url.slice(idx + marker.length)
+        try {
+          await supabase.storage.from('portadas').remove([path])
+        } catch {
+          // no-op, mismo criterio que arriba
+        }
+      }
+    }
+
+    const { error: deleteError } = await supabase.from('clips').delete().eq('id', id)
+    if (deleteError) throw deleteError
+
+    setHistoryClips((prev) => prev.filter((c) => c.id !== id))
+    setPublishedClips((prev) => prev.filter((c) => c.id !== id))
+  }
+
   if (!reviewer) {
     return <ReviewerGate onSubmit={handleReviewerSubmit} />
   }
@@ -258,19 +314,19 @@ function App() {
           </button>
         </div>
 
-        <nav className="max-w-2xl mx-auto w-full px-4 pb-3 grid grid-cols-2 gap-2">
+        <nav className="max-w-2xl mx-auto w-full px-4 pb-3 grid grid-cols-3 gap-1.5">
           <button
             type="button"
             onClick={() => setTab('pendientes')}
-            className={`h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`h-11 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 px-1 cursor-pointer transition-colors ${
               tab === 'pendientes' ? 'bg-white text-primary' : 'bg-white/10 text-white/85'
             }`}
           >
-            <ListChecks size={17} weight="bold" />
-            Pendientes
+            <ListChecks size={16} weight="bold" className="shrink-0" />
+            <span className="truncate">Pendientes</span>
             {pendingClips.length > 0 && (
               <span
-                className={`ml-0.5 rounded-full text-[11px] font-bold px-1.5 min-w-[1.25rem] text-center ${
+                className={`ml-0.5 rounded-full text-[10px] font-bold px-1.5 min-w-[1.1rem] text-center shrink-0 ${
                   tab === 'pendientes' ? 'bg-primary text-white' : 'bg-white/20 text-white'
                 }`}
               >
@@ -281,12 +337,22 @@ function App() {
           <button
             type="button"
             onClick={() => setTab('historial')}
-            className={`h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors ${
+            className={`h-11 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 px-1 cursor-pointer transition-colors ${
               tab === 'historial' ? 'bg-white text-primary' : 'bg-white/10 text-white/85'
             }`}
           >
-            <ClockCounterClockwise size={17} weight="bold" />
-            Historial
+            <ClockCounterClockwise size={16} weight="bold" className="shrink-0" />
+            <span className="truncate">Por publicar</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('publicados')}
+            className={`h-11 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 px-1 cursor-pointer transition-colors ${
+              tab === 'publicados' ? 'bg-white text-primary' : 'bg-white/10 text-white/85'
+            }`}
+          >
+            <CheckCircle size={16} weight="bold" className="shrink-0" />
+            <span className="truncate">Publicados</span>
           </button>
         </nav>
       </header>
@@ -304,7 +370,7 @@ function App() {
             <p className="text-sm text-destructive">{error}</p>
             <button
               type="button"
-              onClick={tab === 'pendientes' ? loadPending : loadHistory}
+              onClick={tab === 'pendientes' ? loadPending : tab === 'historial' ? loadHistory : loadPublished}
               className="text-sm font-semibold text-primary flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowsClockwise size={16} weight="bold" />
@@ -336,16 +402,44 @@ function App() {
 
         {!loading && !error && tab === 'historial' && historyClips.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-base font-semibold text-foreground">Todavía no hay historial</p>
+            <p className="text-base font-semibold text-foreground">Nada pendiente de publicar</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Los clips aprobados o rechazados van a aparecer acá.
+              Los clips aprobados, rechazados o en corrección van a aparecer acá.
             </p>
           </div>
         )}
 
         {!loading && !error && tab === 'historial' &&
           historyClips.map((clip) => (
-            <HistoryCard key={clip.id} clip={clip} onUndo={handleUndo} onCoverRemove={handleCoverRemove} onPublicar={handlePublicar} />
+            <HistoryCard
+              key={clip.id}
+              clip={clip}
+              onUndo={handleUndo}
+              onCoverRemove={handleCoverRemove}
+              onPublicar={handlePublicar}
+              onDelete={handleDelete}
+            />
+          ))}
+
+        {!loading && !error && tab === 'publicados' && publishedClips.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-base font-semibold text-foreground">Todavía no hay nada publicado</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Los clips publicados de verdad van a aparecer acá.
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && tab === 'publicados' &&
+          publishedClips.map((clip) => (
+            <HistoryCard
+              key={clip.id}
+              clip={clip}
+              onUndo={handleUndo}
+              onCoverRemove={handleCoverRemove}
+              onPublicar={handlePublicar}
+              onDelete={handleDelete}
+            />
           ))}
       </main>
     </div>

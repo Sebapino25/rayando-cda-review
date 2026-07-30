@@ -36,7 +36,7 @@ function ReadOnlyField({ label, value }) {
   )
 }
 
-export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar }) {
+export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, onDelete }) {
   const stateMeta = STATE_META[clip.estado] ?? STATE_META.rechazado
   const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
   const [undoing, setUndoing] = useState(false)
@@ -44,6 +44,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar })
   const [expanded, setExpanded] = useState(false)
   const [removingCover, setRemovingCover] = useState(false)
   const [publicando, setPublicando] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   async function handleUndo() {
     const confirmed = window.confirm('¿Seguro que quieres deshacer esta revisión?')
@@ -94,6 +95,21 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar })
       setErrorMsg(err.message || 'No se pudo publicar. Probá de nuevo.')
     } finally {
       setPublicando(false)
+    }
+  }
+
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      '¿Eliminar este clip? Se borra el registro y el video/portada guardados acá — esto no se puede deshacer, y no borra nada en YouTube.'
+    )
+    if (!confirmed) return
+    setDeleting(true)
+    setErrorMsg('')
+    try {
+      await onDelete(clip.id)
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo eliminar. Probá de nuevo.')
+      setDeleting(false)
     }
   }
 
@@ -246,18 +262,33 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar })
             Publicado
           </span>
         )}
+        {!clip.publicado && (
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={undoing}
+            className="self-start flex items-center gap-1.5 text-sm font-semibold text-muted-foreground disabled:opacity-40 cursor-pointer"
+          >
+            {undoing ? (
+              <SpinnerGap size={15} className="animate-spin" />
+            ) : (
+              <ArrowUUpLeft size={15} weight="bold" />
+            )}
+            Deshacer
+          </button>
+        )}
         <button
           type="button"
-          onClick={handleUndo}
-          disabled={undoing}
-          className="self-start flex items-center gap-1.5 text-sm font-semibold text-muted-foreground disabled:opacity-40 cursor-pointer"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="self-start flex items-center gap-1.5 text-sm font-semibold text-destructive disabled:opacity-40 cursor-pointer"
         >
-          {undoing ? (
+          {deleting ? (
             <SpinnerGap size={15} className="animate-spin" />
           ) : (
-            <ArrowUUpLeft size={15} weight="bold" />
+            <Trash size={15} weight="bold" />
           )}
-          Deshacer
+          Eliminar
         </button>
       </div>
     </article>
