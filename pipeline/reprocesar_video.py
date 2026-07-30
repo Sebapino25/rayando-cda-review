@@ -165,9 +165,11 @@ def _leer_marcadores() -> dict:
         return {}
     try:
         datos = json.loads(MARCADOR_FALLOS_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        # Marcador corrupto: se trata como vacío (peor caso, se reintenta una
-        # vez de más). Nunca debe hacer fallar el procesamiento.
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        # Marcador corrupto (JSON inválido, error de IO, o UTF-8 truncado por
+        # ej. un corte de luz a mitad de escritura): se trata como vacío
+        # (peor caso, se reintenta una vez de más). Nunca debe hacer fallar
+        # el procesamiento.
         return {}
     return datos if isinstance(datos, dict) else {}
 
