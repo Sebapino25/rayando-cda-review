@@ -30,7 +30,29 @@ export async function fetchWindsorConnector(
   if (!fila) {
     throw new WindsorError(`Windsor.ai (${connector}) no devolvió datos (respuesta: ${JSON.stringify(body)})`)
   }
+  // No lanza: algunas llamadas legítimas (ej. stats de canal de YouTube)
+  // devuelven varias filas idénticas a propósito. Pero quedarse callado acá
+  // es justo lo que dejó pasar sin ser detectado el bug real de agregación
+  // (ver notas más abajo) — si alguna vez vuelve a pasar algo parecido, que
+  // quede en los logs en vez de en silencio.
+  if (Array.isArray(body?.data) && body.data.length > 1) {
+    console.warn(`Windsor.ai (${connector}) devolvió ${body.data.length} filas, se usó solo la primera`)
+  }
   return fila
+}
+
+// Convierte a número y valida que sea finito — un campo de Windsor.ai
+// renombrado/eliminado hace que `fila[campo]` venga `undefined`, y
+// `Number(undefined)` es `NaN`, que Supabase serializa como `null` sin
+// tirar ningún error (columna queda NULL en silencio, sin entrar en el
+// array `fallas` de index.ts ni disparar alerta). Lanzar acá convierte ese
+// caso en una falla normal por plataforma, ya manejada arriba.
+function campoNumerico(plataforma: string, campo: string, valor: unknown): number {
+  const n = Number(valor)
+  if (!Number.isFinite(n)) {
+    throw new WindsorError(`${plataforma}: campo '${campo}' no vino como número (${valor})`)
+  }
+  return n
 }
 
 export interface InstagramStats {
@@ -55,10 +77,10 @@ export async function fetchInstagramStats(apiKey: string, fetchImpl: typeof fetc
     fetchWindsorConnector('instagram', ['reach_1d'], 'last_90d', apiKey, fetchImpl),
   ])
   return {
-    seguidores: Number(seguidoresFila.followers_count),
-    vistas30d: Number(vistasFila.views),
-    alcance90d: Number(alcanceFila.reach_1d),
-    interacciones90d: Number(interaccionesFila.total_interactions),
+    seguidores: campoNumerico('Instagram', 'followers_count', seguidoresFila.followers_count),
+    vistas30d: campoNumerico('Instagram', 'views', vistasFila.views),
+    alcance90d: campoNumerico('Instagram', 'reach_1d', alcanceFila.reach_1d),
+    interacciones90d: campoNumerico('Instagram', 'total_interactions', interaccionesFila.total_interactions),
   }
 }
 
@@ -83,9 +105,9 @@ export async function fetchTiktokStats(apiKey: string, fetchImpl: typeof fetch =
     fetchImpl,
   )
   return {
-    seguidores: Number(fila.total_followers_count),
-    likes: Number(fila.total_likes),
-    videoTopVistas: Number(fila.video_views),
+    seguidores: campoNumerico('TikTok', 'total_followers_count', fila.total_followers_count),
+    likes: campoNumerico('TikTok', 'total_likes', fila.total_likes),
+    videoTopVistas: campoNumerico('TikTok', 'video_views', fila.video_views),
   }
 }
 
@@ -105,8 +127,8 @@ export async function fetchYoutubeStats(apiKey: string, fetchImpl: typeof fetch 
     fetchWindsorConnector('youtube', ['views'], 'last_30d', apiKey, fetchImpl),
   ])
   return {
-    suscriptores: Number(canalFila.subscriber_count),
-    vistasHistoricas: Number(canalFila.view_count),
-    vistas30d: Number(vistas30dFila.views),
+    suscriptores: campoNumerico('YouTube', 'subscriber_count', canalFila.subscriber_count),
+    vistasHistoricas: campoNumerico('YouTube', 'view_count', canalFila.view_count),
+    vistas30d: campoNumerico('YouTube', 'views', vistas30dFila.views),
   }
 }

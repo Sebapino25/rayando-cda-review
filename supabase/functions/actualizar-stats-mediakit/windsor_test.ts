@@ -120,6 +120,35 @@ Deno.test('fetchTiktokStats mapea los campos correctos (video_views, no video_vi
   assertStringIncludes(urlCapturada!, 'date_preset=last_30d')
 })
 
+Deno.test('fetchInstagramStats lanza WindsorError si un campo de Windsor.ai no viene como número', async () => {
+  // Simula un campo renombrado/eliminado en Windsor.ai: `views` viene
+  // `undefined` en la fila devuelta. Antes de la validación, esto se
+  // convertía en NaN y terminaba guardándose como NULL en Supabase sin
+  // ningún error — ver windsor.ts (campoNumerico).
+  const { fetchImpl } = fakeFetchPorUrl([
+    { contiene: ['fields=followers_count'], sinDatePreset: true, data: { followers_count: 13677 } },
+    { contiene: ['fields=views', 'date_preset=last_30d'], data: { views_renombrado: 3200000 } },
+    { contiene: ['fields=total_interactions', 'date_preset=last_90d'], data: { total_interactions: 590000 } },
+    { contiene: ['fields=reach_1d', 'date_preset=last_90d'], data: { reach_1d: 560000 } },
+  ])
+  await assertRejects(() => fetchInstagramStats('k', fetchImpl), WindsorError)
+})
+
+Deno.test('fetchWindsorConnector avisa por console.warn si Windsor.ai devuelve más de una fila', async () => {
+  const fakeFetch = fakeFetchOk({ data: [{ followers_count: 100 }, { followers_count: 100 }] })
+  const warnOriginal = console.warn
+  let avisoCapturado: string | undefined
+  console.warn = (msg: string) => {
+    avisoCapturado = msg
+  }
+  try {
+    await fetchWindsorConnector('instagram', ['followers_count'], null, 'k', fakeFetch as typeof fetch)
+  } finally {
+    console.warn = warnOriginal
+  }
+  assertStringIncludes(avisoCapturado ?? '', 'devolvió 2 filas')
+})
+
 Deno.test('fetchYoutubeStats mapea los campos correctos y usa el date_preset correcto (2 llamadas separadas)', async () => {
   const { fetchImpl, urlsCapturadas } = fakeFetchPorUrl([
     {

@@ -15,6 +15,18 @@ function setText(id, value) {
   if (el) el.textContent = value
 }
 
+// Solo escribe si el valor es un número real. Un campo NULL en la fila
+// (o ausente) no es 'number', así que esta función no toca el DOM y el
+// span se queda con el snapshot horneado en el HTML (ver Task 3/finding 3
+// de la revisión final) en vez de mostrar "0" — que es lo que devolvía
+// `fmt.format(null)` antes de este chequeo, y que una marca podría leer
+// como "0 seguidores" real.
+function setStatSiEsNumero(id, valor) {
+  if (typeof valor === 'number' && Number.isFinite(valor)) {
+    setText(id, fmt.format(valor))
+  }
+}
+
 async function cargarStats() {
   try {
     const resp = await fetch(
@@ -34,31 +46,46 @@ async function cargarStats() {
     if (!resp.ok) throw new Error(`Supabase REST devolvió ${resp.status}`)
     const filas = await resp.json()
     const stats = filas[0]
-    if (!stats) return // sin fila todavía: quedan los defaults del HTML
+    // Sin fila todavía, o falla de red/Supabase más abajo (catch): la
+    // página se queda con el snapshot horneado en el HTML — números reales
+    // (aunque desactualizados) de la última vez que se editó index.html a
+    // mano con datos frescos de media_kit_stats, no placeholders "—". Ver
+    // finding 3 de la revisión final: nunca se muestra ni un error ni una
+    // pared de guiones a la marca que está mirando la página.
+    if (!stats) return
 
+    // El total del hero sí usa `?? 0`: es una suma de 3 campos, y si uno
+    // solo viene NULL (plataforma caída) preferimos un total parcial en
+    // vivo antes que descartar todo el hero y mostrar el snapshot viejo.
     const heroTotal = (stats.ig_vistas_30d ?? 0) + (stats.tiktok_video_top_vistas ?? 0) + (stats.yt_vistas_30d ?? 0)
     setText('stat-hero-vistas', fmt.format(heroTotal))
 
-    setText('stat-ig-seguidores', fmt.format(stats.ig_seguidores))
-    setText('stat-ig-vistas', fmt.format(stats.ig_vistas_30d))
-    setText('stat-ig-interacciones', fmt.format(stats.ig_interacciones_90d))
+    setStatSiEsNumero('stat-ig-seguidores', stats.ig_seguidores)
+    setStatSiEsNumero('stat-ig-vistas', stats.ig_vistas_30d)
+    setStatSiEsNumero('stat-ig-interacciones', stats.ig_interacciones_90d)
 
-    setText('stat-tiktok-seguidores', fmt.format(stats.tiktok_seguidores))
-    setText('stat-tiktok-likes', fmt.format(stats.tiktok_likes))
-    setText('stat-tiktok-video-top', fmt.format(stats.tiktok_video_top_vistas))
+    setStatSiEsNumero('stat-tiktok-seguidores', stats.tiktok_seguidores)
+    setStatSiEsNumero('stat-tiktok-likes', stats.tiktok_likes)
+    setStatSiEsNumero('stat-tiktok-video-top', stats.tiktok_video_top_vistas)
 
-    setText('stat-yt-suscriptores', fmt.format(stats.yt_suscriptores))
-    setText('stat-yt-vistas-card', fmt.format(stats.yt_vistas_historicas))
-    setText('stat-programas', fmt.format(stats.programas_emitidos))
+    setStatSiEsNumero('stat-yt-suscriptores', stats.yt_suscriptores)
+    setStatSiEsNumero('stat-yt-vistas-card', stats.yt_vistas_historicas)
+    setStatSiEsNumero('stat-programas', stats.programas_emitidos)
 
-    if (stats.ig_seguidores > 0) {
+    if (
+      typeof stats.ig_seguidores === 'number' && Number.isFinite(stats.ig_seguidores) && stats.ig_seguidores > 0 &&
+      typeof stats.ig_vistas_30d === 'number' && Number.isFinite(stats.ig_vistas_30d)
+    ) {
       const multiplicador = stats.ig_vistas_30d / stats.ig_seguidores
-      setText('stat-multiplicador', multiplicador.toFixed(1))
+      // Math.round, no .toFixed(1): en esta página el "." es el separador
+      // de miles de todos los demás números (es-CL), así que "186.0" al
+      // lado de "2.544.087" lee como un glitch de formato, no un decimal.
+      setText('stat-multiplicador', String(Math.round(multiplicador)))
     }
   } catch (err) {
-    // Falla de red o de Supabase: la página se queda con los valores por
-    // defecto del HTML (Task 5) — nunca se muestra un error a la marca
-    // que está mirando la página.
+    // Falla de red o de Supabase: la página se queda con el snapshot
+    // horneado en el HTML — nunca se muestra un error a la marca que está
+    // mirando la página.
     console.error('No se pudieron cargar los números en vivo:', err)
   }
 }

@@ -25,6 +25,12 @@ create table if not exists rayando_cda.media_kit_stats (
     constraint media_kit_stats_fila_unica check (id)
 );
 
+-- yt_vistas_30d se agregó después de la primera versión de esta migración.
+-- `create table if not exists` es un no-op si la tabla ya existe (no
+-- agrega columnas nuevas), así que re-correr este archivo contra un
+-- deployment viejo sin esta columna no la crearía sin esta línea aparte.
+alter table rayando_cda.media_kit_stats add column if not exists yt_vistas_30d numeric;
+
 grant all on table rayando_cda.media_kit_stats to service_role;
 grant select on table rayando_cda.media_kit_stats to anon;
 

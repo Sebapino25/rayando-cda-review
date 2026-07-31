@@ -135,7 +135,7 @@ Todos con `date_preset` según corresponda (lifetime para seguidores,
 | `ig_interacciones_90d` | `instagram` · `total_interactions` (últimos 90 días) | Diaria (cron) |
 | `tiktok_seguidores` | `tiktok_organic` · `total_followers_count` | Diaria (cron) |
 | `tiktok_likes` | `tiktok_organic` · `total_likes` | Diaria (cron) |
-| `tiktok_video_top_vistas` | `tiktok_organic` · `video_views_count` (máximo, tabla `Video`) | Diaria (cron) |
+| `tiktok_video_top_vistas` | `tiktok_organic` · `video_views` (vistas de video a nivel de cuenta, últimos 30 días) | Diaria (cron) |
 | `yt_suscriptores` | `youtube` · `subscriber_count` | Diaria (cron) |
 | `yt_vistas_historicas` | `youtube` · `view_count` | Diaria (cron) |
 | `programas_emitidos` | Manual (Supabase Studio) — no es una métrica de ninguna plataforma | Cuando el usuario quiera |

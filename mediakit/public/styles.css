@@ -100,6 +100,12 @@ p { max-width: 68ch; }
 footer { text-align: center; padding: 30px 20px; font-size: 13px; color: #6B6653; }
 
 @media print {
+  /* Chrome/Safari/Firefox no imprimen fondos/colores por defecto (para
+     ahorrar tinta) — sin esto, header.hero y .callout pierden su fondo
+     navy pero mantienen el texto claro, quedando texto claro sobre papel
+     blanco: invisible. Se aplica en html/body para cubrir cualquier
+     bloque de fondo de color futuro, no solo los dos actuales. */
+  html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #btn-descargar-pdf { display: none; }
   body { background: #fff; }
 }
