@@ -8,6 +8,141 @@
 
 **Tech Stack:** Deno/TypeScript (Edge Function, mismo runtime que el resto de `supabase/functions/`), HTML/CSS/JS plano sin build (frontend), Supabase (Postgres + `pg_cron`/`pg_net` + Edge Functions), Windsor.ai (fuente de datos de las 3 plataformas).
 
+## Corrección post-Task-3 (bug real encontrado en producción)
+
+Verificando en vivo tras el deploy de la Task 3, `ig_vistas_30d` guardó
+133.408 — muy por debajo de lo que muestra el panel real de Instagram
+(2.496.214 en 30 días, confirmado por el usuario mirando Instagram
+Insights directo). Causa raíz, confirmada probando la API real de
+Windsor.ai a mano: `fetchWindsorConnector('instagram', ['views',
+'reach_1d', 'total_interactions'], 'last_30d', ...)` mezclaba en una sola
+consulta campos de dos "tablas" internas distintas de Windsor.ai
+(`views`/`total_interactions` viven en `user_insights_day_total_value`,
+`reach_1d` vive en `user_insights_day`) — eso rompe el auto-agregado de
+Windsor.ai y en vez de devolver una fila con el total del período,
+devuelve 31 filas (una por día, más una fila suelta solo con
+`reach_1d`), y el código tomaba `data[0]`, que resultó ser el día más
+antiguo del rango, no el total.
+
+**Fix verificado a mano contra la API real** (ver Task 2 actualizada
+abajo): separar `reach_1d` en su propia consulta arregla el
+auto-agregado — `views`+`total_interactions` juntos SÍ vienen bien
+agregados en una sola fila cuando no se mezcla con `reach_1d`. De paso se
+encontró que TikTok usaba el campo equivocado (`video_views_count`, a
+nivel de video individual, devolvía 2.183) en vez de `video_views` (a
+nivel de cuenta, devuelve 74.822 — coincide con lo que el usuario ve en
+TikTok Studio). YouTube no tenía este problema (ya devolvía el valor
+correcto, aunque de forma un poco rara — 56 filas idénticas en vez de
+una sola, sin afectar el resultado).
+
+Las Tasks 2 y 3 originales de abajo quedan como registro histórico de lo
+que se construyó primero; el contenido real a implementar es el de esta
+sección de corrección, que reemplaza el cuerpo de `fetchInstagramStats`/
+`fetchTiktokStats` en `windsor.ts`.
+
+### `fetchInstagramStats` corregido
+
+```typescript
+export async function fetchInstagramStats(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<InstagramStats> {
+  const [seguidoresFila, vistasFila, interaccionesFila, alcanceFila] = await Promise.all([
+    fetchWindsorConnector('instagram', ['followers_count'], null, apiKey, fetchImpl),
+    fetchWindsorConnector('instagram', ['views'], 'last_30d', apiKey, fetchImpl),
+    fetchWindsorConnector('instagram', ['total_interactions'], 'last_90d', apiKey, fetchImpl),
+    fetchWindsorConnector('instagram', ['reach_1d'], 'last_90d', apiKey, fetchImpl),
+  ])
+  return {
+    seguidores: Number(seguidoresFila.followers_count),
+    vistas30d: Number(vistasFila.views),
+    alcance90d: Number(alcanceFila.reach_1d),
+    interacciones90d: Number(interaccionesFila.total_interactions),
+  }
+}
+```
+
+(4 llamadas en vez de 2: `views` es de 30 días, `total_interactions` y
+`reach_1d` son de 90 días — mismos períodos que ya usaba el media kit
+estático — y cada una va sola porque combinarlas con una tabla distinta
+rompe el agregado, como se explicó arriba.)
+
+### `fetchTiktokStats` corregido
+
+```typescript
+export async function fetchTiktokStats(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<TiktokStats> {
+  const fila = await fetchWindsorConnector(
+    'tiktok_organic',
+    ['total_followers_count', 'total_likes', 'video_views'],
+    'last_30d',
+    apiKey,
+    fetchImpl,
+  )
+  return {
+    seguidores: Number(fila.total_followers_count),
+    likes: Number(fila.total_likes),
+    videoTopVistas: Number(fila.video_views),
+  }
+}
+```
+
+(Cambia `video_views_count` → `video_views`, y pasa a representar
+"vistas de video de la cuenta en 30 días" en vez de "vistas del video
+más visto" — ese segundo dato requeriría una consulta separada a nivel
+de video individual que no vale la pena para este proyecto. El campo
+`TiktokStats.videoTopVistas` y el id HTML `#stat-tiktok-video-top` se
+mantienen sin cambio de nombre para no tocar más archivos de los
+necesarios, pero la Task 5 más abajo debe rotular el texto como "Vistas
+de video (30 días)", no "Video más visto".)
+
+`fetchYoutubeStats` necesita un cambio también, descubierto al armar la
+cifra hero combinada (ver más abajo): combinar `subscriber_count`/
+`view_count` (tabla `Data - Channel`) con `views` con `date_preset`
+(tabla `Video`) tiene el mismo problema de mezcla de tablas — probado a
+mano, la combinación devuelve filas rotas, pero `views` sola con
+`date_preset='last_30d'` da un valor limpio (24.896, coincide con lo que
+el usuario ve en YouTube Studio: ~25,5k). Se agrega como campo nuevo
+`vistas30d`, en una llamada separada:
+
+```typescript
+export interface YoutubeStats {
+  suscriptores: number
+  vistasHistoricas: number
+  vistas30d: number
+}
+
+export async function fetchYoutubeStats(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<YoutubeStats> {
+  const [canalFila, vistas30dFila] = await Promise.all([
+    fetchWindsorConnector('youtube', ['subscriber_count', 'view_count'], null, apiKey, fetchImpl),
+    fetchWindsorConnector('youtube', ['views'], 'last_30d', apiKey, fetchImpl),
+  ])
+  return {
+    suscriptores: Number(canalFila.subscriber_count),
+    vistasHistoricas: Number(canalFila.view_count),
+    vistas30d: Number(vistas30dFila.views),
+  }
+}
+```
+
+### Cambios que esto arrastra en el resto del plan
+
+- **Task 1 (tabla, ya completada)**: agregar una columna nueva,
+  `yt_vistas_30d numeric`, vía `alter table rayando_cda.media_kit_stats
+  add column if not exists yt_vistas_30d numeric;` (idempotente, se puede
+  correr contra la tabla ya creada sin romper nada).
+- **Task 3 (Edge Function, ya completada)**: el bloque de YouTube en
+  `index.ts` pasa a incluir `yt_vistas_30d: yt.vistas30d,` junto a los
+  campos que ya guardaba, y hay que volver a desplegar la función con el
+  `windsor.ts` corregido.
+- **Task 5/Task 6 (página, todavía no implementadas)**: la cifra hero se
+  arma sumando las 3 plataformas: `ig_vistas_30d + tiktok_video_top_vistas
+  + yt_vistas_30d` (con esta corrección, TikTok ya guarda vistas de video
+  de 30 días a nivel de cuenta, no el video más visto — ver más arriba).
+  El label del hero ya se actualizó a "visualizaciones mensuales —
+  Instagram + TikTok + YouTube, número en vivo" y en `app.js` el cálculo
+  pasa a ser:
+  ```javascript
+  const heroTotal = (stats.ig_vistas_30d ?? 0) + (stats.tiktok_video_top_vistas ?? 0) + (stats.yt_vistas_30d ?? 0)
+  setText('stat-hero-vistas', fmt.format(heroTotal))
+  ```
+
 ## Global Constraints
 
 - La API key de Windsor.ai ya está cargada como secreto `WINDSOR_API_KEY` en el proyecto de Supabase (confirmado por el usuario) — nunca se escribe en código ni en git.
@@ -644,7 +779,7 @@ footer { text-align: center; padding: 30px 20px; font-size: 13px; color: #6B6653
       <p class="subtitle">Programa de Universidad de Chile · EN VIVO cada lunes 23:00 por YouTube. Opinión con postura, entrevistas con protagonistas y humor de hinchada.</p>
       <div class="hero-stat-big">
         <span id="stat-hero-vistas">—</span>
-        <span class="label">vistas en Instagram, últimos 30 días — número en vivo</span>
+        <span class="label">visualizaciones mensuales — Instagram + TikTok + YouTube, número en vivo</span>
       </div>
     </div>
   </header>
@@ -667,7 +802,7 @@ footer { text-align: center; padding: 30px 20px; font-size: 13px; color: #6B6653
           <div class="metric" id="stat-ig-seguidores">—</div>
           <div class="metric-label" style="margin-top:10px;">Vistas (30 días)</div>
           <div class="metric" id="stat-ig-vistas">—</div>
-          <div class="metric-label" style="margin-top:10px;">Interacciones (30 días)</div>
+          <div class="metric-label" style="margin-top:10px;">Interacciones (90 días)</div>
           <div class="metric" id="stat-ig-interacciones">—</div>
         </div>
         <div class="platform-card">
@@ -676,7 +811,7 @@ footer { text-align: center; padding: 30px 20px; font-size: 13px; color: #6B6653
           <div class="metric" id="stat-tiktok-seguidores">—</div>
           <div class="metric-label" style="margin-top:10px;">Me gusta acumulados</div>
           <div class="metric" id="stat-tiktok-likes">—</div>
-          <div class="metric-label" style="margin-top:10px;">Video más visto</div>
+          <div class="metric-label" style="margin-top:10px;">Vistas de video (30 días)</div>
           <div class="metric" id="stat-tiktok-video-top">—</div>
         </div>
         <div class="platform-card">
@@ -805,7 +940,8 @@ async function cargarStats() {
     const stats = filas[0]
     if (!stats) return // sin fila todavía: quedan los defaults del HTML
 
-    setText('stat-hero-vistas', fmt.format(stats.ig_vistas_30d))
+    const heroTotal = (stats.ig_vistas_30d ?? 0) + (stats.tiktok_video_top_vistas ?? 0) + (stats.yt_vistas_30d ?? 0)
+    setText('stat-hero-vistas', fmt.format(heroTotal))
 
     setText('stat-ig-seguidores', fmt.format(stats.ig_seguidores))
     setText('stat-ig-vistas', fmt.format(stats.ig_vistas_30d))
