@@ -55,26 +55,52 @@ Deno.test('fetchWindsorConnector lanza WindsorError si data viene vacío', async
 // "tabla" interna, para no romper el auto-agregado — ver windsor.ts). Este
 // fake inspecciona la URL de cada llamada y devuelve la fila mockeada que
 // corresponda, para poder seguir verificando el mapeo de campos end to end.
-function fakeFetchPorUrl(respuestas: Array<{ contiene: string; data: Record<string, unknown> }>) {
-  return async (url: string | URL) => {
+//
+// El routing exige el `date_preset` correcto (o su ausencia, vía
+// `sinDatePreset`) además del campo — si el código pidiera, por ejemplo,
+// `total_interactions` con `date_preset=last_30d` en vez de `last_90d`,
+// ninguna entrada de `mapeos` matchea y el fake lanza, haciendo fallar el
+// test (exactamente la clase de bug que se corrigió: período equivocado).
+// Además se capturan todas las URLs llamadas para poder hacer aserciones
+// explícitas de `date_preset` por campo, igual que ya hacía el test de
+// TikTok.
+function fakeFetchPorUrl(
+  mapeos: Array<{ contiene: string[]; sinDatePreset?: boolean; data: Record<string, unknown> }>,
+) {
+  const urlsCapturadas: string[] = []
+  const fetchImpl = async (url: string | URL) => {
     const urlStr = url.toString()
-    const match = respuestas.find((r) => urlStr.includes(r.contiene))
+    urlsCapturadas.push(urlStr)
+    const match = mapeos.find((m) => {
+      const cumpleContiene = m.contiene.every((sub) => urlStr.includes(sub))
+      const cumpleSinDatePreset = !m.sinDatePreset || !urlStr.includes('date_preset=')
+      return cumpleContiene && cumpleSinDatePreset
+    })
     if (!match) {
       throw new Error(`fakeFetchPorUrl: no hay mock para la URL ${urlStr}`)
     }
     return new Response(JSON.stringify({ data: [match.data] }), { status: 200 })
   }
+  return { fetchImpl: fetchImpl as typeof fetch, urlsCapturadas }
 }
 
-Deno.test('fetchInstagramStats mapea los campos correctos (4 llamadas separadas)', async () => {
-  const fakeFetch = fakeFetchPorUrl([
-    { contiene: 'fields=followers_count', data: { followers_count: 13677 } },
-    { contiene: 'fields=views', data: { views: 3200000 } },
-    { contiene: 'fields=total_interactions', data: { total_interactions: 590000 } },
-    { contiene: 'fields=reach_1d', data: { reach_1d: 560000 } },
+Deno.test('fetchInstagramStats mapea los campos correctos y usa el date_preset correcto por campo (4 llamadas separadas)', async () => {
+  const { fetchImpl, urlsCapturadas } = fakeFetchPorUrl([
+    { contiene: ['fields=followers_count'], sinDatePreset: true, data: { followers_count: 13677 } },
+    { contiene: ['fields=views', 'date_preset=last_30d'], data: { views: 3200000 } },
+    { contiene: ['fields=total_interactions', 'date_preset=last_90d'], data: { total_interactions: 590000 } },
+    { contiene: ['fields=reach_1d', 'date_preset=last_90d'], data: { reach_1d: 560000 } },
   ])
-  const stats = await fetchInstagramStats('k', fakeFetch as typeof fetch)
+  const stats = await fetchInstagramStats('k', fetchImpl)
   assertEquals(stats, { seguidores: 13677, vistas30d: 3200000, alcance90d: 560000, interacciones90d: 590000 })
+
+  // Aserciones explícitas de date_preset por campo (no solo el routing del
+  // mock, que ya haría fallar el test si el período estuviera mal): esto es
+  // justo el tipo de parámetro que causó el bug real en producción (ver
+  // docs/superpowers/plans/2026-07-30-media-kit-vivo.md).
+  assertStringIncludes(urlsCapturadas.find((u) => u.includes('fields=views'))!, 'date_preset=last_30d')
+  assertStringIncludes(urlsCapturadas.find((u) => u.includes('fields=total_interactions'))!, 'date_preset=last_90d')
+  assertStringIncludes(urlsCapturadas.find((u) => u.includes('fields=reach_1d'))!, 'date_preset=last_90d')
 })
 
 Deno.test('fetchTiktokStats mapea los campos correctos (video_views, no video_views_count)', async () => {
@@ -94,11 +120,20 @@ Deno.test('fetchTiktokStats mapea los campos correctos (video_views, no video_vi
   assertStringIncludes(urlCapturada!, 'date_preset=last_30d')
 })
 
-Deno.test('fetchYoutubeStats mapea los campos correctos (2 llamadas separadas)', async () => {
-  const fakeFetch = fakeFetchPorUrl([
-    { contiene: 'fields=subscriber_count%2Cview_count', data: { subscriber_count: 210, view_count: 1450000 } },
-    { contiene: 'fields=views', data: { views: 24896 } },
+Deno.test('fetchYoutubeStats mapea los campos correctos y usa el date_preset correcto (2 llamadas separadas)', async () => {
+  const { fetchImpl, urlsCapturadas } = fakeFetchPorUrl([
+    {
+      contiene: ['fields=subscriber_count%2Cview_count'],
+      sinDatePreset: true,
+      data: { subscriber_count: 210, view_count: 1450000 },
+    },
+    { contiene: ['fields=views', 'date_preset=last_30d'], data: { views: 24896 } },
   ])
-  const stats = await fetchYoutubeStats('k', fakeFetch as typeof fetch)
+  const stats = await fetchYoutubeStats('k', fetchImpl)
   assertEquals(stats, { suscriptores: 210, vistasHistoricas: 1450000, vistas30d: 24896 })
+
+  // Igual que en Instagram: `views` debe llevar date_preset=last_30d, no
+  // combinarse sin fecha con el resto (esa combinación fue el mismo bug de
+  // agregación, ver windsor.ts).
+  assertStringIncludes(urlsCapturadas.find((u) => u.includes('fields=views'))!, 'date_preset=last_30d')
 })
