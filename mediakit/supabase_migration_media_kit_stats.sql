@@ -18,6 +18,7 @@ create table if not exists rayando_cda.media_kit_stats (
     -- YouTube
     yt_suscriptores numeric,
     yt_vistas_historicas numeric,
+    yt_vistas_30d numeric,
     yt_actualizado_en timestamptz,
     -- Manual (no es una métrica de ninguna API)
     programas_emitidos integer,

@@ -49,6 +49,7 @@ Deno.serve(async (_req: Request) => {
     Object.assign(actualizacion, {
       yt_suscriptores: yt.suscriptores,
       yt_vistas_historicas: yt.vistasHistoricas,
+      yt_vistas_30d: yt.vistas30d,
       yt_actualizado_en: ahora,
     })
   } catch (e) {
