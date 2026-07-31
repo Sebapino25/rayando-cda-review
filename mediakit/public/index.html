@@ -4,33 +4,83 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Rayando el CDA — Media Kit</title>
-  <meta name="description" content="Media kit en vivo de Rayando el CDA: alcance real, audiencia y planes de auspicio, con los números actualizados todos los días." />
+  <meta name="description" content="Media kit en vivo de Rayando el CDA: alcance real, contenido real y planes de auspicio, con los números actualizados todos los días." />
   <meta property="og:title" content="Rayando el CDA — Media Kit" />
-  <meta property="og:description" content="Media kit en vivo de Rayando el CDA: alcance real, audiencia y planes de auspicio, con los números actualizados todos los días." />
+  <meta property="og:description" content="Media kit en vivo de Rayando el CDA: alcance real, contenido real y planes de auspicio, con los números actualizados todos los días." />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='16' fill='%230A2A6B'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Arial Black,Arial,sans-serif' font-weight='900' fill='%23F2B807' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <button id="btn-descargar-pdf" type="button">Descargar PDF</button>
+  <nav class="topbar">
+    <div class="wrap topbar-inner">
+      <img class="topbar-logo" src="assets/logo.png" alt="Rayando el CDA" width="40" height="40" />
+      <span class="topbar-name">RAYANDO EL CDA</span>
+      <button id="btn-descargar-pdf" type="button">Descargar PDF</button>
+    </div>
+  </nav>
 
   <header class="hero">
-    <div class="wrap">
+    <img class="hero-bg" src="assets/hero-fondo.jpg" alt="" />
+    <div class="hero-scrim"></div>
+    <div class="wrap hero-content">
+      <img class="hero-logo" src="assets/logo.png" alt="Rayando el CDA" width="120" height="120" />
       <h1>RAYANDO EL CDA</h1>
-      <p class="subtitle">Programa de Universidad de Chile · EN VIVO cada lunes 23:00 por YouTube. Opinión con postura, entrevistas con protagonistas y humor de hinchada.</p>
-      <div class="hero-stat-big">
-        <span id="stat-hero-vistas">2.643.805</span>
-        <span class="label">visualizaciones mensuales — Instagram + TikTok + YouTube, número en vivo</span>
+      <p class="subtitle">El programa de opinión de la hinchada más grande de Chile. Entrevistas con protagonistas reales, análisis sin filtro y el humor de la tribuna — EN VIVO cada lunes 23:00 por YouTube.</p>
+      <div class="scoreboard">
+        <span class="scoreboard-label">Alcance mensual en vivo</span>
+        <span class="scoreboard-value" id="stat-hero-vistas">2.643.805</span>
+        <span class="scoreboard-sub">visualizaciones · Instagram + TikTok + YouTube</span>
+      </div>
+      <div>
+        <a class="btn-whatsapp" href="https://wa.me/56973894323?text=Hola%2C%20vi%20el%20media%20kit%20de%20Rayando%20el%20CDA%20y%20quiero%20conversar%20sobre%20auspicio" target="_blank" rel="noopener">Conversemos por WhatsApp</a>
       </div>
     </div>
   </header>
 
   <div class="wrap">
 
-    <section id="quienes-somos">
-      <h2>Quiénes somos</h2>
-      <p>Rayando el CDA es un medio de hinchas de Universidad de Chile con 70 programas en vivo emitidos y comunidad activa en tres plataformas. Cada semana producimos un programa de más de una hora y, a partir de él, más de 20 piezas de contenido corto.</p>
-      <p>El equipo combina conducción periodística, edición profesional y un sistema propio de producción con revisión editorial pieza por pieza — para que cada contenido, y cada marca que lo acompaña, se vea impecable.</p>
+    <section id="quienes-somos" class="split">
+      <div class="split-text">
+        <h2>Quiénes somos</h2>
+        <p>Rayando el CDA es un medio de hinchas de Universidad de Chile con 70 programas en vivo emitidos y comunidad activa en tres plataformas. Cada semana producimos un programa de más de una hora y, a partir de él, más de 20 piezas de contenido corto.</p>
+        <p>El equipo combina conducción periodística, edición profesional y un sistema propio de producción con revisión editorial pieza por pieza — para que cada contenido, y cada marca que lo acompaña, se vea impecable.</p>
+      </div>
+      <figure class="split-photo">
+        <img src="assets/quienes-somos.jpg" alt="El equipo de Rayando el CDA junto a Fernando Gago, técnico elegido por Universidad de Chile" />
+        <figcaption>Con Fernando Gago, el técnico elegido por Universidad de Chile — acceso directo a los protagonistas del club.</figcaption>
+      </figure>
+    </section>
+
+    <section id="contenido-real">
+      <h2>Esto no es una promesa. Es lo que ya publicamos.</h2>
+      <p>Tres piezas reales, con las métricas reales que dejaron — nada de proyecciones.</p>
+      <div class="gallery">
+        <figure class="gallery-card">
+          <img src="assets/contenido-idolo.jpg" alt="El ídolo nos visita: Pedro Heidi González en vivo con Rayando el CDA" />
+          <figcaption>
+            <strong>"El ídolo nos visita"</strong>
+            <span>Pedro "Heidi" González, en vivo con el programa</span>
+          </figcaption>
+        </figure>
+        <figure class="gallery-card">
+          <img src="assets/contenido-brasil.jpg" alt="Despacho en vivo desde Río de Janeiro, cobertura en terreno" />
+          <figcaption>
+            <strong>"Hotelazo Azul en Brasil"</strong>
+            <span>Despacho en vivo desde Río de Janeiro — cobertura en terreno</span>
+          </figcaption>
+        </figure>
+        <figure class="gallery-card gallery-card--tall">
+          <img src="assets/contenido-galeriasur.jpg" alt="Reel viral: la gente saliendo de la Galería Sur" />
+          <figcaption>
+            <strong>212.431 cuentas alcanzadas</strong>
+            <span>8.776 me gusta con un solo reel — 96,8% no seguía la cuenta antes de verlo</span>
+          </figcaption>
+        </figure>
+      </div>
     </section>
 
     <section id="plataformas">
@@ -38,7 +88,7 @@
       <p>Números en vivo, actualizados todos los días.</p>
       <div class="platform-grid">
         <div class="platform-card">
-          <h3>Instagram · @rayandoelcda</h3>
+          <h3><img class="platform-icon" src="assets/icon-instagram.png" alt="" width="20" height="20" />Instagram · @rayandoelcda</h3>
           <div class="metric-label">Seguidores</div>
           <div class="metric" id="stat-ig-seguidores">13.678</div>
           <div class="metric-label" style="margin-top:10px;">Vistas (30 días)</div>
@@ -47,7 +97,7 @@
           <div class="metric" id="stat-ig-interacciones">482.341</div>
         </div>
         <div class="platform-card">
-          <h3>TikTok · @rayando.el.cda</h3>
+          <h3><img class="platform-icon" src="assets/icon-tiktok.png" alt="" width="20" height="20" />TikTok · @rayando.el.cda</h3>
           <div class="metric-label">Seguidores</div>
           <div class="metric" id="stat-tiktok-seguidores">4.544</div>
           <div class="metric-label" style="margin-top:10px;">Me gusta acumulados</div>
@@ -56,7 +106,7 @@
           <div class="metric" id="stat-tiktok-video-top">74.822</div>
         </div>
         <div class="platform-card">
-          <h3>YouTube · Rayando el CDA</h3>
+          <h3><img class="platform-icon" src="assets/icon-youtube.png" alt="" width="20" height="20" />YouTube · Rayando el CDA</h3>
           <div class="metric-label">Suscriptores</div>
           <div class="metric" id="stat-yt-suscriptores">2.320</div>
           <div class="metric-label" style="margin-top:10px;">Vistas históricas</div>
@@ -75,53 +125,137 @@
         <p style="margin:6px 0 0;color:#E5ECFB;">más vistas mensuales en Instagram que seguidores tenemos — contenido que el algoritmo empuja a gente nueva todo el tiempo, no una base cautiva que ya nos sigue.</p>
         <blockquote>"Cristián, parte del equipo, ya logró publicaciones con más de 5.000.000 de vistas trabajando en otro medio. Esa capacidad de generar contenido que explota está ahora enfocada 100% en Rayando el CDA."</blockquote>
       </div>
+      <div class="proof-grid">
+        <figure class="proof-shot">
+          <img src="assets/prueba-alcance.jpg" alt="Captura real de Meta Business Suite: reel con 212.431 cuentas alcanzadas y 8.776 me gusta" />
+          <figcaption>Sin retocar: la analítica real de Meta de uno de nuestros reels. 96,8% de las cuentas alcanzadas no seguía la página antes de ver este video.</figcaption>
+        </figure>
+        <figure class="proof-shot">
+          <img src="assets/prueba-meo.jpg" alt="Captura real de YouTube: entrevista a Marco Enríquez-Ominami sobre el Estadio de la U" />
+          <figcaption>Otro real: Marco Enríquez-Ominami en el programa, hablando del Estadio de la U — el tipo de invitado que solo consigue un medio con acceso de verdad.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="audiencia">
+      <h2>Y no es cualquier audiencia: es exactamente la que tu marca busca</h2>
+      <p>No vendemos una cifra de seguidores — vendemos quién está del otro lado. En Instagram, nuestra plataforma principal, la composición real de esa audiencia es esta (datos de Meta vía Windsor.ai, no una encuesta):</p>
+      <div class="audience-grid">
+        <div class="audience-stat audience-stat--lead">
+          <div class="n"><span id="stat-audiencia-hombres-25-44">54</span>%</div>
+          <div class="l">de la audiencia son hombres de 25 a 44 años — el corazón del target de bebidas, apuestas, bancos, retail deportivo y automotriz</div>
+        </div>
+        <div class="audience-stat">
+          <div class="n"><span id="stat-audiencia-hombres">73</span>%</div>
+          <div class="l">hombres</div>
+        </div>
+        <div class="audience-stat">
+          <div class="n"><span id="stat-audiencia-25-44">67</span>%</div>
+          <div class="l">entre 25 y 44 años</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#6B6653;">Además, la audiencia no es solo Santiago: hay comunidad activa desde Arica hasta Punta Arenas — alcance nacional, no solo metropolitano.</p>
     </section>
 
     <section id="no-es-nicho">
-      <h2>La hinchada de la U no es un nicho. Es una de las dos más grandes de Chile.</h2>
-      <p>Entre el 18% y el 21% de los chilenos se declara hincha de Universidad de Chile (encuestas Cadem / La Cosa Nostra) — y en la temporada 2024, la U convocó más público real a los estadios que Colo-Colo: no es la hinchada que más dice ser fanática en una encuesta, es la que más se mueve.</p>
+      <h2>La hinchada de la U no es un nicho. Es la que más gente lleva al estadio en todo Chile.</h2>
+      <p>En 2025, Universidad de Chile terminó <strong>primera en asistencia de todo el Campeonato Nacional</strong> (Subsecretaría del Interior / Estadio Seguro) — no es la hinchada que más dice ser fanática en una encuesta, es la que más se mueve, partido a partido.</p>
       <div class="stat-compare">
-        <div class="box">
-          <div class="n">549.000</div>
-          <div class="l">espectadores de la U en 2024 (Estadio Seguro)</div>
+        <div class="box box--lead">
+          <div class="n">419.085</div>
+          <div class="l">espectadores de la U en 2025 — 1er lugar del país (32.237 promedio, 78,9% de ocupación)</div>
         </div>
         <div class="box">
-          <div class="n">405.000</div>
-          <div class="l">espectadores de Colo-Colo en 2024</div>
+          <div class="n">333.662</div>
+          <div class="l">espectadores de Colo-Colo en 2025 — 85.000 personas por debajo de la U</div>
         </div>
       </div>
       <p>Auspiciar a una hinchada específica no es una apuesta rara: <strong>12 de los 16 clubes de Primera División de Chile ya tienen una casa de apuestas como sponsor exclusivo de su categoría</strong>. Es la forma estándar en la que las marcas deportivas ya invierten en Chile — acá, a una fracción del costo de un sponsor de camiseta.</p>
     </section>
 
-    <section id="propuesta">
-      <h2>Planes mensuales</h2>
-      <div class="platform-grid">
-        <div class="platform-card">
-          <h3>Entrada General · Presencia</h3>
-          <div class="metric">$500.000</div>
-          <div class="metric-label">mensual + IVA</div>
-          <p style="font-size:13.5px;">Logo en los +20 clips del mes (IG · TikTok · YouTube), logo en todas las portadas, informe mensual de resultados.</p>
+    <section id="marcas-confian">
+      <h2>Marcas que ya confiaron en nosotros</h2>
+      <p>Así se vieron dentro del programa y su contenido. Hoy el espacio está 100% disponible — sin marcas comprometidas todavía.</p>
+      <div class="sponsor-strip">
+        <div class="sponsor-item">
+          <img src="assets/sponsor-betsala.png" alt="BetSala" />
+          <span>BetSala</span>
         </div>
-        <div class="platform-card">
-          <h3>Entrada Tribuna · Marca Aliada</h3>
-          <div class="metric">$1.000.000</div>
-          <div class="metric-label">mensual + IVA</div>
-          <p style="font-size:13.5px;">Todo lo del plan Presencia + 2 menciones leídas al mes en el programa en vivo + 1 historia y 1 reel promocional mensual.</p>
+        <div class="sponsor-item">
+          <img src="assets/sponsor-gorros.png" alt="Gorros_UdeChile" />
+          <span>Gorros_UdeChile</span>
         </div>
-        <div class="platform-card" style="border-color:var(--gold);border-width:2px;">
-          <h3>Palco · Auspiciador Principal</h3>
-          <div class="metric">$1.500.000</div>
-          <div class="metric-label">mensual + IVA</div>
-          <p style="font-size:13.5px;">Todo lo del plan Marca Aliada + mención leída en CADA programa + 1 clip "Presentado por su marca" + producto en pantalla + exclusividad de rubro.</p>
+        <div class="sponsor-item">
+          <img src="assets/sponsor-ren.png" alt="Ren Clínica Dental" />
+          <span>Ren Clínica Dental</span>
+        </div>
+        <div class="sponsor-item">
+          <img src="assets/sponsor-detrastaza.png" alt="Detrás de la Taza" />
+          <span>Detrás de la Taza</span>
+        </div>
+        <div class="sponsor-item">
+          <img src="assets/sponsor-casachuncho.png" alt="Casa Chuncho 3D" />
+          <span>Casa Chuncho 3D</span>
         </div>
       </div>
+    </section>
+
+    <section id="propuesta">
+      <h2>Planes mensuales</h2>
+      <p><strong>Hoy no hay ninguna marca comprometida</strong> — las 3 categorías están 100% disponibles, sin competencia de otra marca dentro del programa. El primero en entrar define su rubro por el tiempo que dure el contrato.</p>
+      <div class="ticket-grid">
+        <div class="ticket">
+          <div class="ticket-main">
+            <h3>Entrada General · Presencia</h3>
+            <div class="metric">$500.000</div>
+            <div class="metric-label">mensual + IVA</div>
+            <table class="ticket-table">
+              <tr><td>Logo en clips del mes (IG · TikTok · YouTube)</td><td>20+</td></tr>
+              <tr><td>Logo en portadas</td><td>Todas</td></tr>
+              <tr><td>Informe de resultados</td><td>Mensual</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="ticket">
+          <div class="ticket-main">
+            <h3>Entrada Tribuna · Marca Aliada</h3>
+            <div class="metric">$1.000.000</div>
+            <div class="metric-label">mensual + IVA</div>
+            <table class="ticket-table">
+              <tr><td>Todo lo del plan Presencia</td><td>✓</td></tr>
+              <tr><td>Mención leída en vivo</td><td>2/mes</td></tr>
+              <tr><td>Historia promocional</td><td>1/mes</td></tr>
+              <tr><td>Reel promocional</td><td>1/mes</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="ticket ticket--gold">
+          <div class="ticket-main">
+            <h3>Palco · Auspiciador Principal</h3>
+            <div class="metric">$1.500.000</div>
+            <div class="metric-label">mensual + IVA</div>
+            <table class="ticket-table">
+              <tr><td>Todo lo del plan Marca Aliada</td><td>✓</td></tr>
+              <tr><td>Mención leída en vivo</td><td>Cada programa</td></tr>
+              <tr><td>Clip "Presentado por su marca"</td><td>1/mes</td></tr>
+              <tr><td>Producto en pantalla</td><td>✓</td></tr>
+              <tr><td>Exclusividad de rubro</td><td>✓</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p class="cpm-ref">Referencia propia: con el plan Presencia, cada 1.000 vistas de nuestro contenido cuestan alrededor de <strong>$<span id="stat-cpm-presencia">189</span> CLP</strong> — y no es una impresión pagada cualquiera: es tu marca dentro de una conversación real de la hinchada, con logo en cada pieza y reporte mensual.</p>
       <p style="font-size:13px;color:#6B6653;">También disponible: contratos anuales con placement permanente (cotización a medida) · afiliados a comisión · descuento por contrato de 3+ meses.</p>
     </section>
 
   </div>
 
   <footer>
-    Sebastián Pino · Director · seba@rayandoelcda.com · +56 9 7389 4323 · @rayandoelcda
+    <img class="footer-logo" src="assets/logo.png" alt="Rayando el CDA" width="56" height="56" />
+    <div>
+      <div>Sebastián Pino · Director · seba@rayandoelcda.com · +56 9 7389 4323 · @rayandoelcda</div>
+      <a class="btn-whatsapp btn-whatsapp--footer" href="https://wa.me/56973894323?text=Hola%2C%20vi%20el%20media%20kit%20de%20Rayando%20el%20CDA%20y%20quiero%20conversar%20sobre%20auspicio" target="_blank" rel="noopener">Conversemos por WhatsApp</a>
+    </div>
   </footer>
 
   <script src="app.js"></script>

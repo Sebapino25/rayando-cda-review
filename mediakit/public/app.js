@@ -60,6 +60,12 @@ async function cargarStats() {
     const heroTotal = (stats.ig_vistas_30d ?? 0) + (stats.tiktok_video_top_vistas ?? 0) + (stats.yt_vistas_30d ?? 0)
     setText('stat-hero-vistas', fmt.format(heroTotal))
 
+    // Costo por 1.000 vistas del plan Presencia, recalculado del alcance
+    // real en vivo (no un benchmark externo — es puro $500.000 / vistas).
+    if (heroTotal > 0) {
+      setText('stat-cpm-presencia', fmt.format(Math.round((500000 / heroTotal) * 1000)))
+    }
+
     setStatSiEsNumero('stat-ig-seguidores', stats.ig_seguidores)
     setStatSiEsNumero('stat-ig-vistas', stats.ig_vistas_30d)
     setStatSiEsNumero('stat-ig-interacciones', stats.ig_interacciones_90d)
@@ -71,6 +77,10 @@ async function cargarStats() {
     setStatSiEsNumero('stat-yt-suscriptores', stats.yt_suscriptores)
     setStatSiEsNumero('stat-yt-vistas-card', stats.yt_vistas_historicas)
     setStatSiEsNumero('stat-programas', stats.programas_emitidos)
+
+    setStatSiEsNumero('stat-audiencia-hombres', stats.audiencia_hombres_pct)
+    setStatSiEsNumero('stat-audiencia-25-44', stats.audiencia_25_44_pct)
+    setStatSiEsNumero('stat-audiencia-hombres-25-44', stats.audiencia_hombres_25_44_pct)
 
     if (
       typeof stats.ig_seguidores === 'number' && Number.isFinite(stats.ig_seguidores) && stats.ig_seguidores > 0 &&

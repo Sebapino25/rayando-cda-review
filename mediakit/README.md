@@ -32,3 +32,32 @@ En el SQL Editor de Supabase:
 ```sql
 update rayando_cda.media_kit_stats set programas_emitidos = <número> where id = true;
 ```
+
+## Actualizar la composición de audiencia a mano
+
+`audiencia_hombres_pct`, `audiencia_25_44_pct` y `audiencia_hombres_25_44_pct`
+(sección "Y no es cualquier audiencia" de la página) tampoco los toca el cron
+diario — la composición demográfica de una cuenta cambia en semanas/meses,
+no en horas. Recalcular cada 2-3 meses, o si el equipo pide un dato más
+fresco antes de una reunión con una marca:
+
+1. Traer la tabla completa de género × edad de Instagram desde Windsor.ai
+   (connector `instagram`, campos `audience_gender_age_name` y
+   `audience_gender_age_size` — trae un valor por combinación, ej. `M.25-34`).
+2. Sumar todos los valores para el total, sumar los que empiezan con `M.`
+   para el % de hombres, sumar los rangos `25-34` + `35-44` (de ambos
+   géneros) para el % de 25-44, y sumar `M.25-34` + `M.35-44` para el %
+   de hombres de 25 a 44 (el dato más específico y más vendedor).
+3. Redondear a entero y actualizar:
+
+```sql
+update rayando_cda.media_kit_stats
+set audiencia_hombres_pct = <pct>,
+    audiencia_25_44_pct = <pct>,
+    audiencia_hombres_25_44_pct = <pct>
+where id = true;
+```
+
+Última actualización: 2026-07-31, con datos reales de Windsor.ai (73%
+hombres, 67% entre 25 y 44 años, 54% hombres de 25 a 44 años, sobre un
+total de ~13.650 seguidoras/es de Instagram).

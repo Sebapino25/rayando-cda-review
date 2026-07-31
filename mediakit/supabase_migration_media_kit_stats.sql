@@ -31,6 +31,16 @@ create table if not exists rayando_cda.media_kit_stats (
 -- deployment viejo sin esta columna no la crearía sin esta línea aparte.
 alter table rayando_cda.media_kit_stats add column if not exists yt_vistas_30d numeric;
 
+-- Composición de audiencia de Instagram (género x edad, vía Windsor.ai
+-- `audience_gender_age_size`). A diferencia del resto de la tabla, esto NO
+-- lo escribe el cron diario: la composición demográfica de una cuenta
+-- cambia en semanas/meses, no en horas, así que se refresca a mano cada
+-- cierto tiempo con un UPDATE directo (ver mediakit/README.md para la
+-- consulta exacta a Windsor.ai y cómo recalcular estos 3 porcentajes).
+alter table rayando_cda.media_kit_stats add column if not exists audiencia_hombres_pct numeric;
+alter table rayando_cda.media_kit_stats add column if not exists audiencia_25_44_pct numeric;
+alter table rayando_cda.media_kit_stats add column if not exists audiencia_hombres_25_44_pct numeric;
+
 grant all on table rayando_cda.media_kit_stats to service_role;
 grant select on table rayando_cda.media_kit_stats to anon;
 
