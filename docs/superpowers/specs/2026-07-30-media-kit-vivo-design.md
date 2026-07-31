@@ -35,8 +35,11 @@ un botón para descargarlo como PDF cuando haga falta adjuntarlo.
 - Página web nueva, con el mismo sistema de diseño de marca (navy, dorado,
   rojo, "marcador LED", tickets) pero con tratamiento más editorial —
   esta es la pieza que ve la marca antes de cualquier reunión.
-- Instagram y YouTube se traen solos (API), TikTok se carga a mano (su API
-  pública no expone seguidores/vistas sin cuenta de partner).
+- Instagram, TikTok y YouTube se traen solos, los tres, vía la cuenta de
+  Windsor.ai que el usuario ya tiene conectada a las tres plataformas
+  (cambio de plan: originalmente TikTok iba a cargarse a mano porque su
+  API pública no expone esos datos sin cuenta de partner — Windsor.ai ya
+  tiene esa conexión resuelta y probada con datos reales).
 - Botón "Descargar PDF" que exporta la página tal cual se ve.
 - Nuevo contenido narrativo que responde directo a las dos objeciones:
   - **Alcance vs. seguidores**: el multiplicador real (vistas mensuales /
@@ -56,7 +59,6 @@ un botón para descargarlo como PDF cuando haga falta adjuntarlo.
 
 - No se reconstruye el pitch deck de 13 slides — sigue existiendo tal
   cual para reuniones presenciales si el usuario lo pide.
-- No se automatiza TikTok — se carga a mano (ver "Datos manuales").
 - No se cambian los planes de auspicio ni sus precios en esta pieza — el
   ajuste de precio (recomendación del análisis anterior) es una decisión
   del usuario, separada de esto.
@@ -67,23 +69,23 @@ un botón para descargarlo como PDF cuando haga falta adjuntarlo.
 ## Arquitectura
 
 ```
-Instagram Graph API (graph.instagram.com)          YouTube Data API v3
-  mismo token que ya usa                              nueva API key
-  publicar-clip (instagram_token)                     (solo lectura,
-        │                                              sin OAuth)
-        ▼                                                    │
-Edge Function nueva: actualizar-stats-mediakit  ◄─────────────┘
-  corre 1 vez por día (pg_cron)
-  trae: seguidores IG, vistas 30d, alcance 90d,
-  interacciones 90d (Instagram Insights) +
-  suscriptores YT, vistas históricas del canal
+Windsor.ai (connectors.windsor.ai) — ya conectado a Instagram,
+TikTok Orgánico y YouTube de Rayando el CDA (cuenta del usuario,
+hoy en trial, pasa a plan pago antes de que venza)
+  GET https://connectors.windsor.ai/{connector}?api_key=...&fields=...
+  probado en vivo durante el diseño: devuelve datos reales
+        │
+        ▼
+Edge Function nueva: actualizar-stats-mediakit
+  corre 1 vez por día (pg_cron, mismo mecanismo que ya usa
+  refrescar-token-instagram)
+  3 llamadas GET (instagram, tiktok_organic, youtube), una por
+  plataforma — si una falla, las otras dos igual se guardan
         │
         ▼
 rayando_cda.media_kit_stats (fila única, como instagram_token)
-  campos de Instagram/YouTube: escritos por la Edge Function
-  campos de TikTok + "programas emitidos": editados a mano
-  por el usuario directo en Supabase Studio (tabla ya visible
-  ahí, sin UI nueva que mantener para esto)
+  todos los campos de las 3 plataformas los escribe la Edge
+  Function — no queda ningún campo manual de audiencia/alcance
         │
         ▼
 mediakit/ (sitio estático nuevo, HTML/CSS/JS sin build,
@@ -99,32 +101,44 @@ GitHub Pages (nuevo path, ej. /rayando-cda-review/mediakit/,
 
 ### Por qué esta arquitectura
 
-- **Reusa todo lo que ya existe**: el token de Instagram, el patrón
-  Edge-Function-con-cron (idéntico a `refrescar-token-instagram`), el
-  mismo repo/deploy de GitHub Pages. Nada de infraestructura nueva que
-  aprender.
+- **Reusa todo lo que ya existe**: el patrón Edge-Function-con-cron
+  (idéntico a `refrescar-token-instagram`), el mismo repo/deploy de
+  GitHub Pages. La única pieza nueva de verdad es la API key de
+  Windsor.ai como secreto.
+- **Una sola fuente para las 3 plataformas** en vez de dos integraciones
+  directas (Instagram Graph API, YouTube Data API) más carga manual de
+  TikTok — menos código, menos puntos de falla, y de paso trae datos más
+  ricos (edad/género/ciudad de la audiencia) que ya calzan con lo que
+  hoy muestra el media kit a mano.
 - **Sin build tool para el frontend**: es una página de solo lectura, sin
   interactividad más allá de "Descargar PDF" — HTML/CSS/JS plano es más
   simple de mantener que meter React para esto, y carga más rápido (le
   importa a alguien abriendo un link desde el celular en una reunión).
-- **YouTube con API key, no OAuth**: `channels.list` con las estadísticas
-  del canal es público, no necesita el flujo OAuth que ya usa
-  `publicar.py` para subir videos — una API key nueva y simple alcanza.
-- **Datos manuales en Supabase Studio, no una UI nueva**: TikTok y
-  "programas emitidos" cambian poco y el usuario ya sabe usar el editor
-  de tablas de Supabase (lo usa para todo lo demás) — construir una
-  pantalla de administración solo para 3-4 campos que se tocan cada tanto
-  no se justifica.
+- **Riesgo a tener presente**: Windsor.ai es un servicio pago de
+  terceros, hoy en trial (vence en unos días). Si el usuario no lo
+  convierte a plan pago antes de que venza, la Edge Function empieza a
+  fallar sus 3 llamadas — no rompe la página (ver "Manejo de errores"),
+  pero los números dejan de actualizarse hasta que se reactive la cuenta.
 
 ## Datos por plataforma
 
-| Campo | Fuente | Frecuencia |
+Los tres connectors ya están conectados y probados (`instagram`,
+`tiktok_organic`, `youtube` — nombres exactos de connector en Windsor.ai).
+Todos con `date_preset` según corresponda (lifetime para seguidores,
+`last_30d`/`last_90d` para lo acumulado del período).
+
+| Campo | Connector · fields de Windsor.ai | Frecuencia |
 |---|---|---|
-| `ig_seguidores` | Instagram Graph API (`/{ig-user-id}?fields=followers_count`) | Diaria (cron) |
-| `ig_vistas_30d`, `ig_alcance_90d`, `ig_interacciones_90d` | Instagram Insights API | Diaria (cron) |
-| `yt_suscriptores`, `yt_vistas_historicas` | YouTube Data API (`channels.list?part=statistics`) | Diaria (cron) |
-| `tiktok_seguidores`, `tiktok_likes`, `tiktok_video_top_vistas` | Manual (Supabase Studio) | Cuando el usuario quiera |
-| `programas_emitidos` | Manual (Supabase Studio) | Cuando el usuario quiera |
+| `ig_seguidores` | `instagram` · `followers_count` | Diaria (cron) |
+| `ig_vistas_30d` | `instagram` · `views` (últimos 30 días) | Diaria (cron) |
+| `ig_alcance_90d` | `instagram` · `reach_1d` sumado (últimos 90 días) | Diaria (cron) |
+| `ig_interacciones_90d` | `instagram` · `total_interactions` (últimos 90 días) | Diaria (cron) |
+| `tiktok_seguidores` | `tiktok_organic` · `total_followers_count` | Diaria (cron) |
+| `tiktok_likes` | `tiktok_organic` · `total_likes` | Diaria (cron) |
+| `tiktok_video_top_vistas` | `tiktok_organic` · `video_views_count` (máximo, tabla `Video`) | Diaria (cron) |
+| `yt_suscriptores` | `youtube` · `subscriber_count` | Diaria (cron) |
+| `yt_vistas_historicas` | `youtube` · `view_count` | Diaria (cron) |
+| `programas_emitidos` | Manual (Supabase Studio) — no es una métrica de ninguna plataforma | Cuando el usuario quiera |
 | `actualizado_en` | Seteado por la Edge Function en cada corrida | Diaria |
 
 Si la Edge Function falla un día (token vencido, límite de API, etc.), la
@@ -156,21 +170,37 @@ Estructura (una sola página larga, con ancla para el botón de PDF):
 
 ## Manejo de errores
 
-- Edge Function: si Instagram o YouTube fallan, seguir con la otra
-  plataforma y guardar lo que sí se pudo traer — no todo o nada. Alerta
-  por mail al usuario solo si una plataforma lleva más de 3 días sin
-  actualizarse (para no generar ruido por una falla de un día).
+- Edge Function: cada una de las 3 llamadas a Windsor.ai (`instagram`,
+  `tiktok_organic`, `youtube`) es independiente — si una falla (API key
+  vencida, cuenta de Windsor no pagada, límite de la API), las otras dos
+  igual se guardan. Nunca todo-o-nada por una sola plataforma caída.
+- Alerta por mail al usuario solo si una plataforma lleva más de 3 días
+  sin actualizarse (para no generar ruido por una falla de un día). Si
+  las 3 fallan el mismo día con un error de autenticación (401/403), el
+  mensaje de la alerta lo dice explícito: "revisar si venció el trial de
+  Windsor.ai" — es la causa más probable dado que la cuenta hoy está en
+  trial.
 - Página: si `media_kit_stats` no tiene fila todavía (primera vez, antes
   de la primera corrida del cron), muestra los últimos números conocidos
   del media kit actual como valores por defecto en el HTML, para que la
   página nunca se vea rota o vacía.
 
+## Configuración inicial (una sola vez)
+
+La API key de Windsor.ai (ya generada y probada durante el diseño de
+este spec) se carga como secreto del proyecto de Supabase — nunca en
+código ni en git, mismo criterio que `RESEND_API_KEY`/`PUBLISH_PIN`. El
+plan de implementación deja el paso exacto (nombre del secreto y dónde
+cargarlo) como su primer step, porque el usuario tiene que hacerlo a
+mano desde el dashboard de Supabase — no es algo que se pueda automatizar
+desde acá.
+
 ## Testing
 
 - Edge Function: tests unitarios con fetch mockeado (mismo patrón que
   `refresh_test.ts`/`instagram_test.ts`), verificando el parseo de la
-  respuesta de Instagram Insights y de YouTube `channels.list`, y que una
-  plataforma fallando no bloquea que se guarde la otra.
+  respuesta de Windsor.ai para cada connector (`{"data": [{...}]}`), y
+  que una plataforma fallando no bloquea que se guarden las otras dos.
 - Página: verificación manual en el navegador (no hay suite de tests de
   frontend en este repo) contra datos reales de `media_kit_stats`
   (lectura, no escritura — sin riesgo de tocar datos de producción) y
