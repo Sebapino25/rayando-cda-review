@@ -79,6 +79,23 @@ LOGO_ANCHO_RATIO = 0.16  # ancho del logo como fracción del ancho del vertical
 LOGO_MARGEN_PX = 40
 LOGO_OPACIDAD = 0.9  # 0-1, se combina con el canal alfa del PNG si lo tiene
 
+# --- Cierre institucional (outro pegado al final de cada vertical) ---
+# René entregó 3 variantes verticales (1080x1920, mismo formato que el
+# vertical final) para ir rotando y que no se sienta repetitivo. El
+# horizontal que entregó junto con estos queda guardado en CIERRES_DIR sin
+# integrar por ahora — horizontal_original.mp4 no se publica en ningún lado
+# hoy, así que no tiene destino todavía.
+CIERRES_DIR = BASE_DIR / "cierres"
+CIERRE_VERTICAL_FILES = [
+    "CIERRE VERTICAL.mp4",
+    "CIERRE VERTICAL 2.mp4",
+    "CIERRE VERTICAL 3.mp4",
+]
+# Round-robin persistido en disco (no random) para que nunca se repita el
+# mismo cierre dos veces seguidas, incluso si el pipeline se reinicia entre
+# clips.
+CIERRE_ROTACION_STATE_PATH = CIERRES_DIR / "rotacion_estado.json"
+
 # --- Portadas automáticas (v2) ---
 PORTADA_VERTICAL_SIZE = (1080, 1920)
 PORTADA_HORIZONTAL_SIZE = (1280, 720)

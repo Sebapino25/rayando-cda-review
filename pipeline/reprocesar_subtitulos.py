@@ -94,7 +94,13 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     return pendientes
 
 
-def procesar_fila(row: dict, apply: bool) -> None:
+def procesar_fila(row: dict, apply: bool) -> bool:
+    """Procesa una fila con transcripcion != transcripcion_original. Devuelve
+    True si se corrigió con éxito (o si en dry-run no hubiera nada que
+    abortar), False si se omitió por ambigüedad/falta de datos o falló un
+    paso técnico. El código de salida de main() se calcula a partir de este
+    valor (ver auto_procesar.ps1, que usa el exit code para decidir si manda
+    la alerta de "se aplicó" o la de "falló")."""
     clip_id = row["id"]
     print(f"\n=== Clip {clip_id} (semana {row.get('semana')}, estado {row.get('estado')}) ===")
     print(f"  YouTube actual: {row.get('youtube_video_id')}")
@@ -117,7 +123,7 @@ def procesar_fila(row: dict, apply: bool) -> None:
                 "distinto entre subtitulos.srt y transcripcion_original — revisá a mano, "
                 "el script no adivina."
             )
-        return
+        return False
     if len(carpetas) > 1:
         print(
             f"  OMITIDO: se encontraron {len(carpetas)} carpetas cuyo subtitulos.srt "
@@ -127,7 +133,7 @@ def procesar_fila(row: dict, apply: bool) -> None:
         for c in carpetas:
             print(f"    - {c}")
         print("    Resolvé la ambigüedad a mano (o corregí el contenido duplicado) antes de reprocesar.")
-        return
+        return False
 
     carpeta = carpetas[0]
     print(f"  Carpeta local: {carpeta}")
@@ -136,13 +142,13 @@ def procesar_fila(row: dict, apply: bool) -> None:
     srt_actual = carpeta / "subtitulos.srt"
     if not horizontal.exists():
         print(f"  OMITIDO: no existe {horizontal}")
-        return
+        return False
 
     segmentos_originales = parse_srt(srt_actual)
     nuevos_segmentos = redistribuir_texto(segmentos_originales, row.get("transcripcion") or "")
     if not nuevos_segmentos:
         print("  OMITIDO: no se pudo redistribuir el texto corregido sobre los segmentos existentes.")
-        return
+        return False
 
     print(
         f"  Transcripción corregida ({len(nuevos_segmentos)} segmentos redistribuidos "
@@ -158,7 +164,7 @@ def procesar_fila(row: dict, apply: bool) -> None:
             "nuevo a YouTube (no listado) y se actualizaría youtube_video_id + "
             "transcripcion_original en Supabase."
         )
-        return
+        return True
 
     print("  Respaldando versión anterior (vertical.mp4 + subtitulos.*) en vN\\...")
     destino_backup = respaldar_version_anterior(carpeta)
@@ -177,7 +183,7 @@ def procesar_fila(row: dict, apply: bool) -> None:
     except publicar.ClipInvalido as e:
         print(f"  OMITIDO: el vertical.mp4 recién quemado no pasó la validación técnica: {e}")
         print(f"  (subtitulos.srt/.ass ya quedaron actualizados; versión anterior respaldada en {destino_backup})")
-        return
+        return False
 
     titulo = row.get("titulo") or "Rayando el CDA"
     descripcion = f"{row.get('youtube_titulo') or ''}\n\n{row.get('youtube_descripcion') or ''}".strip()
@@ -210,6 +216,7 @@ def procesar_fila(row: dict, apply: bool) -> None:
         f"  NOTA: el video anterior ({video_id_anterior}) sigue en YouTube como no "
         "listado; si ya no sirve, bórralo a mano desde YouTube Studio."
     )
+    return True
 
 
 def main():
@@ -239,11 +246,17 @@ def main():
             print(f"El clip {args.clip_id} no tiene cambios pendientes (transcripcion == transcripcion_original).")
         else:
             print("No hay clips con cambios pendientes (transcripcion == transcripcion_original en todas las filas).")
-        return
+        sys.exit(0)
 
     print(f"{'[APPLY]' if args.apply else '[DRY-RUN]'} {len(filas)} clip(s) con cambios pendientes.")
-    for row in filas:
-        procesar_fila(row, apply=args.apply)
+    resultados = [procesar_fila(row, apply=args.apply) for row in filas]
+
+    # Mismo esquema de exit codes que reprocesar_video.py (ver auto_procesar.ps1):
+    # 3 = se aplicó al menos una corrección con éxito, 0 = nada pendiente o
+    # dry-run sin nada que abortar, 1 = alguna fila se omitió o falló.
+    if all(resultados):
+        sys.exit(3 if args.apply else 0)
+    sys.exit(1)
 
 
 if __name__ == "__main__":

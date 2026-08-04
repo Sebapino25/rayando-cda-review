@@ -103,6 +103,13 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
   const [correctionError, setCorrectionError] = useState(false)
 
   const busy = saving || approving || correcting || rejectingBusy
+  // Si la transcripción editada todavía no coincide con transcripcion_original,
+  // el subtítulo corregido no se aplicó al video (eso lo hace
+  // reprocesar_subtitulos.py, disparado por el auto_procesar.ps1 cada 5 min —
+  // ver pipeline/README.md). Aprobar en este estado publicaría el video viejo
+  // con el subtítulo desactualizado, que es justo el bug que esto evita.
+  const transcripcionPendiente =
+    fields.transcripcion.trim() !== (clip.transcripcion_original ?? '').trim()
 
   function updateField(key, value) {
     setFields((prev) => ({ ...prev, [key]: value }))
@@ -276,6 +283,12 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
               <Info size={14} className="shrink-0 mt-0.5" />
               Corregir acá no cambia el subtítulo del video ya generado — queda anotado para reprocesar.
             </p>
+            {transcripcionPendiente && (
+              <p className="flex items-start gap-1.5 text-xs text-warning font-medium">
+                <Info size={14} className="shrink-0 mt-0.5" />
+                Corrección pendiente de aplicar al video: no vas a poder aprobar hasta que el reproceso automático termine (corre solo, cada 5 min) y actualices esta página.
+              </p>
+            )}
           </div>
         </details>
 
@@ -369,7 +382,8 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
               <button
                 type="button"
                 onClick={handleApprove}
-                disabled={busy}
+                disabled={busy || transcripcionPendiente}
+                title={transcripcionPendiente ? 'Hay una corrección de subtítulo sin aplicar al video todavía' : undefined}
                 className="w-full h-14 rounded-xl bg-accent text-accent-foreground font-semibold text-[15px] flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
               >
                 {approving ? (
@@ -380,7 +394,9 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
                 Aprobar
               </button>
               <p className="text-xs text-muted-foreground px-1">
-                El video y el copy están listos, tal cual, para publicarse.
+                {transcripcionPendiente
+                  ? 'Deshabilitado: corregí el subtítulo y esperá a que se reprocese el video (o revertí el cambio en la transcripción) antes de aprobar.'
+                  : 'El video y el copy están listos, tal cual, para publicarse.'}
               </p>
             </div>
 

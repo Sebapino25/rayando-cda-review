@@ -39,6 +39,12 @@ function ReadOnlyField({ label, value }) {
 export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, onDelete }) {
   const stateMeta = STATE_META[clip.estado] ?? STATE_META.rechazado
   const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
+  // Misma señal que ClipCard: si transcripcion todavía no coincide con
+  // transcripcion_original, reprocesar_subtitulos.py (disparado cada 5 min
+  // por auto_procesar.ps1) todavía no quemó la corrección sobre el video —
+  // publicar ahora saldría con el subtítulo viejo.
+  const transcripcionPendiente =
+    (clip.transcripcion ?? '').trim() !== (clip.transcripcion_original ?? '').trim()
   const [undoing, setUndoing] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -73,6 +79,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
   }
 
   async function handlePublicar() {
+    if (transcripcionPendiente) return
     const resumen = [
       'Se va a publicar de verdad, ahora mismo:',
       '',
@@ -240,6 +247,15 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
               </span>
             </p>
           )}
+          {transcripcionPendiente && (
+            <p className="flex items-start gap-1.5 text-sm text-warning bg-warning-bg/60 rounded-lg px-3 py-2">
+              <NoteBlank size={16} className="shrink-0 mt-0.5" />
+              <span>
+                <span className="font-semibold">Corrección de subtítulo pendiente: </span>
+                el video todavía no se reprocesó con la transcripción corregida (se aplica solo, cada 5 min). No se puede publicar hasta que eso termine.
+              </span>
+            </p>
+          )}
         </div>
       )}
 
@@ -253,7 +269,8 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
           <button
             type="button"
             onClick={handlePublicar}
-            disabled={publicando}
+            disabled={publicando || transcripcionPendiente}
+            title={transcripcionPendiente ? 'Hay una corrección de subtítulo sin aplicar al video todavía' : undefined}
             className="self-start flex items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-40 cursor-pointer"
           >
             {publicando ? <SpinnerGap size={15} className="animate-spin" /> : <CheckCircle size={15} weight="bold" />}

@@ -75,6 +75,10 @@ RayandoelCDA\
 │   └── README.md
 ├── Logo PNG.png                 Logo del programa (usado como overlay y en portadas)
 ├── recursos-portadas\           Fotos propias (hinchada, estadio, etc.) para usar como fondo de portada
+├── cierres\                     Videos de cierre institucional (ver "Cierre institucional en los verticales")
+│   ├── CIERRE VERTICAL.mp4 / CIERRE VERTICAL 2.mp4 / CIERRE VERTICAL 3.mp4
+│   ├── CIERRE HORIZONTAL.MP4_  (guardado, aún sin integrar)
+│   └── rotacion_estado.json    índice del último cierre usado (round-robin)
 ├── grabaciones\                Grabaciones de OBS (.mkv), NUNCA se tocan
 │   └── 2026-07-06 23-13-36.mkv
 ├── transcripciones\            Salida de transcribir.py
@@ -185,7 +189,8 @@ Genera en `clips\<fecha-programa>\<nombre>\`:
   sección Logo) y subtítulos incrustados extraídos y re-sincronizados desde la
   transcripción maestra del programa, ya pasados por el corrector de nombres
   propios (si existe transcripción). Si aún no se transcribió esa grabación,
-  el vertical se genera igual pero sin subtítulos.
+  el vertical se genera igual pero sin subtítulos. Termina con un **cierre
+  institucional** pegado al final (ver sección "Cierre institucional").
 - `portada_vertical.jpg` / `portada_horizontal.jpg`: portadas automáticas (ver
   sección Portadas).
 - `copys.md`: título SEO + copys para Instagram/YouTube Shorts/TikTok (ver
@@ -421,6 +426,36 @@ esquina superior derecha). Parámetros en `config.py`:
 - `LOGO_ANCHO_RATIO`: ancho del logo como fracción del ancho del vertical.
 - `LOGO_MARGEN_PX`: margen respecto al borde.
 - `LOGO_OPACIDAD`: 0-1.
+
+## Cierre institucional en los verticales
+
+Todo `vertical.mp4` (`build_vertical` en `cortar_clip.py`) termina con un
+cierre institucional pegado al final, concatenado en el mismo filtro de
+ffmpeg que arma el vertical. René entregó 3 variantes (1080×1920, mismo
+formato que el vertical final) y se rota entre ellas en round-robin para que
+no se sienta repetitivo — nunca se repite la misma dos veces seguidas,
+incluso si el pipeline se reinicia entre clips (el índice se persiste en
+disco).
+
+Aplica automáticamente en los tres puntos que generan/regeneran el vertical:
+corte normal, `reprocesar_subtitulos.py` y `reprocesar_video.py` (corrección
+automática de in/out point).
+
+Parámetros en `config.py`:
+
+- `CIERRES_DIR`: carpeta con los videos de cierre (fuera del repo, en
+  `RayandoelCDA\cierres\`, misma convención que `Logo PNG.png` y
+  `recursos-portadas\`).
+- `CIERRE_VERTICAL_FILES`: lista de nombres de archivo (orden de rotación).
+- `CIERRE_ROTACION_STATE_PATH`: JSON (`rotacion_estado.json`) con el índice
+  del último cierre usado.
+
+René también entregó un cierre horizontal (`CIERRE HORIZONTAL.MP4_`), que
+queda guardado en `CIERRES_DIR` sin integrar: `horizontal_original.mp4` no se
+publica en ningún lado hoy (es solo material interno para generar el
+vertical), así que no tiene un destino todavía. Si en algún momento se
+publica un formato horizontal, agregarlo sería análogo a lo que hace
+`build_vertical`.
 
 ## Portadas automáticas (v2)
 

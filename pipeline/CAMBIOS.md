@@ -1,3 +1,23 @@
+# Cambios aplicados — cierre institucional en los verticales (03/08)
+
+René entregó 4 videos de cierre (3 verticales + 1 horizontal). `build_vertical`
+(`cortar_clip.py`) ahora concatena uno de los 3 cierres verticales al final de
+cada `vertical.mp4`, rotando en round-robin persistido en disco
+(`cierres/rotacion_estado.json`) para que nunca se repita el mismo dos veces
+seguidas. Los archivos viven fuera del repo, en
+`RayandoelCDA\cierres\` (misma convención que `Logo PNG.png` y
+`recursos-portadas\`) — ver `CIERRES_DIR` / `CIERRE_VERTICAL_FILES` en
+`config.py`.
+
+El cierre horizontal queda guardado en esa misma carpeta sin integrar:
+`horizontal_original.mp4` no se publica en ningún lado hoy (solo es material
+interno para generar el vertical), así que no tiene un destino todavía.
+
+Aplica automáticamente en los tres puntos que llaman a `build_vertical`:
+corte normal (`cortar_clip.py`), reproceso de subtítulos
+(`reprocesar_subtitulos.py`) y corrección automática de video
+(`reprocesar_video.py`).
+
 # Cambios aplicados — publicación final, disparador automático y corrección de video (27-30/07)
 
 Tres subsistemas construidos en la misma semana para que el ciclo completo

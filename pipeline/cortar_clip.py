@@ -279,6 +279,25 @@ def _logo_overlay_xy() -> tuple[str, str]:
     return posiciones[config.LOGO_POSICION]
 
 
+def _siguiente_cierre_vertical() -> Path:
+    """Elige el próximo cierre institucional rotando en orden fijo (round-robin
+    persistido en CIERRE_ROTACION_STATE_PATH), para que nunca se repita el
+    mismo cierre dos veces seguidas aunque el pipeline se reinicie entre
+    clips."""
+    archivos = config.CIERRE_VERTICAL_FILES
+    state_path = config.CIERRE_ROTACION_STATE_PATH
+    idx = 0
+    if state_path.exists():
+        try:
+            anterior = json.loads(state_path.read_text(encoding="utf-8"))["ultimo_indice"]
+            idx = (anterior + 1) % len(archivos)
+        except (KeyError, ValueError, json.JSONDecodeError):
+            idx = 0
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(json.dumps({"ultimo_indice": idx}), encoding="utf-8")
+    return config.CIERRES_DIR / archivos[idx]
+
+
 def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | None = None) -> None:
     w, h = config.VERTICAL_WIDTH, config.VERTICAL_HEIGHT
     fg_w = int(w * config.VERTICAL_FOREGROUND_SCALE)
@@ -306,10 +325,12 @@ def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | Non
         f"[bg][fg]overlay=(W-w)/2:(H-h)/2[base];"
     )
     cmd = ["ffmpeg", "-y", "-i", "horizontal_original.mp4", "-i", str(config.LOGO_PATH)]
+    next_input_idx = 2
     if titulo_png:
         filter_complex += "[base][2:v]overlay=0:0[basetitle];"
         cmd += ["-i", str(titulo_png)]
         base_label = "basetitle"
+        next_input_idx = 3
     else:
         base_label = "base"
 
@@ -323,9 +344,20 @@ def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | Non
     else:
         filter_complex += ";[withlogo]null[outv]"
 
+    cierre_path = _siguiente_cierre_vertical()
+    cierre_idx = next_input_idx
+    cmd += ["-i", str(cierre_path)]
+    filter_complex += (
+        f";[outv]fps=30,setsar=1,format=yuv420p[outvn]"
+        f";[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outan]"
+        f";[{cierre_idx}:v]fps=30,scale={w}:{h},setsar=1,format=yuv420p[cierrev]"
+        f";[{cierre_idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[cierrea]"
+        f";[outvn][outan][cierrev][cierrea]concat=n=2:v=1:a=1[vfinal][afinal]"
+    )
+
     cmd += [
         "-filter_complex", filter_complex,
-        "-map", "[outv]", "-map", "0:a",
+        "-map", "[vfinal]", "-map", "[afinal]",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
         "-c:a", "aac", "-b:a", "192k",
         "vertical.mp4",
