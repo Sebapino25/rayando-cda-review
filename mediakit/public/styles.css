@@ -412,6 +412,8 @@ footer {
   flex-wrap: wrap;
 }
 .footer-logo { width: 44px; height: 44px; border-radius: 8px; }
+.footer-legal { margin-top: 6px; }
+.footer-legal a { color: inherit; text-decoration: underline; }
 
 @media print {
   /* Chrome/Safari/Firefox no imprimen fondos/colores por defecto (para
