@@ -14,10 +14,11 @@ Supabase Studio cuando cambie.
 
 ## Cómo se actualizan los números
 
-La Edge Function `actualizar-stats-mediakit` corre todos los días a las
-8:00 UTC (`pg_cron`, programado a mano en el SQL Editor — ver el plan de
-implementación para el `cron.schedule` exacto), trae datos de los 3
-connectors de Windsor.ai ya conectados (`instagram`, `tiktok_organic`,
+La Edge Function `actualizar-stats-mediakit` corre **cada hora, en punto**
+(`pg_cron`, job id 3, schedule `0 * * * *` — antes corría una sola vez al
+día a las 8:00 UTC, pero eso dejaba los números visiblemente atrasados
+durante el resto del día; se subió la frecuencia el 04/08), trae datos de
+los 3 connectors de Windsor.ai ya conectados (`instagram`, `tiktok_organic`,
 `youtube`) y los guarda en `media_kit_stats`.
 
 **Requiere** el secreto `WINDSOR_API_KEY` cargado en Project Settings >

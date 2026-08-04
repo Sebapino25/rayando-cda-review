@@ -239,6 +239,15 @@ p { max-width: 68ch; }
 }
 .platform-card h3 a:hover { text-decoration: underline; }
 .platform-icon { border-radius: 5px; }
+.platform-visit-link {
+  display: inline-block;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  text-decoration: underline;
+}
+.platform-visit-link:hover { color: var(--gold); }
 
 /* ---------- Redes (footer) ---------- */
 .footer-redes {
