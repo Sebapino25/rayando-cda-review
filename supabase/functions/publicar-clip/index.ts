@@ -176,7 +176,14 @@ Deno.serve(async (req: Request) => {
         {
           igUserId: Deno.env.get('INSTAGRAM_BUSINESS_ACCOUNT_ID')!,
           accessToken: tokenRow.access_token,
-          containerTimeoutMs: 60_000,
+          // Instagram no deja FINISHED un Reel al toque: tiene que procesar el
+          // video primero, y a veces tarda más de 60s (caso real 2026-08-05:
+          // un contenedor tardó ~65s y esto lo cortaba antes de tiempo, aunque
+          // el video terminaba bien). 120s dejan margen real sin acercarse al
+          // límite duro de la plataforma: Supabase corta la función a los 150s
+          // si no responde nada (Request idle timeout), y todavía falta lugar
+          // en ese presupuesto para YouTube/TikTok en el mismo request.
+          containerTimeoutMs: 120_000,
         },
       )
       actualizacion.instagram_media_id = mediaId
