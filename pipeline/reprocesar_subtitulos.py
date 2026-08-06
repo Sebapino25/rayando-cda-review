@@ -208,10 +208,24 @@ def procesar_fila(row: dict, apply: bool) -> bool:
     nueva_url = f"https://youtu.be/{nuevo_video_id}"
     print(f"  Subido: {nueva_url}")
 
-    print("  Actualizando Supabase (youtube_video_id + transcripcion_original)...")
+    # video_url (Supabase Storage) es de donde Instagram/TikTok sacan el
+    # archivo al publicar — publicar-clip/index.ts nunca lee youtube_video_id
+    # para eso. Sin este re-upload, Instagram/TikTok publicaban el video viejo
+    # con el subtítulo sin corregir aunque YouTube ya tuviera el corregido
+    # (bug real detectado 2026-08-05: se corrigió "Sartre" -> "Sartor" en el
+    # subtítulo, YouTube quedó bien, Instagram publicó igual la versión vieja).
+    # upsert=true pisa el mismo path, así que video_url no cambia de valor.
+    program_date = carpeta.parent.name
+    nombre_clip = carpeta.name
+    print("  Subiendo vertical.mp4 corregido a Supabase Storage...")
+    video_url = publicar.subir_video_storage(vertical_path, f"{program_date}/{nombre_clip}.mp4")
+    print(f"  Video URL: {video_url}")
+
+    print("  Actualizando Supabase (youtube_video_id + video_url + transcripcion_original)...")
     publicar.actualizar_clip_supabase(
         clip_id,
         {
+            "video_url": video_url,
             "youtube_video_id": nuevo_video_id,
             "transcripcion_original": row.get("transcripcion"),
         },
