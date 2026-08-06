@@ -89,6 +89,23 @@ alter table rayando_cda.pin_intentos enable row level security;
 -- seguridad del PIN. Solo service_role (Edge Functions) las toca — nunca
 -- deben quedar expuestas al schema "Exposed" que usa la app con la anon key.
 
+-- Token de TikTok vigente, refrescado automáticamente por la Edge Function
+-- refrescar-token-tiktok. A diferencia de Instagram, TikTok rota el
+-- refresh_token en cada refresco, así que hay que guardar ambos.
+create table if not exists rayando_cda.tiktok_token (
+    id boolean primary key default true,
+    access_token text not null,
+    refresh_token text not null,
+    vence_en timestamptz,
+    actualizado_en timestamptz not null default now(),
+    constraint tiktok_token_fila_unica check (id)
+);
+
+grant all on table rayando_cda.tiktok_token to service_role;
+alter table rayando_cda.tiktok_token enable row level security;
+-- Mismo criterio que instagram_token: sin policies para anon/authenticated,
+-- solo service_role la toca.
+
 -- Paso manual obligatorio, no se puede hacer por SQL: en el dashboard de
 -- Supabase, ir a Project Settings > API > Exposed schemas y agregar
 -- "rayando_cda" (junto a "public"). Sin esto, el cliente falla con un error

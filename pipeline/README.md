@@ -582,10 +582,36 @@ modelo de Whisper, tamaño del formato vertical, escala del video en primer
 plano, duración máxima de reel, estilo de subtítulos, logo, portadas, copys)
 están centralizados en `config.py`.
 
-## Pendiente
+## TikTok
 
-- **TikTok**: código de publicación construido en la Edge Function
-  `publicar-clip`, pero apagado (`PUBLICAR_TIKTOK=false` en los secrets de
-  Supabase) — falta resubmitir el Developer App de TikTok para revisión,
-  con video de demo. No está bloqueado por código, solo por rehacer ese
-  trámite.
+El Developer App fue aprobado (06/08/2026). Sigue apagado
+(`PUBLICAR_TIKTOK=false` en los secrets de Supabase) hasta terminar la
+autorización OAuth — TikTok usa access tokens de 24hs, así que necesita un
+mecanismo de refresco automático (a diferencia de Instagram, que dura 60
+días), igual que `refrescar-token-instagram` pero para TikTok:
+`refrescar-token-tiktok` + tabla `rayando_cda.tiktok_token`.
+
+**Estado (06/08/2026):** se agregó un Redirect URI de Login Kit
+(`mediakit/tiktok-callback.html`) y se mandó a revisión — mientras esa
+revisión no se apruebe, la autorización no funciona. Una vez aprobada:
+
+1. Completar en `pipeline/.env`: `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`,
+   `TIKTOK_OAUTH_REDIRECT_URI` (ver `.env.example`).
+2. Cargar `TIKTOK_CLIENT_KEY`/`TIKTOK_CLIENT_SECRET` también como secrets de
+   Supabase (Project Settings > Edge Functions > Secrets) — los necesita
+   `refrescar-token-tiktok`.
+3. `python tiktok_oauth_generar_url.py` → abrir la URL logueado como
+   @rayandoelcda, aprobar.
+4. TikTok redirige a `tiktok-callback.html` con un `code` en la URL — copiarlo.
+5. `python tiktok_oauth_intercambiar_codigo.py --code <code>` (correrlo
+   rápido, el code vence en minutos) — guarda el token en
+   `rayando_cda.tiktok_token`.
+6. Programar el cron de `refrescar-token-tiktok` (cada 12hs, por ejemplo) —
+   ver el SQL de `refrescar-token-instagram-semanal` en
+   `mediakit/README.md` como referencia de sintaxis.
+7. Primera publicación real va a quedar **privada** igual: la app todavía
+   no pasó la auditoría de TikTok ("Direct Post API - Developer
+   Guidelines"). Sirve para confirmar que el circuito completo funciona.
+   Aplicar a la auditoría en TikTok Developers > Content Posting API > Apply
+   para que el contenido pueda salir público.
+8. Recién ahí, `PUBLICAR_TIKTOK=true`.

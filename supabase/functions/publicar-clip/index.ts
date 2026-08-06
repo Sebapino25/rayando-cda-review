@@ -194,8 +194,20 @@ Deno.serve(async (req: Request) => {
 
   if (publicarTiktokFlag) {
     try {
+      // El access token de TikTok vence a las 24hs (a diferencia del de
+      // Instagram, que dura 60 días) — no alcanza con un secret estático,
+      // se lee de rayando_cda.tiktok_token, que refrescar-token-tiktok
+      // mantiene al día.
+      const { data: tiktokTokenRow, error: tiktokTokenError } = await supabase
+        .from('tiktok_token')
+        .select('access_token')
+        .eq('id', true)
+        .maybeSingle()
+      if (tiktokTokenError || !tiktokTokenRow) {
+        throw new Error('No hay token de TikTok guardado — revisar refrescar-token-tiktok.')
+      }
       const publishId = await publicarTiktok(reclamada.video_url, reclamada.copy_tiktok || '', {
-        accessToken: Deno.env.get('TIKTOK_ACCESS_TOKEN')!,
+        accessToken: tiktokTokenRow.access_token,
       })
       actualizacion.tiktok_publish_id = publishId
     } catch (e) {
