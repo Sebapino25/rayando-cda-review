@@ -12,6 +12,7 @@ Uso:
 from __future__ import annotations
 
 import sys
+import types
 from unittest.mock import patch
 
 import pytest
@@ -39,6 +40,49 @@ def test_redistribuir_texto_reparte_proporcional_a_las_palabras() -> None:
 def test_redistribuir_texto_vacio_no_genera_segmentos() -> None:
     assert rs.redistribuir_texto(SEGMENTOS, "") == []
     assert rs.redistribuir_texto([], "algo") == []
+
+
+class _FakeQuery:
+    def __init__(self, filas):
+        self._filas = filas
+
+    def select(self, *_args, **_kwargs):
+        return self
+
+    def eq(self, campo, valor):
+        self._filas = [f for f in self._filas if f.get(campo) == valor]
+        return self
+
+    def execute(self):
+        return types.SimpleNamespace(data=self._filas)
+
+
+class _FakeSupabase:
+    def __init__(self, filas):
+        self._filas = filas
+
+    def table(self, _nombre):
+        return _FakeQuery(self._filas)
+
+
+def test_buscar_pendientes_ignora_clips_ya_publicados_en_el_barrido_general() -> None:
+    filas = [
+        {"id": "a", "estado": "aprobado", "publicado": True, "transcripcion": "nuevo", "transcripcion_original": "viejo"},
+        {"id": "b", "estado": "pendiente", "publicado": False, "transcripcion": "nuevo", "transcripcion_original": "viejo"},
+    ]
+    resultado = rs.buscar_pendientes(_FakeSupabase(filas), clip_id=None)
+    assert [f["id"] for f in resultado] == ["b"]
+
+
+def test_buscar_pendientes_con_clip_id_explicito_si_toca_uno_ya_publicado() -> None:
+    # --clip-id es la vía manual y consciente para corregir un clip ya
+    # publicado (ver el comentario en buscar_pendientes) — el filtro de
+    # "publicado" solo aplica al barrido general.
+    filas = [
+        {"id": "a", "estado": "aprobado", "publicado": True, "transcripcion": "nuevo", "transcripcion_original": "viejo"},
+    ]
+    resultado = rs.buscar_pendientes(_FakeSupabase(filas), clip_id="a")
+    assert [f["id"] for f in resultado] == ["a"]
 
 
 def _correr_main_con(monkeypatch, argv, resultados_procesar_fila, filas):
@@ -82,11 +126,13 @@ def main() -> None:
     mp = DummyMonkeypatch()
     test_redistribuir_texto_reparte_proporcional_a_las_palabras()
     test_redistribuir_texto_vacio_no_genera_segmentos()
+    test_buscar_pendientes_ignora_clips_ya_publicados_en_el_barrido_general()
+    test_buscar_pendientes_con_clip_id_explicito_si_toca_uno_ya_publicado()
     test_exit_0_cuando_no_hay_filas_pendientes(mp)
     test_exit_3_cuando_se_aplico_todo_con_exito(mp)
     test_exit_0_en_dry_run_aunque_todo_haya_salido_bien(mp)
     test_exit_1_cuando_alguna_fila_se_omitio_o_fallo(mp)
-    print("OK: redistribuir_texto reparte bien y main() devuelve el exit code correcto en los 4 casos.")
+    print("OK: redistribuir_texto reparte bien, buscar_pendientes filtra publicados, y main() devuelve el exit code correcto en los 4 casos.")
 
 
 if __name__ == "__main__":

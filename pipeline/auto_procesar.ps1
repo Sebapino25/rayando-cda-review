@@ -1,4 +1,4 @@
-# Disparador automático semanal: revisa si hay una grabación nueva y ya
+﻿# Disparador automático semanal: revisa si hay una grabación nueva y ya
 # terminada en `grabaciones\`, y si la hay, corre transcribir.py +
 # procesar_programa.py sola. Pensado para correr cada 5 minutos vía Task
 # Scheduler (tarea "RayandoCDA_AutoProcesar").

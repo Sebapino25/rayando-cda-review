@@ -22,6 +22,7 @@ ejecutar de verdad, y --clip-id para probar contra un solo clip.
 """
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -76,7 +77,7 @@ def redistribuir_texto(
 def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,youtube_video_id,titulo,youtube_titulo,youtube_descripcion,"
-        "semana,estado,transcripcion,transcripcion_original"
+        "semana,estado,publicado,transcripcion,transcripcion_original"
     )
     query = supabase.table(config.SUPABASE_TABLE).select(columnas)
     if clip_id:
@@ -91,6 +92,14 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
         # Los fixtures de QA (estado='prueba') no son contenido real; un
         # barrido general no debe tocarlos, solo --clip-id explícito.
         pendientes = [f for f in pendientes if f.get("estado") != "prueba"]
+        # Un clip publicado ya tiene su video en vivo en YouTube/Instagram:
+        # subir una corrección como no listado y pisar youtube_video_id en la
+        # base deja la base apuntando a un video que nadie ve, sin cambiar lo
+        # que el público realmente tiene enfrente (y en Instagram ni siquiera
+        # se puede reemplazar). Reemplazar un video ya en vivo es una decisión
+        # editorial, no algo para hacer solo cada 5 minutos — queda para
+        # correr a mano con --clip-id cuando alguien lo decida a propósito.
+        pendientes = [f for f in pendientes if not f.get("publicado")]
     return pendientes
 
 
@@ -169,6 +178,13 @@ def procesar_fila(row: dict, apply: bool) -> bool:
     print("  Respaldando versión anterior (vertical.mp4 + subtitulos.*) en vN\\...")
     destino_backup = respaldar_version_anterior(carpeta)
     print(f"    Respaldado en: {destino_backup}")
+
+    # respaldar_version_anterior mueve también horizontal_original.mp4 (pensado
+    # para reprocesar_video.py, que genera uno nuevo desde la grabación master).
+    # Acá no se regenera: build_vertical de más abajo necesita el mismo
+    # horizontal_original.mp4 como fuente para volver a quemar los subtítulos,
+    # así que se copia de vuelta desde el respaldo antes de seguir.
+    shutil.copy2(destino_backup / "horizontal_original.mp4", carpeta / "horizontal_original.mp4")
 
     print("  Regenerando subtitulos.srt/.ass con el texto corregido...")
     cortar_clip.build_clip_srt(nuevos_segmentos, carpeta / "subtitulos.srt")
