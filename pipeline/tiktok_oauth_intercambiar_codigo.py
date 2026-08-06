@@ -15,6 +15,7 @@ Uso:
 """
 
 import argparse
+import datetime as dt
 import os
 
 import requests
@@ -70,6 +71,8 @@ def main() -> None:
     print(f"  Scopes concedidos: {data.get('scope')}")
     print(f"  El access_token vence en {expires_in}s (~{expires_in / 3600:.1f}h).")
 
+    vence_en = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=expires_in)).isoformat()
+
     print("Guardando en rayando_cda.tiktok_token...")
     supabase = publicar.get_supabase_client()
     supabase.table("tiktok_token").upsert(
@@ -77,6 +80,7 @@ def main() -> None:
             "id": True,
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "vence_en": vence_en,
         }
     ).execute()
     print("  Guardado. refrescar-token-tiktok se encarga de mantenerlo al día de acá en más.")
