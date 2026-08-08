@@ -1,7 +1,8 @@
 # Copys de IA con criterio editorial (estratega + redactor)
 
 Fecha: 2026-08-07
-Estado: aprobado por el usuario (y por René en el criterio editorial), listo para plan de implementación
+Estado: aprobado por el usuario (criterio editorial validado también con
+René), listo para plan de implementación.
 
 ## Contexto
 
@@ -38,6 +39,10 @@ mayoritario) produzca copys con:
    (pregunta abierta, no una encuesta con opciones).
 4. Hashtags contextuales al tema del clip (rival, jugador, torneo, término
    viral), generados automáticamente, además de los 4 hashtags base fijos.
+5. Que la detección de qué momentos se cortan como clip (`detectar_momentos.py`)
+   no se limite a la crítica hacia la dirigencia — cualquier fútbol que
+   genere debate real entre hinchas (bueno, malo, crítico, un recuerdo)
+   es candidato válido.
 
 ## Alcance
 
@@ -50,14 +55,14 @@ mayoritario) produzca copys con:
 - `pipeline/clip_overrides.json`: sin cambios de formato — `hashtags_extra`
   sigue funcionando exactamente igual que hoy para los clips curados a
   mano.
+- `pipeline/detectar_momentos.py`: se amplía el criterio de prioridad 2 del
+  `SYSTEM_PROMPT` (ver sección "Cambios en el criterio de detección de
+  momentos" más abajo) — este archivo había quedado fuera del spec
+  original, se suma después de feedback del usuario tras compartir el
+  criterio con René.
 
 ## No-objetivos
 
-- No se toca `detectar_momentos.py` (criterio de selección de qué momentos
-  cortar) — quedó fuera después de confirmar el criterio actual con René;
-  si más adelante se quiere ajustar el orden de prioridad (humor →
-  declaraciones fuertes → emoción) o agregar categorías nuevas, es un spec
-  aparte.
 - No se implementan encuestas nativas de Instagram (sticker de Stories con
   opciones a votar) — descartado explícitamente: este pipeline solo
   publica a Reels/feed, no a Stories, y armar esa publicación sería una
@@ -224,6 +229,31 @@ gana, IA rellena lo que falta). Para un clip completamente curado a mano
 (los 5 campos de `campos_ia` con override), `generado_ia` es `None` porque
 no se llama a la API — ese caso ya deja los hashtags en manos del override
 como hoy, no cambia.
+
+## Cambios en el criterio de detección de momentos (`detectar_momentos.py`)
+
+El criterio actual prioriza, en este orden: (1) humor, (2) declaraciones
+fuertes sobre la U o la dirigencia (crítica, polémica, contundente), (3)
+carga emocional real. El punto 2 es, en la práctica, solo crítica hacia la
+dirigencia ("Orozquista"). El usuario pidió ampliarlo: el fútbol en general
+— jugadas o decisiones buenas o malas, resultados, comparaciones,
+recuerdos/nostalgia, no solo crítica a la dirigencia — también tiene que
+poder ser candidato a clip, mientras genere debate real entre hinchas.
+
+Cambio en el `SYSTEM_PROMPT` de `detectar_momentos.py`, criterio 2 (pasa de
+"Declaraciones fuertes sobre la U o la dirigencia actual (crítica,
+polémica, contundente)" a):
+
+> Fútbol que genere debate entre hinchas: jugadas o decisiones (buenas o
+> malas), resultados, comparaciones, recuerdos/nostalgia, declaraciones
+> fuertes — sobre la U, la dirigencia, el rival, un jugador, el arbitraje,
+> lo que sea. No se limita a la crítica hacia la dirigencia: puede ser un
+> elogio, una crítica o un recuerdo, mientras genere opinión y conversación
+> real entre hinchas, no una mención de paso.
+
+Los criterios 1 (humor) y 3 (carga emocional) no cambian, ni el resto del
+comportamiento del archivo (rango de duración 20-90s, no solapamiento,
+preferencia por límites de oración, variedad entre candidatos).
 
 ## Manejo de errores
 
