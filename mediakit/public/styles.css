@@ -389,6 +389,43 @@ p { max-width: 68ch; }
   line-height: 1.25;
 }
 
+.active-partner {
+  margin-top: 28px;
+  background: #fff;
+  border: 1px solid #DDD6C2;
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 14px rgba(10,42,107,0.08);
+}
+.active-partner h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--navy);
+}
+.active-partner p {
+  margin: 0 0 16px;
+  color: #6B6653;
+}
+.testimonial-video {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: #000;
+  display: block;
+}
+
+/* ---------- Precio fundador ---------- */
+.precio-fundador {
+  background: #FFF9E9;
+  border: 1px solid #E8CB6E;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 14px;
+  margin: 12px 0 22px;
+  max-width: none;
+}
+
 /* ---------- Planes (tickets) ---------- */
 .ticket-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 18px 0; }
 @media (max-width: 720px) { .ticket-grid { grid-template-columns: 1fr; } }
