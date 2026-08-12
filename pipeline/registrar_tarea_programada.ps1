@@ -9,6 +9,10 @@
 # min después) se autorecupera sola — no depende de que un único proceso
 # sobreviva indefinidamente.
 #
+# Ventana semanal (martes 00:00 a miércoles 10:00, ver $trigger abajo) en vez
+# de correr sin parar: el PC no necesita quedar prendido 24/7. Fuera de esa
+# ventana el equipo avisa a mano si necesita un cambio.
+#
 # "-MultipleInstances IgnoreNew" seguido abajo evita que se lancen dos
 # corridas en paralelo si una transcripción/corte real (que sí puede tardar
 # bastante) sigue corriendo cuando toca el próximo disparo cada 5 min.
@@ -40,15 +44,26 @@ if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
 
 $action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Script`""
-# Trigger único cada 5 min, por 10 años (proxy de "sin fecha de fin" — Task
-# Scheduler rechaza [TimeSpan]::MaxValue con "valor fuera de intervalo", así
-# que se usa el máximo práctico de este módulo). No depende de un evento de
-# logon puntual: Task Scheduler reintenta cada 5 min según este horario, y si
-# no hay sesión de usuario activa en ese momento simplemente no corre esa vez
-# (ver Principal/LogonType abajo) — se recupera sola apenas haya sesión, sin
-# necesidad de que alguien vuelva a iniciar sesión.
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
-    -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration ([TimeSpan]::FromDays(3650))
+# Ventana semanal fija: el PC ya no necesita quedar prendido 24/7. El
+# programa se transmite en vivo los lunes y el material (transcripción +
+# corte) suele quedar listo para revisión durante el martes, así que la
+# herramienta de correcciones queda disponible para el equipo desde el
+# martes 00:00 hasta el miércoles 10:00 (34 horas) — dentro de esa ventana
+# dispara cada 5 min igual que antes; fuera de ella (jueves a lunes, y
+# miércoles después de las 10am) el trigger simplemente no dispara, así que
+# no importa si el PC está prendido por otro motivo. Si el equipo no llega a
+# pedir cambios en esa ventana, el ajuste queda para la próxima semana o se
+# hace a mano (avisan a Sebastián). Se repite sola todas las semanas — no
+# hace falta volver a registrar la tarea.
+#
+# New-ScheduledTaskTrigger -Weekly no acepta -RepetitionInterval/
+# -RepetitionDuration directamente (solo el parameter set -Once los admite) —
+# se arma un trigger -Once descartable solo para heredar su objeto
+# Repetition ya armado y pegarlo en el trigger semanal real.
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Tuesday -At "00:00"
+$repeticionTemporal = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Hours 34)
+$trigger.Repetition = $repeticionTemporal.Repetition
 # LogonType Interactive = "solo cuando el usuario tenga sesión iniciada", sin
 # pedir ni guardar contraseña (igual que el trigger AtLogOn de antes).
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
@@ -62,7 +77,7 @@ $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew `
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
     -Principal $principal -Settings $settings `
-    -Description "Corre auto_procesar.ps1 cada 5 minutos mientras el usuario tenga sesión iniciada (ver pipeline/README.md)." | Out-Null
+    -Description "Corre auto_procesar.ps1 cada 5 minutos, martes 00:00 a miércoles 10:00, mientras el usuario tenga sesión iniciada (ver pipeline/README.md)." | Out-Null
 
 Write-Host "Tarea '$TaskName' registrada. Arrancándola ahora (sin esperar al próximo disparo)..."
 Start-ScheduledTask -TaskName $TaskName

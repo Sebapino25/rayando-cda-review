@@ -307,12 +307,18 @@ qué IDs de Supabase.
 
 ## Disparador automático (Task Scheduler)
 
-Una tarea de Windows Task Scheduler llamada `RayandoCDA_AutoProcesar`
-arranca `auto_procesar_loop.ps1` al iniciar sesión, que cada 5 minutos
-corre `auto_procesar.ps1`: si hay una grabación nueva en `grabaciones\`
-(sin transcripción todavía y sin cambios en los últimos 5 min, para no
-agarrar un archivo que OBS todavía está escribiendo), corre
+Una tarea de Windows Task Scheduler llamada `RayandoCDA_AutoProcesar` corre
+`auto_procesar.ps1` cada 5 minutos, **solo del martes 00:00 al miércoles
+10:00** (ventana semanal, se repite sola): si hay una grabación nueva en
+`grabaciones\` (sin transcripción todavía y sin cambios en los últimos 5
+min, para no agarrar un archivo que OBS todavía está escribiendo), corre
 `transcribir.py` + `procesar_programa.py` sola.
+
+Esa ventana es también cuando la herramienta de correcciones (la app de
+revisión) está disponible para que el equipo pida ajustes — fuera de ella el
+PC puede quedar apagado. Si el equipo necesita un cambio fuera de la
+ventana, avisan y se hace a mano. Ver el `$trigger` en
+`registrar_tarea_programada.ps1` para el detalle exacto del horario.
 
 **Notificaciones por mail (vía Resend):**
 - Al terminar bien: aviso a todo el equipo (`seba.pino.v@gmail.com`,
