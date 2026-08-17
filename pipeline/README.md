@@ -590,34 +590,65 @@ están centralizados en `config.py`.
 
 ## TikTok
 
-El Developer App fue aprobado (06/08/2026). Sigue apagado
-(`PUBLICAR_TIKTOK=false` en los secrets de Supabase) hasta terminar la
-autorización OAuth — TikTok usa access tokens de 24hs, así que necesita un
-mecanismo de refresco automático (a diferencia de Instagram, que dura 60
-días), igual que `refrescar-token-instagram` pero para TikTok:
-`refrescar-token-tiktok` + tabla `rayando_cda.tiktok_token`.
+El Developer App fue aprobado (06/08/2026). Pasos 1-6 de la lista original
+ya están hechos: OAuth completo (`rayando_cda.tiktok_token` con access +
+refresh token vigentes) y `refrescar-token-tiktok` corriendo cada 12hs sin
+intervención. Sigue apagado (`PUBLICAR_TIKTOK=false` en los secrets de
+Supabase) — **pendiente para retomar el miércoles 19/08/2026**, ver detalle
+abajo.
 
-**Estado (06/08/2026):** se agregó un Redirect URI de Login Kit
-(`mediakit/tiktok-callback.html`) y se mandó a revisión — mientras esa
-revisión no se apruebe, la autorización no funciona. Una vez aprobada:
+**Estado (17/08/2026) — bloqueado en la auditoría de Direct Post:**
 
-1. Completar en `pipeline/.env`: `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`,
-   `TIKTOK_OAUTH_REDIRECT_URI` (ver `.env.example`).
-2. Cargar `TIKTOK_CLIENT_KEY`/`TIKTOK_CLIENT_SECRET` también como secrets de
-   Supabase (Project Settings > Edge Functions > Secrets) — los necesita
-   `refrescar-token-tiktok`.
-3. `python tiktok_oauth_generar_url.py` → abrir la URL logueado como
-   @rayandoelcda, aprobar.
-4. TikTok redirige a `tiktok-callback.html` con un `code` en la URL — copiarlo.
-5. `python tiktok_oauth_intercambiar_codigo.py --code <code>` (correrlo
-   rápido, el code vence en minutos) — guarda el token en
-   `rayando_cda.tiktok_token`.
-6. Programar el cron de `refrescar-token-tiktok` (cada 12hs, por ejemplo) —
-   ver el SQL de `refrescar-token-instagram-semanal` en
-   `mediakit/README.md` como referencia de sintaxis.
-7. Primera publicación real va a quedar **privada** igual: la app todavía
-   no pasó la auditoría de TikTok ("Direct Post API - Developer
-   Guidelines"). Sirve para confirmar que el circuito completo funciona.
-   Aplicar a la auditoría en TikTok Developers > Content Posting API > Apply
-   para que el contenido pueda salir público.
-8. Recién ahí, `PUBLICAR_TIKTOK=true`.
+Al probar el circuito real (`PUBLICAR_TIKTOK=true` temporal) aparecieron y
+se corrigieron dos bugs reales en `supabase/functions/publicar-clip/tiktok.ts`:
+
+- **`PULL_FROM_URL` no sirve**: le pide a TikTok que vaya a buscar el video
+  a una URL, y eso exige verificar el dominio (Content Posting API > Verify
+  domains) — imposible con el dominio de Supabase Storage
+  (`*.supabase.co`), no es un dominio propio verificable. Se cambió a
+  `FILE_UPLOAD` (la Edge Function descarga el video del Storage y le manda
+  los bytes directo a TikTok). Corregido y deployado.
+- **`privacy_level` hardcodeado en `PUBLIC_TO_EVERYONE`**: las Content
+  Sharing Guidelines de TikTok exigen que un cliente sin auditar solo pueda
+  postear con `privacy_level: SELF_ONLY`, y consultar `creator_info` antes
+  de cada post para saber qué opciones están realmente disponibles (así se
+  autoajusta a `PUBLIC_TO_EVERYONE` solo cuando la app pase la auditoría, sin
+  tocar código de nuevo). Corregido y deployado.
+
+Con esos dos fixes, la API sigue rechazando el post con
+`403 unaudited_client_can_only_post_to_private_accounts`, **incluso con la
+cuenta @rayandoelcda puesta en privado** (confirmado con captura: el toggle
+"Cuenta privada" está activado). Sospecha: @rayandoelcda es una cuenta
+**Business** (tiene "Verificación de la empresa" en Configuración) — es un
+patrón conocido que las cuentas Business no logran clasificarse como
+privadas a nivel de API/audiencia aunque el toggle de la UI se vea
+activado, porque su propósito (Analytics/Ads) es ser pública. No confirmado
+con documentación oficial de TikTok, solo inferido de los intentos reales.
+
+**Efecto colateral real de las pruebas:** el clip `candidato 2026-08-10 -
+clip 4` ("El tesorero de la asamblea...") quedó publicado de verdad en
+YouTube (público) e Instagram (Reel) durante los intentos — la fila en
+`rayando_cda.clips` se cerró (`publicado=true`) recién en el intento final
+sin TikTok.
+
+**Para retomar el miércoles:**
+
+1. Confirmar si el bloqueo es realmente por cuenta Business (contactar
+   soporte de TikTok, o probar cambiar @rayandoelcda a cuenta personal
+   temporalmente vía TikTok app > Configuración > Administrar cuenta, hacer
+   la prueba, y volver a Business después).
+2. Una vez que un post de prueba funcione (va a quedar privado, es
+   esperable pre-auditoría), grabar el video de demo que pide TikTok para
+   la solicitud de auditoría del Content Posting API
+   (`developers.tiktok.com/application/content-posting-api` — el
+   formulario ya está completo salvo la sección "Supporting documents", que
+   pide un screen recording de: 1) autorización de TikTok, 2) flujo hasta
+   "Publicar en redes" en la app, 3) qué pasa después de publicar).
+3. Enviar la solicitud de auditoría. TikTok tarda en revisarla — no es
+   instantáneo, así que conviene mandarla apenas se pueda grabar el video,
+   no esperar a último momento antes de un programa.
+4. Recién cuando la auditoría se apruebe, `PUBLICAR_TIKTOK=true` de forma
+   permanente (hasta entonces, dejarlo en `false` para no romper la
+   publicación normal de YouTube/Instagram — un fallo de TikTok frena la
+   respuesta entera de `publicar-clip` aunque las otras dos redes ya hayan
+   salido bien).

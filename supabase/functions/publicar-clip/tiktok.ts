@@ -4,18 +4,72 @@ export interface TikTokConfig {
   accessToken: string
 }
 
-// NOTA: sin verificar contra la API real — la app de TikTok Developers no
-// estaba aprobada al momento de escribir esto (ver spec, "Expectativa
-// honesta sobre TikTok"). Implementado contra la documentación pública de
-// la Content Posting API v2 (init con source PULL_FROM_URL). Solo se llama
-// desde index.ts si PUBLICAR_TIKTOK=true.
+interface CreatorInfo {
+  privacyLevelOptions: string[]
+  commentDisabled: boolean
+  duetDisabled: boolean
+  stitchDisabled: boolean
+}
+
+// Las Content Sharing Guidelines de TikTok exigen consultar esto antes de
+// cada post: mientras la app no pase la auditoría de Content Posting API,
+// privacy_level_options solo trae SELF_ONLY (y la cuenta de destino tiene
+// que estar en privado) — pasado ese trámite, va a traer también
+// PUBLIC_TO_EVERYONE, así que preferimos esa automáticamente sin tener que
+// tocar este código de nuevo.
+async function consultarCreatorInfo(config: TikTokConfig, fetchImpl: typeof fetch): Promise<CreatorInfo> {
+  const resp = await fetchImpl(`${TIKTOK_API_BASE}/post/publish/creator_info/query/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.accessToken}`,
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+  })
+  if (!resp.ok) {
+    throw new Error(`TikTok: error al consultar creator_info (${resp.status}): ${await resp.text()}`)
+  }
+  const data = await resp.json()
+  if (data.error && data.error.code && data.error.code !== 'ok') {
+    throw new Error(`TikTok: la API devolvió un error en creator_info: ${JSON.stringify(data.error)}`)
+  }
+  return {
+    privacyLevelOptions: data.data?.privacy_level_options ?? [],
+    commentDisabled: Boolean(data.data?.comment_disabled),
+    duetDisabled: Boolean(data.data?.duet_disabled),
+    stitchDisabled: Boolean(data.data?.stitch_disabled),
+  }
+}
+
+// NOTA: usa FILE_UPLOAD (subir los bytes del video directo a TikTok) en vez
+// de PULL_FROM_URL (pedirle a TikTok que vaya a buscar el video a una URL)
+// porque PULL_FROM_URL exige verificar el dominio donde vive el video
+// (Content Posting API > Verify domains), y el video vive en el dominio de
+// Supabase Storage (*.supabase.co), que no se puede verificar como dominio
+// propio. FILE_UPLOAD no tiene ese requisito. Nuestros clips (~90s,
+// vertical) siempre entran en un solo chunk (límite de un chunk: 64MB).
+// Solo se llama desde index.ts si PUBLICAR_TIKTOK=true.
 export async function publicarTiktok(
   videoUrl: string,
   caption: string,
   config: TikTokConfig,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
-  const resp = await fetchImpl(`${TIKTOK_API_BASE}/post/publish/video/init/`, {
+  const creatorInfo = await consultarCreatorInfo(config, fetchImpl)
+  const privacyLevel = creatorInfo.privacyLevelOptions.includes('PUBLIC_TO_EVERYONE')
+    ? 'PUBLIC_TO_EVERYONE'
+    : creatorInfo.privacyLevelOptions[0]
+  if (!privacyLevel) {
+    throw new Error('TikTok: creator_info no devolvió ningún privacy_level_options disponible')
+  }
+
+  const videoResp = await fetchImpl(videoUrl)
+  if (!videoResp.ok) {
+    throw new Error(`TikTok: no se pudo descargar el video desde ${videoUrl} (${videoResp.status})`)
+  }
+  const videoBuffer = await videoResp.arrayBuffer()
+  const videoSize = videoBuffer.byteLength
+
+  const initResp = await fetchImpl(`${TIKTOK_API_BASE}/post/publish/video/init/`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.accessToken}`,
@@ -24,20 +78,43 @@ export async function publicarTiktok(
     body: JSON.stringify({
       post_info: {
         title: caption,
-        privacy_level: 'PUBLIC_TO_EVERYONE',
+        privacy_level: privacyLevel,
+        disable_comment: creatorInfo.commentDisabled,
+        disable_duet: creatorInfo.duetDisabled,
+        disable_stitch: creatorInfo.stitchDisabled,
       },
       source_info: {
-        source: 'PULL_FROM_URL',
-        video_url: videoUrl,
+        source: 'FILE_UPLOAD',
+        video_size: videoSize,
+        chunk_size: videoSize,
+        total_chunk_count: 1,
       },
     }),
   })
-  if (!resp.ok) {
-    throw new Error(`TikTok: error al iniciar la publicación (${resp.status}): ${await resp.text()}`)
+  if (!initResp.ok) {
+    throw new Error(`TikTok: error al iniciar la publicación (${initResp.status}): ${await initResp.text()}`)
   }
-  const data = await resp.json()
-  if (data.error && data.error.code && data.error.code !== 'ok') {
-    throw new Error(`TikTok: la API devolvió un error: ${JSON.stringify(data.error)}`)
+  const initData = await initResp.json()
+  if (initData.error && initData.error.code && initData.error.code !== 'ok') {
+    throw new Error(`TikTok: la API devolvió un error: ${JSON.stringify(initData.error)}`)
   }
-  return data.data?.publish_id as string
+  const uploadUrl = initData.data?.upload_url as string | undefined
+  const publishId = initData.data?.publish_id as string | undefined
+  if (!uploadUrl || !publishId) {
+    throw new Error(`TikTok: la respuesta de init no trajo upload_url/publish_id: ${JSON.stringify(initData)}`)
+  }
+
+  const uploadResp = await fetchImpl(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'video/mp4',
+      'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
+    },
+    body: videoBuffer,
+  })
+  if (!uploadResp.ok) {
+    throw new Error(`TikTok: error al subir el video (${uploadResp.status}): ${await uploadResp.text()}`)
+  }
+
+  return publishId
 }
