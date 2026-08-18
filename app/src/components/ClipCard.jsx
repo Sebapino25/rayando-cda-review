@@ -364,7 +364,7 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
           </label>
           <p className="flex items-start gap-1.5 text-xs text-warning mt-2">
             <Info size={15} className="shrink-0 mt-0.5" />
-            Usá este campo solo si el video en sí (corte, formato, audio) necesita trabajo técnico. Si ya corregiste el copy o la transcripción arriba, no hace falta anotarlo acá — con "Guardar cambios" alcanza. Estos pedidos no se ejecutan automáticamente: quedan anotados para que se procesen a mano después.
+            Usá este campo solo si el video en sí (corte, formato, audio) necesita trabajo técnico. Si ya corregiste el copy o la transcripción arriba, no hace falta anotarlo acá — con "Guardar cambios" alcanza. Estos pedidos se procesan solos con IA durante la ventana automática (martes a miércoles); si el pedido es ambiguo o no se encuentra el clip con certeza, queda pendiente para revisar a mano.
           </p>
         </div>
 
