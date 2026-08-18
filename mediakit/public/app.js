@@ -61,9 +61,9 @@ async function cargarStats() {
     setText('stat-hero-vistas', fmt.format(heroTotal))
 
     // Costo por 1.000 vistas del plan Presencia, recalculado del alcance
-    // real en vivo (no un benchmark externo — es puro $500.000 / vistas).
+    // real en vivo (no un benchmark externo — es puro $700.000 / vistas).
     if (heroTotal > 0) {
-      setText('stat-cpm-presencia', fmt.format(Math.round((500000 / heroTotal) * 1000)))
+      setText('stat-cpm-presencia', fmt.format(Math.round((700000 / heroTotal) * 1000)))
     }
 
     setStatSiEsNumero('stat-ig-seguidores', stats.ig_seguidores)
