@@ -5,7 +5,12 @@ on:
     branches: [main]
     paths:
       - 'app/**'
-      - 'mediakit/public/**'
+      - 'mediakit/*.html'
+      - 'mediakit/*.js'
+      - 'mediakit/*.css'
+      - 'mediakit/assets/**'
+      - 'mediakit/shared/**'
+      - 'mediakit/dashboard/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
@@ -42,7 +47,8 @@ jobs:
       - name: Copiar el media kit vivo al mismo sitio, en /mediakit/
         run: |
           mkdir -p app/dist/mediakit
-          cp -r mediakit/public/* app/dist/mediakit/
+          cp mediakit/*.html mediakit/*.js mediakit/*.css app/dist/mediakit/
+          cp -r mediakit/assets mediakit/shared mediakit/dashboard app/dist/mediakit/
 
       - uses: actions/upload-pages-artifact@v3
         with:

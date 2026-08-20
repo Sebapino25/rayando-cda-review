@@ -25,7 +25,7 @@ interface CampoManual {
   donde: string
 }
 
-// Solo los campos que la página realmente lee (ver mediakit/public/app.js).
+// Solo los campos que la página realmente lee (ver mediakit/app.js).
 // `ig_alcance_90d` quedó en la tabla pero ningún elemento del HTML lo
 // muestra, así que no se pide — es un número menos que juntar a mano.
 export const CAMPOS_MANUALES: CampoManual[] = [

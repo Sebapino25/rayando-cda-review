@@ -8,15 +8,39 @@ una marca. Los números de Instagram, TikTok y YouTube salen de
 
 ## Estructura
 
-- `public/` — el sitio que se manda a marcas (HTML/CSS/JS plano, sin build).
+- `index.html`, `app.js`, `styles.css`, `assets/`, `tiktok-callback.html` —
+  el sitio que se manda a marcas (HTML/CSS/JS plano, sin build). Viven en
+  la raíz de `mediakit/` a propósito, no en una subcarpeta `public/`: el
+  workflow de deploy (`.github/workflows/deploy.yml`) copia estos archivos
+  tal cual a `/mediakit/` en GitHub Pages — si estuvieran un nivel más
+  adentro, las rutas relativas (`assets/…`, `shared/…`) apuntarían a un
+  lugar que no existe en el sitio publicado. Ver "Cómo probarlo en local"
+  más abajo para no perderse con esto mientras se edita.
 - `dashboard/` — dashboard interno de evolución, mismo dominio de datos pero
-  para el equipo (no se manda a marcas). Ver "Gráficos de evolución" abajo.
+  para el equipo (no se manda a marcas). Se deploya en `/mediakit/dashboard/`
+  tal cual, sin aplanar. Ver "Gráficos de evolución" abajo.
 - `shared/charts.js` — sparklines SVG a mano, sin librería externa, usado
-  por `public/` y `dashboard/`.
+  por el media kit y por `dashboard/`. Se deploya en `/mediakit/shared/`.
 - `supabase_migration_media_kit_stats.sql` — migración de la tabla
   `rayando_cda.media_kit_stats` (correr una sola vez en el SQL Editor).
 - `supabase_migration_media_kit_stats_history.sql` — migración del
   historial de snapshots (ver "Gráficos de evolución" abajo).
+
+## Cómo probarlo en local
+
+Como las rutas están escritas para la raíz de `/mediakit/` en el sitio
+publicado (no para la estructura de `mediakit/` dentro del repo), abrir
+`mediakit/index.html` con `file://` funciona pero `mediakit/dashboard/index.html`
+necesita que `mediakit/` completo esté servido por un mismo servidor HTTP
+(por las rutas `../assets/…`, `../styles.css`, `../shared/charts.js`).
+Desde la carpeta `mediakit/`:
+
+```sh
+python -m http.server 8731
+```
+
+Y abrir `http://localhost:8731/index.html` y
+`http://localhost:8731/dashboard/index.html`.
 
 ## Gráficos de evolución
 
@@ -28,7 +52,7 @@ nada nuevo al hacer el update semanal de siempre.
 
 Con eso se grafican sparklines en dos lugares:
 
-- **`public/index.html`**, sección "Cómo venimos creciendo": 2 gráficos
+- **`index.html`**, sección "Cómo venimos creciendo": 2 gráficos
   resumidos (alcance total y audiencia total, sumando las 3 plataformas) —
   esto sí se manda a marcas, es parte del argumento de venta.
 - **`dashboard/index.html`**: los 9 números completos, uno por gráfico, más
@@ -75,7 +99,7 @@ Claude Code para que corra el `update`, o pegar el SQL directo en Supabase.
 | Vistas YT 28/30d | `yt_vistas_30d` | YouTube Studio > últimos 28 días |
 
 `ig_alcance_90d` sigue existiendo en la tabla pero **ningún elemento del
-HTML lo muestra** (ver `public/app.js`) — no hace falta juntarlo.
+HTML lo muestra** (ver `app.js`) — no hace falta juntarlo.
 
 Nombre engañoso, a propósito: `tiktok_video_top_vistas` ya no es "vistas del
 video más visto" sino "vistas de la cuenta en 30 días" (se corrigió el campo
