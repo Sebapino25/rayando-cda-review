@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard interno — Rayando el CDA</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" href="../public/assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../public/styles.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <nav class="topbar">
+    <div class="wrap topbar-inner">
+      <img class="topbar-logo" src="../public/assets/logo.png" alt="Rayando el CDA" width="40" height="40" />
+      <span class="topbar-name">DASHBOARD INTERNO</span>
+      <a class="btn-mediakit" href="../public/index.html">Ver media kit ↗</a>
+    </div>
+  </nav>
+
+  <div class="wrap dashboard-wrap">
+    <header class="dashboard-header">
+      <h1>Cómo venimos creciendo</h1>
+      <p>Evolución completa de los 9 números del media kit, semana a semana. Uso interno del equipo — esto no se manda a marcas, la versión resumida está en el media kit público.</p>
+    </header>
+
+    <section id="totales">
+      <h2>Totales</h2>
+      <div class="evolution-grid">
+        <div class="evolution-card">
+          <div class="metric-label">Alcance total (30 días) · IG + TikTok + YouTube</div>
+          <svg class="evolution-svg" id="chart-alcance" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-alcance"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Audiencia total · IG + TikTok + YouTube</div>
+          <svg class="evolution-svg" id="chart-audiencia" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-audiencia"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="instagram">
+      <h2>Instagram</h2>
+      <div class="metric-charts-grid">
+        <div class="evolution-card">
+          <div class="metric-label">Seguidores</div>
+          <svg class="evolution-svg" id="chart-ig-seguidores" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-ig-seguidores"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Vistas (30 días)</div>
+          <svg class="evolution-svg" id="chart-ig-vistas" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-ig-vistas"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Interacciones (90 días)</div>
+          <svg class="evolution-svg" id="chart-ig-interacciones" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-ig-interacciones"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tiktok">
+      <h2>TikTok</h2>
+      <div class="metric-charts-grid">
+        <div class="evolution-card">
+          <div class="metric-label">Seguidores</div>
+          <svg class="evolution-svg" id="chart-tiktok-seguidores" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-tiktok-seguidores"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Me gusta acumulados</div>
+          <svg class="evolution-svg" id="chart-tiktok-likes" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-tiktok-likes"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Vistas de cuenta (~30 días)</div>
+          <svg class="evolution-svg" id="chart-tiktok-video-top" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-tiktok-video-top"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="youtube">
+      <h2>YouTube</h2>
+      <div class="metric-charts-grid">
+        <div class="evolution-card">
+          <div class="metric-label">Suscriptores</div>
+          <svg class="evolution-svg" id="chart-yt-suscriptores" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-yt-suscriptores"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Vistas históricas</div>
+          <svg class="evolution-svg" id="chart-yt-vistas-historicas" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-yt-vistas-historicas"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Vistas (30 días)</div>
+          <svg class="evolution-svg" id="chart-yt-vistas-30d" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-yt-vistas-30d"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="programas">
+      <h2>Programas</h2>
+      <div class="evolution-grid">
+        <div class="evolution-card">
+          <div class="metric-label">Programas en vivo emitidos</div>
+          <svg class="evolution-svg" id="chart-programas" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-programas"></div>
+        </div>
+      </div>
+    </section>
+
+    <p id="sin-datos" class="dashboard-empty" hidden>Todavía no hay suficientes snapshots para graficar (se necesitan al menos 2). Van a aparecer solos a medida que se hagan las actualizaciones semanales del media kit.</p>
+  </div>
+
+  <script src="../shared/charts.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

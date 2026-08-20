@@ -8,9 +8,45 @@ una marca. Los números de Instagram, TikTok y YouTube salen de
 
 ## Estructura
 
-- `public/` — el sitio que se despliega (HTML/CSS/JS plano, sin build).
+- `public/` — el sitio que se manda a marcas (HTML/CSS/JS plano, sin build).
+- `dashboard/` — dashboard interno de evolución, mismo dominio de datos pero
+  para el equipo (no se manda a marcas). Ver "Gráficos de evolución" abajo.
+- `shared/charts.js` — sparklines SVG a mano, sin librería externa, usado
+  por `public/` y `dashboard/`.
 - `supabase_migration_media_kit_stats.sql` — migración de la tabla
   `rayando_cda.media_kit_stats` (correr una sola vez en el SQL Editor).
+- `supabase_migration_media_kit_stats_history.sql` — migración del
+  historial de snapshots (ver "Gráficos de evolución" abajo).
+
+## Gráficos de evolución
+
+Desde el 19/08/2026 cada actualización de `media_kit_stats` (el UPDATE
+semanal de siempre) deja automáticamente una foto en
+`rayando_cda.media_kit_stats_history` — hay un trigger
+(`media_kit_stats_snapshot`) que la llena sola, no hay que acordarse de
+nada nuevo al hacer el update semanal de siempre.
+
+Con eso se grafican sparklines en dos lugares:
+
+- **`public/index.html`**, sección "Cómo venimos creciendo": 2 gráficos
+  resumidos (alcance total y audiencia total, sumando las 3 plataformas) —
+  esto sí se manda a marcas, es parte del argumento de venta.
+- **`dashboard/index.html`**: los 9 números completos, uno por gráfico, más
+  los 2 totales. Pensado para el equipo, no se manda a marcas (por eso
+  `<meta name="robots" content="noindex, nofollow">`, aunque técnicamente
+  la URL es pública igual que el resto de `mediakit/` — no hay login, es
+  "no se linkea desde ningún lado", no una restricción real de acceso).
+
+La serie histórica arranca corta: no había snapshots semana a semana antes
+de esto, así que se sembraron a mano los únicos 3 puntos reales y fechados
+que existían (30/07/2026, 11/08/2026 y 19/08/2026 — ver
+`supabase_migration_media_kit_stats_history.sql`). Un gráfico necesita al
+menos 2 puntos con valor real para dibujarse; si no los tiene, la tarjeta
+muestra "Necesita más semanas de datos" (dashboard) o la sección completa
+queda oculta (media kit público — nunca se le muestra a una marca un
+gráfico vacío o roto). `yt_vistas_30d` es el caso típico: la columna existe
+desde antes pero recién se empezó a completar el 19/08/2026, así que su
+gráfico va a tardar una semana más en aparecer que el resto.
 
 ## Cómo se actualizan los números (a mano, semanal)
 
@@ -104,29 +140,49 @@ update rayando_cda.media_kit_stats set programas_emitidos = <número> where id =
 
 ## Actualizar la composición de audiencia a mano
 
-`audiencia_hombres_pct`, `audiencia_25_44_pct` y `audiencia_hombres_25_44_pct`
-(sección "Y no es cualquier audiencia" de la página) no van en el mail del
-lunes: la composición demográfica de una cuenta cambia en semanas/meses, no
-en días. Recalcular cada 2-3 meses, o si el equipo pide un dato más fresco
-antes de una reunión con una marca.
+`audiencia_hombres_pct`, `audiencia_fuera_santiago_pct` y
+`audiencia_hombres_25_44_pct` (sección "Y no es cualquier audiencia" de la
+página) no van en el mail del lunes: la composición demográfica de una
+cuenta cambia en semanas/meses, no en días. Recalcular cada 2-3 meses, o si
+el equipo pide un dato más fresco antes de una reunión con una marca.
 
-Desde Instagram > Insights > Audiencia se leen los dos porcentajes
-"marginales" (`audiencia_hombres_pct` y `audiencia_25_44_pct`). El cruzado
-(`audiencia_hombres_25_44_pct`, hombres **y** de 25 a 44) no se puede leer
-ahí: la app muestra género y edad por separado, no cruzados. Ese número
-necesita la API (`follower_demographics` con `breakdown=age,gender`, o el
-connector de Windsor si alguna vez se reactiva) — mientras no se pueda
-recalcular, es preferible dejar el último valor bueno antes que estimarlo
-multiplicando los marginales, que no es estadísticamente válido.
+`audiencia_hombres_pct` y `audiencia_fuera_santiago_pct` se leen desde
+Meta Business Suite → Estadísticas → Público → Datos demográficos: el
+gráfico "Edad y sexo" da el % de hombres directo, y "Principales ciudades"
+da el % en Santiago de Chile (`audiencia_fuera_santiago_pct` = 100 menos
+ese número). Ojo: es por **ciudad**, no por región — "fuera de Santiago"
+no es exactamente lo mismo que "fuera de la Región Metropolitana", por eso
+la página dice "vive fuera de Santiago" y no "fuera de la RM". Este panel
+es nativo de Meta (no depende de Windsor.ai), así que se puede volver a
+mirar cuando se quiera, sin plan pago de por medio.
+
+`audiencia_hombres_25_44_pct` (el cruzado, hombres **y** de 25 a 44) es
+distinto: ese panel muestra género y edad en el mismo gráfico de barras
+pero sin el cruce exacto en un número — solo visualmente. Para un número
+preciso hace falta la API (`follower_demographics` con
+`breakdown=age,gender`, o el connector de Windsor si alguna vez se
+reactiva) — mientras no se pueda recalcular así, es preferible dejar el
+último valor bueno antes que estimarlo a ojo desde el gráfico de barras.
 
 ```sql
 update rayando_cda.media_kit_stats
 set audiencia_hombres_pct = <pct>,
-    audiencia_25_44_pct = <pct>,
+    audiencia_fuera_santiago_pct = <pct>,
     audiencia_hombres_25_44_pct = <pct>
 where id = true;
 ```
 
-Última actualización: 2026-07-31, con datos reales de Windsor.ai (73%
-hombres, 67% entre 25 y 44 años, 54% hombres de 25 a 44 años, sobre un
-total de ~13.650 seguidoras/es de Instagram).
+`audiencia_25_44_pct` (el marginal de edad, "entre 25 y 44 años") sigue
+existiendo en la tabla pero **ningún elemento del HTML lo muestra** desde
+el 20/08/2026 — se reemplazó por `audiencia_fuera_santiago_pct` porque
+las dos tarjetas de al lado, "54% hombres de 25 a 44" y "67% entre 25 y 44
+años", decían "25 a 44 años" con números distintos (una es el cruce, la
+otra el marginal) y confundía a quien mira la página rápido. No hace falta
+seguir juntando este número.
+
+Última actualización: 2026-08-20. `audiencia_hombres_pct` (81%) y
+`audiencia_fuera_santiago_pct` (46%) salen del panel nativo de Meta
+Business Suite descrito arriba, sobre un total de 14.308 seguidoras/es de
+Instagram. `audiencia_hombres_25_44_pct` (54%, el cruzado) sigue congelado
+desde el 2026-07-31 con el último dato real de Windsor.ai — no se ha
+podido recalcular desde que venció el trial.

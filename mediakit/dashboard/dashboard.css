@@ -1,0 +1,36 @@
+/* Ajustes propios del dashboard interno, encima de ../public/styles.css
+   (mismos tokens de color/tipografía, para que se sienta parte del mismo
+   sitio aunque esta página no se manda a marcas). */
+
+.dashboard-wrap { padding-top: 36px; }
+.dashboard-header { margin-bottom: 12px; }
+.dashboard-header h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  color: var(--navy);
+  font-size: clamp(28px, 5vw, 40px);
+  margin: 0 0 8px;
+}
+.dashboard-header p { color: #6B6653; max-width: 68ch; }
+
+.btn-mediakit {
+  color: #D7E1F7;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.btn-mediakit:hover { text-decoration: underline; }
+
+section { padding: 32px 0; }
+section:first-of-type { padding-top: 12px; }
+
+.metric-charts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 18px; }
+@media (max-width: 860px) { .metric-charts-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .metric-charts-grid { grid-template-columns: 1fr; } }
+
+.dashboard-empty {
+  text-align: center;
+  color: #6B6653;
+  font-size: 14px;
+  padding: 30px 0;
+}

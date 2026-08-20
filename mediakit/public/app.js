@@ -79,7 +79,7 @@ async function cargarStats() {
     setStatSiEsNumero('stat-programas', stats.programas_emitidos)
 
     setStatSiEsNumero('stat-audiencia-hombres', stats.audiencia_hombres_pct)
-    setStatSiEsNumero('stat-audiencia-25-44', stats.audiencia_25_44_pct)
+    setStatSiEsNumero('stat-audiencia-fuera-santiago', stats.audiencia_fuera_santiago_pct)
     setStatSiEsNumero('stat-audiencia-hombres-25-44', stats.audiencia_hombres_25_44_pct)
 
     if (
@@ -100,8 +100,62 @@ async function cargarStats() {
   }
 }
 
+// Sparklines de "Cómo venimos creciendo", leídas de
+// rayando_cda.media_kit_stats_history (misma policy anon-select que la
+// tabla principal, ver mediakit/supabase_migration_media_kit_stats_history.sql).
+// La sección arranca `hidden` en el HTML: si hay menos de 2 puntos (recién
+// se creó el historial, o falló la red) se queda oculta en vez de mostrar
+// gráficos vacíos o rotos a una marca.
+async function cargarEvolucion() {
+  try {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/media_kit_stats_history?select=snapshot_en,ig_vistas_30d,tiktok_video_top_vistas,yt_vistas_30d,ig_seguidores,tiktok_seguidores,yt_suscriptores&order=snapshot_en.asc`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Accept-Profile': 'rayando_cda',
+        },
+      },
+    )
+    if (!resp.ok) throw new Error(`Supabase REST devolvió ${resp.status}`)
+    const filas = await resp.json()
+    if (!Array.isArray(filas) || filas.length < 2) return
+
+    const puntosAlcance = filas.map((f) => ({
+      t: new Date(f.snapshot_en),
+      v: (f.ig_vistas_30d ?? 0) + (f.tiktok_video_top_vistas ?? 0) + (f.yt_vistas_30d ?? 0),
+    }))
+    const puntosAudiencia = filas.map((f) => ({
+      t: new Date(f.snapshot_en),
+      v: (f.ig_seguidores ?? 0) + (f.tiktok_seguidores ?? 0) + (f.yt_suscriptores ?? 0),
+    }))
+
+    const okAlcance = dibujarEvolucion('chart-alcance', 'growth-alcance', puntosAlcance)
+    const okAudiencia = dibujarEvolucion('chart-audiencia', 'growth-audiencia', puntosAudiencia)
+    if (okAlcance || okAudiencia) document.getElementById('evolucion').hidden = false
+  } catch (err) {
+    console.error('No se pudo cargar la evolución:', err)
+  }
+}
+
+function dibujarEvolucion(idSvg, idGrowth, puntos) {
+  const svg = document.getElementById(idSvg)
+  if (!svg || typeof construirSparkline !== 'function') return false
+  const resultado = construirSparkline(svg, puntos)
+  if (!resultado) return false
+  const elGrowth = document.getElementById(idGrowth)
+  if (elGrowth && resultado.crecimientoPct !== null) {
+    const signo = resultado.crecimientoPct >= 0 ? '+' : ''
+    const fechaFmt = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' })
+    elGrowth.textContent = `${signo}${resultado.crecimientoPct}% desde el ${fechaFmt.format(resultado.primero.t)}`
+  }
+  return true
+}
+
 document.getElementById('btn-descargar-pdf').addEventListener('click', () => {
   window.print()
 })
 
 cargarStats()
+cargarEvolucion()

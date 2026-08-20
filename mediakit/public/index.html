@@ -120,6 +120,23 @@
       </div>
     </section>
 
+    <section id="evolucion" hidden>
+      <h2>Cómo venimos creciendo</h2>
+      <p>No son números fijos en una foto: así se están moviendo semana a semana.</p>
+      <div class="evolution-grid">
+        <div class="evolution-card">
+          <div class="metric-label">Alcance total (30 días) · IG + TikTok + YouTube</div>
+          <svg class="evolution-svg" id="chart-alcance" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-alcance"></div>
+        </div>
+        <div class="evolution-card">
+          <div class="metric-label">Audiencia total · IG + TikTok + YouTube</div>
+          <svg class="evolution-svg" id="chart-audiencia" aria-hidden="true"></svg>
+          <div class="evolution-growth" id="growth-audiencia"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="no-vendemos-seguidores">
       <h2>No vendemos seguidores. Vendemos contenido que funciona.</h2>
       <p>Nuestros seguidores en redes son un número chico a propósito: no compramos audiencia, la ganamos publicación por publicación. Lo que importa es el alcance real — y ahí la relación es clara:</p>
@@ -142,19 +159,19 @@
 
     <section id="audiencia">
       <h2>Y no es cualquier audiencia: es exactamente la que tu marca busca</h2>
-      <p>No vendemos una cifra de seguidores — vendemos quién está del otro lado. En Instagram, nuestra plataforma principal, la composición real de esa audiencia es esta (datos de Meta vía Windsor.ai, no una encuesta):</p>
+      <p>No vendemos una cifra de seguidores — vendemos quién está del otro lado. En Instagram, nuestra plataforma principal, la composición real de esa audiencia es esta (datos nativos de Meta, no una encuesta):</p>
       <div class="audience-grid">
         <div class="audience-stat audience-stat--lead">
           <div class="n"><span id="stat-audiencia-hombres-25-44">54</span>%</div>
           <div class="l">de la audiencia son hombres de 25 a 44 años — el corazón del target de bebidas, apuestas, bancos, retail deportivo y automotriz</div>
         </div>
         <div class="audience-stat">
-          <div class="n"><span id="stat-audiencia-hombres">73</span>%</div>
+          <div class="n"><span id="stat-audiencia-hombres">81</span>%</div>
           <div class="l">hombres</div>
         </div>
         <div class="audience-stat">
-          <div class="n"><span id="stat-audiencia-25-44">67</span>%</div>
-          <div class="l">entre 25 y 44 años</div>
+          <div class="n"><span id="stat-audiencia-fuera-santiago">46</span>%</div>
+          <div class="l">vive fuera de Santiago</div>
         </div>
       </div>
       <p style="font-size:13px;color:#6B6653;">Además, la audiencia no es solo Santiago: hay comunidad activa desde Arica hasta Punta Arenas — alcance nacional, no solo metropolitano.</p>
@@ -281,6 +298,7 @@
     </div>
   </footer>
 
+  <script src="../shared/charts.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
