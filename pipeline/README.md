@@ -590,65 +590,55 @@ están centralizados en `config.py`.
 
 ## TikTok
 
-El Developer App fue aprobado (06/08/2026). Pasos 1-6 de la lista original
-ya están hechos: OAuth completo (`rayando_cda.tiktok_token` con access +
-refresh token vigentes) y `refrescar-token-tiktok` corriendo cada 12hs sin
-intervención. Sigue apagado (`PUBLICAR_TIKTOK=false` en los secrets de
-Supabase) — **pendiente para retomar el miércoles 19/08/2026**, ver detalle
-abajo.
+El Developer App fue aprobado (06/08/2026): OAuth completo
+(`rayando_cda.tiktok_token` con access + refresh token vigentes),
+`refrescar-token-tiktok` corriendo cada 12hs sin intervención.
 
-**Estado (17/08/2026) — bloqueado en la auditoría de Direct Post:**
+**Estado (24-25/08/2026) — TikTok ya está en el flujo real, en privado:**
 
-Al probar el circuito real (`PUBLICAR_TIKTOK=true` temporal) aparecieron y
-se corrigieron dos bugs reales en `supabase/functions/publicar-clip/tiktok.ts`:
+`PUBLICAR_TIKTOK=true` en los secrets de Supabase. Cada clip aprobado se
+publica también en TikTok como parte de "Publicar en redes", junto con
+YouTube e Instagram.
 
-- **`PULL_FROM_URL` no sirve**: le pide a TikTok que vaya a buscar el video
-  a una URL, y eso exige verificar el dominio (Content Posting API > Verify
-  domains) — imposible con el dominio de Supabase Storage
-  (`*.supabase.co`), no es un dominio propio verificable. Se cambió a
-  `FILE_UPLOAD` (la Edge Function descarga el video del Storage y le manda
-  los bytes directo a TikTok). Corregido y deployado.
-- **`privacy_level` hardcodeado en `PUBLIC_TO_EVERYONE`**: las Content
-  Sharing Guidelines de TikTok exigen que un cliente sin auditar solo pueda
-  postear con `privacy_level: SELF_ONLY`, y consultar `creator_info` antes
-  de cada post para saber qué opciones están realmente disponibles (así se
-  autoajusta a `PUBLIC_TO_EVERYONE` solo cuando la app pase la auditoría, sin
-  tocar código de nuevo). Corregido y deployado.
+El bloqueo de agosto (`403 unaudited_client_can_only_post_to_private_accounts`)
+**no era la cuenta Business** (esa hipótesis quedó descartada) — era un bug
+real en `supabase/functions/publicar-clip/tiktok.ts`: al elegir
+`privacy_level`, el código tomaba `privacyLevelOptions[0]` cuando
+`PUBLIC_TO_EVERYONE` no estaba disponible, pero ese array no viene ordenado
+de más a menos restrictivo — podía traer `FOLLOWER_OF_CREATOR` primero, y
+TikTok rechaza cualquier valor que no sea `SELF_ONLY` para un cliente sin
+auditar. Corregido: ahora busca `SELF_ONLY` explícitamente.
 
-Con esos dos fixes, la API sigue rechazando el post con
-`403 unaudited_client_can_only_post_to_private_accounts`, **incluso con la
-cuenta @rayandoelcda puesta en privado** (confirmado con captura: el toggle
-"Cuenta privada" está activado). Sospecha: @rayandoelcda es una cuenta
-**Business** (tiene "Verificación de la empresa" en Configuración) — es un
-patrón conocido que las cuentas Business no logran clasificarse como
-privadas a nivel de API/audiencia aunque el toggle de la UI se vea
-activado, porque su propósito (Analytics/Ads) es ser pública. No confirmado
-con documentación oficial de TikTok, solo inferido de los intentos reales.
+Segundo hallazgo, más importante: **`creator_info` no refleja si la app
+pasó la auditoría de TikTok** — solo refleja el estado público/privado de
+la *cuenta*. Con la cuenta pública, `privacy_level_options` trae
+`PUBLIC_TO_EVERYONE` igual, auditoría o no. Por eso el código ya no confía
+en `creator_info` para decidir esto: hay una constante manual
+`AUDITORIA_APROBADA = false` en `tiktok.ts` que fuerza `SELF_ONLY` siempre
+mientras no se apruebe la auditoría de Direct Post. Cambiarla a `true` (y
+redeployar) es el único paso de código que falta el día que se apruebe.
 
-**Efecto colateral real de las pruebas:** el clip `candidato 2026-08-10 -
-clip 4` ("El tesorero de la asamblea...") quedó publicado de verdad en
-YouTube (público) e Instagram (Reel) durante los intentos — la fila en
-`rayando_cda.clips` se cerró (`publicado=true`) recién en el intento final
-sin TikTok.
+**Auditoría de Direct Post: todavía no se envió.** Confirmado en
+`developers.tiktok.com/app/7666642864034072596/live` — la sección Direct
+Post sigue mostrando el botón "Apply" sin tocar. Es un trámite separado de
+la aprobación general de la app (esa sí está lista, "Live in production"
+desde el 06/08). Sin esta auditoría, los clips quedan en TikTok visibles
+solo para @rayandoelcda (`SELF_ONLY`) — no se pierden, pero no llegan a la
+audiencia hasta que se apruebe.
 
-**Para retomar el miércoles:**
+**Para enviar la auditoría (siguiente paso, 26/08/2026):**
 
-1. Confirmar si el bloqueo es realmente por cuenta Business (contactar
-   soporte de TikTok, o probar cambiar @rayandoelcda a cuenta personal
-   temporalmente vía TikTok app > Configuración > Administrar cuenta, hacer
-   la prueba, y volver a Business después).
-2. Una vez que un post de prueba funcione (va a quedar privado, es
-   esperable pre-auditoría), grabar el video de demo que pide TikTok para
-   la solicitud de auditoría del Content Posting API
-   (`developers.tiktok.com/application/content-posting-api` — el
-   formulario ya está completo salvo la sección "Supporting documents", que
-   pide un screen recording de: 1) autorización de TikTok, 2) flujo hasta
-   "Publicar en redes" en la app, 3) qué pasa después de publicar).
-3. Enviar la solicitud de auditoría. TikTok tarda en revisarla — no es
-   instantáneo, así que conviene mandarla apenas se pueda grabar el video,
-   no esperar a último momento antes de un programa.
-4. Recién cuando la auditoría se apruebe, `PUBLICAR_TIKTOK=true` de forma
-   permanente (hasta entonces, dejarlo en `false` para no romper la
-   publicación normal de YouTube/Instagram — un fallo de TikTok frena la
-   respuesta entera de `publicar-clip` aunque las otras dos redes ya hayan
-   salido bien).
+1. Grabar los dos tramos de demo que faltan, usando clips reales del
+   programa del 24/08: el flujo en la app hasta "Publicar en redes"
+   (aprobar → publicar → PIN) y qué pasa después de publicar (el clip
+   apareciendo en TikTok). Ya existe un tramo grabado de la autorización de
+   TikTok (OAuth) del 17/08.
+2. Subir los videos en `developers.tiktok.com/app/7666642864034072596/live`
+   → Content Posting API → Direct Post → Apply (acepta hasta 5 archivos, no
+   hace falta unirlos en uno solo).
+3. Enviar. Sin SLA público garantizado — como referencia, la revisión
+   general de esta misma app tardó ~4 días con un rechazo y reenvío en el
+   medio; la auditoría de Direct Post suele tardar más.
+4. Aprobada la auditoría: cambiar `AUDITORIA_APROBADA` a `true` en
+   `tiktok.ts` y redeployar — ahí el código empieza a postear
+   `PUBLIC_TO_EVERYONE` automáticamente.
