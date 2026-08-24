@@ -55,9 +55,18 @@ export async function publicarTiktok(
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   const creatorInfo = await consultarCreatorInfo(config, fetchImpl)
+  // privacy_level_options no viene ordenado de más a menos restrictivo —
+  // tomar el [0] cuando no está PUBLIC_TO_EVERYONE es un error: puede traer
+  // primero FOLLOWER_OF_CREATOR o MUTUAL_FOLLOW_FRIENDS, y un cliente sin
+  // auditar solo puede postear con SELF_ONLY (TikTok devuelve
+  // unaudited_client_can_only_post_to_private_accounts si se manda otra
+  // cosa). Por eso hay que buscar SELF_ONLY explícitamente, no confiar en
+  // el orden del array.
   const privacyLevel = creatorInfo.privacyLevelOptions.includes('PUBLIC_TO_EVERYONE')
     ? 'PUBLIC_TO_EVERYONE'
-    : creatorInfo.privacyLevelOptions[0]
+    : creatorInfo.privacyLevelOptions.includes('SELF_ONLY')
+      ? 'SELF_ONLY'
+      : creatorInfo.privacyLevelOptions[0]
   if (!privacyLevel) {
     throw new Error('TikTok: creator_info no devolvió ningún privacy_level_options disponible')
   }
