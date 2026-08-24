@@ -11,12 +11,20 @@ interface CreatorInfo {
   stitchDisabled: boolean
 }
 
+// Confirmado en producción (25/08/2026): privacy_level_options refleja el
+// estado público/privado de la CUENTA, no si esta app pasó la auditoría de
+// Content Posting API de TikTok — con la cuenta pública, PUBLIC_TO_EVERYONE
+// aparece en la lista aunque la app siga sin auditar. Por eso NO se puede
+// confiar en creator_info para decidir si ya se puede postear público: hay
+// que forzar SELF_ONLY a mano mientras la auditoría no esté aprobada. Una
+// vez aprobada (TikTok Developers > Content Posting API), cambiar
+// AUDITORIA_APROBADA a true acá abajo — ahí sí el código empieza a usar
+// PUBLIC_TO_EVERYONE automáticamente cuando esté disponible.
+const AUDITORIA_APROBADA = false
+
 // Las Content Sharing Guidelines de TikTok exigen consultar esto antes de
-// cada post: mientras la app no pase la auditoría de Content Posting API,
-// privacy_level_options solo trae SELF_ONLY (y la cuenta de destino tiene
-// que estar en privado) — pasado ese trámite, va a traer también
-// PUBLIC_TO_EVERYONE, así que preferimos esa automáticamente sin tener que
-// tocar este código de nuevo.
+// cada post para saber, entre otras cosas, si el usuario deshabilitó
+// comentarios/duet/stitch.
 async function consultarCreatorInfo(config: TikTokConfig, fetchImpl: typeof fetch): Promise<CreatorInfo> {
   const resp = await fetchImpl(`${TIKTOK_API_BASE}/post/publish/creator_info/query/`, {
     method: 'POST',
@@ -55,14 +63,11 @@ export async function publicarTiktok(
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   const creatorInfo = await consultarCreatorInfo(config, fetchImpl)
-  // privacy_level_options no viene ordenado de más a menos restrictivo —
-  // tomar el [0] cuando no está PUBLIC_TO_EVERYONE es un error: puede traer
-  // primero FOLLOWER_OF_CREATOR o MUTUAL_FOLLOW_FRIENDS, y un cliente sin
-  // auditar solo puede postear con SELF_ONLY (TikTok devuelve
+  // Un cliente sin auditar solo puede postear con SELF_ONLY (TikTok devuelve
   // unaudited_client_can_only_post_to_private_accounts si se manda otra
-  // cosa). Por eso hay que buscar SELF_ONLY explícitamente, no confiar en
-  // el orden del array.
-  const privacyLevel = creatorInfo.privacyLevelOptions.includes('PUBLIC_TO_EVERYONE')
+  // cosa) — ver el comentario de AUDITORIA_APROBADA más arriba sobre por qué
+  // no se puede confiar en privacy_level_options para decidir esto.
+  const privacyLevel = AUDITORIA_APROBADA && creatorInfo.privacyLevelOptions.includes('PUBLIC_TO_EVERYONE')
     ? 'PUBLIC_TO_EVERYONE'
     : creatorInfo.privacyLevelOptions.includes('SELF_ONLY')
       ? 'SELF_ONLY'
