@@ -343,6 +343,15 @@ function App() {
           >
             <ClockCounterClockwise size={16} weight="bold" className="shrink-0" />
             <span className="truncate">Por publicar</span>
+            {historyClips.length > 0 && (
+              <span
+                className={`ml-0.5 rounded-full text-[10px] font-bold px-1.5 min-w-[1.1rem] text-center shrink-0 ${
+                  tab === 'historial' ? 'bg-primary text-white' : 'bg-white/20 text-white'
+                }`}
+              >
+                {historyClips.length}
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -353,6 +362,15 @@ function App() {
           >
             <CheckCircle size={16} weight="bold" className="shrink-0" />
             <span className="truncate">Publicados</span>
+            {publishedClips.length > 0 && (
+              <span
+                className={`ml-0.5 rounded-full text-[10px] font-bold px-1.5 min-w-[1.1rem] text-center shrink-0 ${
+                  tab === 'publicados' ? 'bg-primary text-white' : 'bg-white/20 text-white'
+                }`}
+              >
+                {publishedClips.length}
+              </span>
+            )}
           </button>
         </nav>
       </header>
