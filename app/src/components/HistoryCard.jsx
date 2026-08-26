@@ -265,6 +265,15 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             {errorMsg}
           </p>
         )}
+        {clip.estado === 'aprobado' && !clip.publicado && clip.video_url && (
+          <a
+            href={downloadUrl(clip.video_url, `clip-${clip.id}.mp4`)}
+            className="self-start flex items-center gap-1.5 text-sm font-semibold text-muted-foreground"
+          >
+            <DownloadSimple size={15} weight="bold" />
+            Descargar clip (para subir a TikTok a mano)
+          </a>
+        )}
         {clip.estado === 'aprobado' && !clip.publicado && (
           <button
             type="button"
