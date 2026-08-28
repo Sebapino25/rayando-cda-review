@@ -265,7 +265,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             {errorMsg}
           </p>
         )}
-        {clip.estado === 'aprobado' && !clip.publicado && clip.video_url && (
+        {clip.estado === 'aprobado' && clip.video_url && (
           <a
             href={downloadUrl(clip.video_url, `clip-${clip.id}.mp4`)}
             className="self-start flex items-center gap-1.5 text-sm font-semibold text-muted-foreground"

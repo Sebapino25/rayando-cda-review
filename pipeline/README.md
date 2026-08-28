@@ -634,10 +634,19 @@ apruebe pronto. Mientras siga pendiente, `PUBLICAR_TIKTOK=true` va a
 seguir generando un error por cada clip (y su mail de alerta) sin publicar
 nada; es esperado, no es una falla nueva que investigar.
 
-**Subida manual a TikTok mientras tanto:** descargar `vertical.mp4` del
-clip aprobado (Supabase Storage, bucket `clips-video`, o directo de la
-carpeta local del clip) y subirlo a mano desde la cuenta @rayando.el.cda,
-usando el copy de TikTok de `copys.md` del clip.
+**Subida manual a TikTok mientras tanto:** en la app de revisión, cada clip
+aprobado tiene los botones **"Descargar clip (para subir a TikTok a mano)"**
+y **"Descargar portada"**, tanto en la pestaña "Por publicar" como en
+"Publicados" (antes desaparecían al publicar en redes). Bajar los dos,
+subirlos a mano desde la cuenta @rayando.el.cda con el copy de TikTok del
+clip. El `vertical.mp4` también está en Supabase Storage (bucket
+`clips-video`) o en la carpeta local del clip.
+
+Para que el botón siga funcionando después de "Publicar en redes", la Edge
+Function `publicar-clip` **ya no borra el video de Storage al publicar** — el
+video se conserva hasta que alguien toque **"Eliminar"** en el clip
+publicado (ese botón limpia el archivo). Conviene eliminar los clips ya
+subidos a TikTok cada tanto para que el bucket no crezca sin control.
 
 **Auditoría de Direct Post: todavía no se envió.** Confirmado en
 `developers.tiktok.com/app/7666642864034072596/live` — la sección Direct

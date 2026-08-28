@@ -239,21 +239,15 @@ Deno.serve(async (req: Request) => {
     )
   }
 
-  // Best-effort: borrar el video de Storage ahora que ya se publicó en todas
-  // las redes habilitadas. Los uploads a cut-time hacen que el bucket
-  // clips-video crezca sin límite si nadie lo limpia (mismo criterio que el
-  // borrado al rechazar un clip, del lado del frontend) — un fallo acá no
-  // debe afectar la respuesta: el clip ya quedó publicado=true.
-  const marker = '/object/public/clips-video/'
-  const idx = reclamada.video_url.indexOf(marker)
-  if (idx !== -1) {
-    const path = reclamada.video_url.slice(idx + marker.length)
-    try {
-      await supabase.storage.from('clips-video').remove([path])
-    } catch (e) {
-      console.error(`No se pudo borrar el video de Storage para el clip ${clipId}:`, e)
-    }
-  }
+  // Antes acá se borraba el vertical.mp4 de Storage apenas se publicaba, para
+  // que el bucket clips-video no creciera sin límite. Se dejó de hacer: TikTok
+  // sigue sin publicar por API (auditoría de Direct Post pendiente, ver
+  // pipeline/README.md) y hay que subir cada clip a mano, cosa que a veces se
+  // hace después de "Publicar en redes". Si el video se borra en este punto,
+  // el botón "Descargar clip" de la pestaña "Publicados" queda con un link
+  // roto. Ahora el video se conserva hasta que alguien toque "Eliminar" en el
+  // clip publicado (ese botón ya limpia el archivo de Storage, ver
+  // handleDelete en app/src/App.jsx).
 
   return new Response(JSON.stringify({ ok: true, clip: publicado }), { status: 200, headers: jsonHeaders })
 })

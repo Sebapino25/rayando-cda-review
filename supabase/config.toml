@@ -1,5 +1,9 @@
+# import_map: el CLI nuevo (>=2.x) no toma solo el supabase/functions/deno.json
+# compartido — hay que apuntarlo acá o pasar --import-map en cada deploy.
 [functions.publicar-clip]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 [functions.refrescar-token-instagram]
 verify_jwt = true
+import_map = "./functions/deno.json"
