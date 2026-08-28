@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown, DownloadSimple, Trash } from '@phosphor-icons/react'
+import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown, DownloadSimple, Trash, Info } from '@phosphor-icons/react'
 import { downloadUrl } from '../lib/downloadUrl'
+import TikTokPublishPanel from './TikTokPublishPanel'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -51,6 +52,10 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
   const [removingCover, setRemovingCover] = useState(false)
   const [publicando, setPublicando] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
+  const [pin, setPin] = useState('')
+  const [tiktokPayload, setTiktokPayload] = useState(null)
+  const [tiktokValido, setTiktokValido] = useState(true)
 
   async function handleUndo() {
     const confirmed = window.confirm('¿Seguro que quieres deshacer esta revisión?')
@@ -78,26 +83,18 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
     }
   }
 
-  async function handlePublicar() {
-    if (transcripcionPendiente) return
-    const resumen = [
-      'Se va a publicar de verdad, ahora mismo:',
-      '',
-      `Título de YouTube: ${clip.youtube_titulo || '(sin título)'}`,
-      `Copy de Instagram: ${clip.copy_instagram || '(sin copy)'}`,
-      '',
-      'Esto pasa el video a público en YouTube y publica el Reel en Instagram. No se puede deshacer.',
-      '¿Confirmás?',
-    ].join('\n')
-    if (!window.confirm(resumen)) return
+  function cancelarPublicar() {
+    setPublishOpen(false)
+    setPin('')
+  }
 
-    const pin = window.prompt('PIN para publicar:')
-    if (!pin) return
-
+  async function confirmarPublicar() {
+    if (transcripcionPendiente || !pin || !tiktokValido) return
     setPublicando(true)
     setErrorMsg('')
     try {
-      await onPublicar(clip.id, pin)
+      await onPublicar(clip.id, { pin, tiktok: tiktokPayload })
+      // Si sale bien, el clip pasa a publicado y la tarjeta se re-renderiza sola.
     } catch (err) {
       setErrorMsg(err.message || 'No se pudo publicar. Probá de nuevo.')
     } finally {
@@ -274,17 +271,68 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             Descargar clip (para subir a TikTok a mano)
           </a>
         )}
-        {clip.estado === 'aprobado' && !clip.publicado && (
+        {clip.estado === 'aprobado' && !clip.publicado && !publishOpen && (
           <button
             type="button"
-            onClick={handlePublicar}
+            onClick={() => setPublishOpen(true)}
             disabled={publicando || transcripcionPendiente}
             title={transcripcionPendiente ? 'Hay una corrección de subtítulo sin aplicar al video todavía' : undefined}
             className="self-start flex items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-40 cursor-pointer"
           >
-            {publicando ? <SpinnerGap size={15} className="animate-spin" /> : <CheckCircle size={15} weight="bold" />}
+            <CheckCircle size={15} weight="bold" />
             Publicar en redes
           </button>
+        )}
+        {clip.estado === 'aprobado' && !clip.publicado && publishOpen && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3.5 flex flex-col gap-3">
+            <p className="text-sm font-semibold text-foreground">Publicar en redes</p>
+            <div className="text-[13px] text-muted-foreground leading-snug flex flex-col gap-0.5">
+              <span><span className="font-medium text-foreground">YouTube:</span> {clip.youtube_titulo || '(sin título)'}</span>
+              <span><span className="font-medium text-foreground">Instagram:</span> {clip.copy_instagram ? `${clip.copy_instagram.slice(0, 80)}${clip.copy_instagram.length > 80 ? '…' : ''}` : '(sin copy)'}</span>
+            </div>
+            <p className="flex items-start gap-1.5 text-xs text-warning">
+              <Info size={14} className="shrink-0 mt-0.5" />
+              Pasa el video a público en YouTube y publica el Reel en Instagram. No se puede deshacer.
+            </p>
+
+            <TikTokPublishPanel
+              clip={clip}
+              onChange={setTiktokPayload}
+              onValidityChange={setTiktokValido}
+            />
+
+            <label className="block">
+              <span className="block text-sm font-semibold text-foreground mb-1.5">PIN para publicar</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                className="w-full h-12 px-3.5 rounded-xl border border-border bg-background text-[15px] text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={cancelarPublicar}
+                disabled={publicando}
+                className="h-12 rounded-xl border-2 border-border text-foreground font-semibold text-sm disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarPublicar}
+                disabled={publicando || transcripcionPendiente || !pin || !tiktokValido}
+                className="h-12 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40 active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                {publicando ? <SpinnerGap size={16} className="animate-spin" /> : <CheckCircle size={16} weight="bold" />}
+                Publicar
+              </button>
+            </div>
+          </div>
         )}
         {clip.publicado && (
           <span className="self-start flex items-center gap-1.5 text-sm font-semibold text-accent">

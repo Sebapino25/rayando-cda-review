@@ -3,7 +3,7 @@ import { enviarAlerta } from '../_shared/email.ts'
 import { excedeLimite, VENTANA_MINUTOS_PIN, MAX_INTENTOS_PIN } from './pin.ts'
 import { obtenerAccessTokenYoutube, publicarYoutube } from './youtube.ts'
 import { publicarReel } from './instagram.ts'
-import { publicarTiktok } from './tiktok.ts'
+import { publicarTiktok, obtenerCreatorInfoParaUI, TikTokPostOpciones } from './tiktok.ts'
 
 const CLAIM_EXPIRA_MINUTOS = 10
 
@@ -19,6 +19,21 @@ const corsHeaders = {
 }
 const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
 
+// Lo que manda la pantalla de TikTok de la app (snake_case, tal cual el JSON).
+interface TikTokClientPayload {
+  privacy_level?: string
+  disable_comment?: boolean
+  disable_duet?: boolean
+  disable_stitch?: boolean
+  brand_content_toggle?: boolean
+  brand_organic_toggle?: boolean
+  caption?: string
+}
+
+function tiktokAuditoriaAprobada(): boolean {
+  return Deno.env.get('TIKTOK_AUDITORIA_APROBADA') === 'true'
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -28,19 +43,76 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: 'Método no permitido' }), { status: 405, headers: jsonHeaders })
   }
 
-  let body: { clip_id?: string; pin?: string; dry_run?: boolean }
+  let body: {
+    clip_id?: string
+    pin?: string
+    dry_run?: boolean
+    action?: string
+    tiktok?: TikTokClientPayload | null
+  }
   try {
     body = await req.json()
   } catch {
     return new Response(JSON.stringify({ error: 'Body inválido, se espera JSON' }), { status: 400, headers: jsonHeaders })
   }
 
+  const supabase = getSupabaseAdmin()
+
+  // --- Datos para la pantalla de publicación de TikTok de la app ---
+  // No pide PIN ni reclama la fila: solo lee creator_info de TikTok para que
+  // la app pueda mostrar el selector de privacidad, los toggles y la cuenta.
+  // Las Content Sharing Guidelines de TikTok exigen que estas opciones salgan
+  // de creator_info en vivo, no hardcodeadas.
+  if (body.action === 'tiktok_creator_info') {
+    if (Deno.env.get('PUBLICAR_TIKTOK') !== 'true') {
+      return new Response(JSON.stringify({ ok: true, habilitado: false }), { status: 200, headers: jsonHeaders })
+    }
+    const { data: tokenRow, error: tokenError } = await supabase
+      .from('tiktok_token')
+      .select('access_token')
+      .eq('id', true)
+      .maybeSingle()
+    if (tokenError || !tokenRow) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'No hay token de TikTok guardado — revisar refrescar-token-tiktok.' }),
+        { status: 200, headers: jsonHeaders },
+      )
+    }
+    try {
+      const info = await obtenerCreatorInfoParaUI(
+        { accessToken: tokenRow.access_token },
+        tiktokAuditoriaAprobada(),
+      )
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          habilitado: true,
+          auditoria_aprobada: info.auditoriaAprobada,
+          data: {
+            creator_nickname: info.creatorNickname,
+            creator_username: info.creatorUsername,
+            creator_avatar_url: info.creatorAvatarUrl,
+            privacy_level_options: info.privacyLevelOptions,
+            comment_disabled: info.commentDisabled,
+            duet_disabled: info.duetDisabled,
+            stitch_disabled: info.stitchDisabled,
+            max_video_post_duration_sec: info.maxVideoPostDurationSec,
+          },
+        }),
+        { status: 200, headers: jsonHeaders },
+      )
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) }),
+        { status: 200, headers: jsonHeaders },
+      )
+    }
+  }
+
   const { clip_id: clipId, pin, dry_run: dryRun = false } = body
   if (!clipId || !pin) {
     return new Response(JSON.stringify({ error: 'Faltan clip_id y/o pin' }), { status: 400, headers: jsonHeaders })
   }
-
-  const supabase = getSupabaseAdmin()
 
   // --- Rate limit de intentos fallidos de PIN ---
   const desde = new Date(Date.now() - VENTANA_MINUTOS_PIN * 60_000).toISOString()
@@ -192,7 +264,10 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  if (publicarTiktokFlag) {
+  // TikTok es opt-in por clip: solo se publica si el flag maestro está prendido
+  // Y la persona configuró la publicación a TikTok en la pantalla de la app
+  // (body.tiktok). Sin body.tiktok se saltea en silencio — no es un error.
+  if (publicarTiktokFlag && body.tiktok) {
     try {
       // El access token de TikTok vence a las 24hs (a diferencia del de
       // Instagram, que dura 60 días) — no alcanza con un secret estático,
@@ -206,9 +281,25 @@ Deno.serve(async (req: Request) => {
       if (tiktokTokenError || !tiktokTokenRow) {
         throw new Error('No hay token de TikTok guardado — revisar refrescar-token-tiktok.')
       }
-      const publishId = await publicarTiktok(reclamada.video_url, reclamada.copy_tiktok || '', {
-        accessToken: tiktokTokenRow.access_token,
-      })
+      const tk = body.tiktok
+      if (!tk.privacy_level) {
+        throw new Error('Falta privacy_level en la configuración de TikTok.')
+      }
+      const opciones: TikTokPostOpciones = {
+        title: tk.caption ?? reclamada.copy_tiktok ?? '',
+        privacyLevel: tk.privacy_level,
+        disableComment: Boolean(tk.disable_comment),
+        disableDuet: Boolean(tk.disable_duet),
+        disableStitch: Boolean(tk.disable_stitch),
+        brandContentToggle: Boolean(tk.brand_content_toggle),
+        brandOrganicToggle: Boolean(tk.brand_organic_toggle),
+        auditoriaAprobada: tiktokAuditoriaAprobada(),
+      }
+      const publishId = await publicarTiktok(
+        reclamada.video_url,
+        { accessToken: tiktokTokenRow.access_token },
+        opciones,
+      )
       actualizacion.tiktok_publish_id = publishId
     } catch (e) {
       errores.push(`TikTok: ${e instanceof Error ? e.message : String(e)}`)

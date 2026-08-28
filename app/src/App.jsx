@@ -217,9 +217,9 @@ function App() {
     loadPending()
   }
 
-  async function handlePublicar(id, pin) {
+  async function handlePublicar(id, { pin, tiktok }) {
     const { data, error: invokeError } = await supabase.functions.invoke('publicar-clip', {
-      body: { clip_id: id, pin },
+      body: { clip_id: id, pin, tiktok: tiktok ?? null },
     })
     if (invokeError) {
       let mensaje = invokeError.message

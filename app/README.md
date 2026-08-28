@@ -49,7 +49,7 @@ La tabla `clips` vive en el schema `rayando_cda` (no en `public`). Pasos necesar
 | `portada_url` | text | URL pública de la portada en Supabase Storage (bucket `portadas`) |
 | `publicando_en` | timestamptz | claim atómico: seteado por la Edge Function `publicar-clip` al empezar a publicar, para evitar dos publicaciones simultáneas del mismo clip |
 | `instagram_media_id` | text | id del media de Instagram publicado, seteado por `publicar-clip` |
-| `tiktok_publish_id` | text | id de publicación de TikTok, seteado por `publicar-clip` (hoy sin efecto real: `PUBLICAR_TIKTOK=false`, ver `pipeline/README.md`) |
+| `tiktok_publish_id` | text | id de publicación de TikTok, seteado por `publicar-clip` cuando la persona configura el panel de TikTok al publicar (hoy `PUBLICAR_TIKTOK=false`, ver `pipeline/README.md`) |
 
 ## Datos de prueba (QA)
 
