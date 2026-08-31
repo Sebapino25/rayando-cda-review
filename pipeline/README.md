@@ -594,7 +594,11 @@ El Developer App fue aprobado (06/08/2026): OAuth completo
 (`rayando_cda.tiktok_token` con access + refresh token vigentes),
 `refrescar-token-tiktok` corriendo cada 12hs sin intervención.
 
-**Estado (28/08/2026) — pantalla de Direct Post lista en la app; falta enviar la auditoría:**
+**Estado (30/08/2026) — auditoría de Direct Post ENVIADA.** Frontend y Edge
+Function `publicar-clip` (v24) deployados, probado end-to-end (clip real
+publicado con `tiktok_publish_id` guardado), demos grabadas y auditoría enviada
+en `developers.tiktok.com/application/content-posting-api` — respuesta en 2–4
+semanas. Detalle y pasos post-envío en `docs/tiktok-direct-post-estado.md`.
 
 La app ya tiene la **pantalla de publicación a TikTok** que exigen las
 Content Sharing Guidelines (ver `app/src/components/TikTokPublishPanel.jsx`):
