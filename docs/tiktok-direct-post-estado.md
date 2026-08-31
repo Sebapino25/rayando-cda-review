@@ -35,10 +35,11 @@ Verificación al momento del commit: `deno test supabase/functions/publicar-clip
 | Frontend (GitHub Pages) | ✅ **deployado** (commit `422cfc2`, workflow en verde) |
 | Edge Function `publicar-clip` | ✅ **deployada con el código nuevo** (v24, 30/08/2026) |
 | Secret `TIKTOK_AUDITORIA_APROBADA` | `false` (cargado 30/08) |
-| Secret `PUBLICAR_TIKTOK` | cargado 30/08 en `true` para probar; **volver a `false`** tras enviar (paso 5b) |
+| Secret `PUBLICAR_TIKTOK` | ✅ de vuelta en `false` (30/08, verificado: `tiktok_creator_info` → `habilitado:false`) |
 | Prueba end-to-end | ✅ OK — clip real publicado con `tiktok_publish_id` guardado |
 | **Auditoría de Direct Post** | ✅ **ENVIADA el 30/08/2026** — respuesta en 2–4 semanas. Revisar estado en `developers.tiktok.com` → Manage apps |
-| Cuenta @rayando.el.cda | privada durante la grabación — **volver a pública** (paso 5b) |
+| Cuenta @rayando.el.cda | ✅ de vuelta en pública (30/08) |
+| Paso 5b (cerrar) | ✅ completo |
 
 Formulario enviado: App ID `7666642864034072596`, 3 MP4 (OAuth 17/08 + flujo de
 publicación + resultado en el perfil), org website
@@ -83,10 +84,11 @@ Confirmado en vivo:
   `tiktok_publish_id = v_pub_file~v2-1.7679852661344045074`, video visible en el
   perfil privado de TikTok.
 
-Falta la cuenta en **público** de nuevo (dejarla privada hasta grabar la demo
-del resultado, paso 4).
+### 4. Grabar las demos para la auditoría — ✅ HECHO (30/08/2026)
 
-### 4. Grabar las demos para la auditoría
+Se grabaron y subieron 3 MP4: OAuth (17/08), flujo de publicación en el panel,
+y resultado en el perfil. Guía de grabación abajo, por si hay que regrabar tras
+un rechazo.
 
 **Antes de grabar:**
 - Cuenta @rayando.el.cda **en privado** (ya está).
@@ -144,9 +146,10 @@ navegador) → mostrar el video recién publicado en la grilla del perfil →
 abrirlo → que se vea que está publicado (aunque sea privado, se ve el post).
 ~20–40 s.
 
-### 5. Enviar la auditoría
+### 5. Enviar la auditoría — ✅ HECHO (30/08/2026)
 
-Ir a `developers.tiktok.com/app/7666642864034072596/live` → panel izquierdo
+Enviada. Referencia del wizard por si hay que reenviar tras un rechazo:
+`developers.tiktok.com/app/7666642864034072596/live` → panel izquierdo
 **Products** → sección **Content Posting API** → fila **Direct Post** → link
 **Apply** (rojo, a la derecha del texto "Usage:"). Abre el wizard
 `developers.tiktok.com/application/content-posting-api` con 4 pasos:
@@ -180,16 +183,15 @@ Puntos a cubrir en las descripciones (en inglés):
 5. Enviar. El botón "Apply" sigue sin tocar (confirmado 26/08). La revisión de
    Direct Post suele tardar más que la aprobación general de la app.
 
-### 5b. Después de enviar
+### 5b. Después de enviar — ✅ HECHO (30/08/2026)
 
-- **Volver la cuenta @rayando.el.cda a pública.**
-- Con la auditoría pendiente y la cuenta pública, `PUBLICAR_TIKTOK=true` es
-  benigno: un clip sin config de TikTok en el panel se saltea en silencio. Pero
-  si alguien llena el panel y publica, va a fallar con `403
-  unaudited_client_can_only_post_to_private_accounts` (y manda mail de alerta —
-  que hoy no llega a nadie, ver `resend_sandbox_pendiente`). Decisión a tomar:
-  dejar `PUBLICAR_TIKTOK=true` y avisarle al equipo que no usen el toggle de
-  TikTok hasta la aprobación, o volver a ponerlo en `false` hasta entonces.
+- ✅ Cuenta @rayando.el.cda de vuelta en **pública**.
+- ✅ `PUBLICAR_TIKTOK` de vuelta en **`false`** (verificado: `tiktok_creator_info`
+  → `habilitado:false`). Se eligió dejarlo en `false` en vez de `true` + aviso al
+  equipo: con la cuenta pública y la auditoría pendiente, cualquier publicación a
+  TikTok desde el panel daría `403
+  unaudited_client_can_only_post_to_private_accounts` + mail de alerta (que hoy no
+  llega a nadie, ver `resend_sandbox_pendiente`).
 
 ### 6. Cuando TikTok apruebe (o rechace)
 
@@ -202,10 +204,8 @@ Puntos a cubrir en las descripciones (en inglés):
 
 ## Notas
 
-- `PUBLICAR_TIKTOK` es el kill-switch maestro. Con la auditoría aún pendiente,
-  se puede dejar en `true` sin drama: un clip sin config de TikTok en el panel
-  se saltea en silencio, no genera error ni mail.
-- El gap "frontend nuevo + función vieja" es benigno pero conviene cerrarlo
-  pronto (paso 1) para no confundir a quien use la app.
+- `PUBLICAR_TIKTOK` es el kill-switch maestro. Hoy en `false` — con la cuenta
+  pública y la auditoría pendiente, ponerlo en `true` haría fallar (403)
+  cualquier publicación a TikTok que alguien intente desde el panel.
 - [`resend_sandbox_pendiente`] sigue sin resolver: los mails de alerta del
   pipeline no llegan a nadie.
