@@ -363,30 +363,31 @@ python reprocesar_video.py --apply --clip-id <id>
 
 (`--clip-id` ignora el marcador a propósito).
 
-**Limpieza automática de la cola de clips:** cada corrida sin grabación
-pendiente también corre `limpiar_clips.py --apply`, que borra del todo (fila
-de `rayando_cda.clips` + `vertical.mp4` y portada de Supabase Storage + video
-no listado de YouTube; los dos últimos best-effort) los clips que ya no se
-van a usar:
+**Limpieza automática de la cola de clips:** el eje es el *programa vigente*
+= `MAX(semana)` válido de la tabla. Cuando el pipeline procesa un programa
+nuevo, lo de programas anteriores deja de ser "la semana en curso". Cada
+corrida sin grabación pendiente corre `limpiar_clips.py --apply`, que borra
+del todo (fila de `rayando_cda.clips` + `vertical.mp4` y portada de Supabase
+Storage + video no listado de YouTube; los dos últimos best-effort):
 
-- `estado='pendiente'` sin revisar con más de `config.DIAS_LIMPIAR_PENDIENTES`
-  (7) días: si nadie los aprobó en una semana ya salió el próximo programa.
-- `estado='rechazado'` sin publicar con más de `config.DIAS_LIMPIAR_RECHAZADOS`
-  (30) días — el colchón da tiempo a deshacer un rechazo desde la app
-  ("Deshacer" en la pestaña "Por publicar").
+- `estado='pendiente'` y `estado='rechazado'` sin publicar **de programas
+  anteriores** al vigente (hubo toda la semana para aprobarlos / deshacer el
+  rechazo).
+- `estado='aprobado'` sin publicar cuya `semana` tiene más de
+  `config.DIAS_RESERVA_ANTIGUAS` (30) días.
 
-No toca aprobados, publicados ni `correccion_video`. Para ver qué borraría
-sin tocar nada:
+No toca publicados ni `correccion_video`. Para ver qué borraría sin tocar nada:
 
 ```powershell
 python limpiar_clips.py            # dry-run
-python limpiar_clips.py --apply --dias-pendientes 10 --dias-rechazados 45
+python limpiar_clips.py --apply --dias-reserva 45
 ```
 
-Del otro lado, en la app de revisión los clips **aprobados** sin publicar
-con más de 30 días (`RESERVA_DIAS` en `app/src/lib/constants.js`) salen de
-"Por publicar" y viven en la pestaña **"Antiguas"** — reserva de contenido
-para cuando falte material; se publican igual desde ahí.
+Del otro lado, en la app de revisión **Pendientes** y **Por publicar**
+muestran solo el programa vigente; los clips **aprobados** sin publicar de
+programas anteriores viven en la pestaña **"Antiguas"** (`RESERVA_DIAS` en
+`app/src/lib/constants.js` es solo el texto) — reserva de contenido para
+cuando falte material; se publican igual desde ahí.
 
 **Nota sobre Avast**: Avast puede poner en cuarentena (borrar)
 `auto_procesar_loop.ps1` y/o `registrar_tarea_programada.ps1` al

@@ -1,28 +1,30 @@
-# Cambios aplicados — reserva de clips antiguos + limpieza de la cola (01/09)
+# Cambios aplicados — pestaña "Antiguas" + limpieza de la cola por programa (01/09)
 
-Dos piezas para que la cola de revisión no acumule ruido ni pierda material
-aprovechable:
+El eje es el **programa vigente** = `MAX(semana)` válido de `rayando_cda.clips`.
+Cuando el pipeline procesa un programa nuevo, todo lo de programas anteriores
+deja de ser "la semana en curso".
 
-- **Pestaña "Antiguas" en la app de revisión** (`app/src/App.jsx`): los clips
-  aprobados y sin publicar que llevan más de `RESERVA_DIAS` (30) días así
-  salen de "Por publicar" y pasan a una pestaña aparte, como reserva de
-  contenido para cuando falte material. Se puede publicar directo desde ahí
-  (misma `HistoryCard`). El corte se mide contra `revisado_en`; no hubo
-  cambio de schema.
-- **Limpieza automática de la cola** (`limpiar_clips.py`, llamado desde
-  `auto_procesar.ps1` cuando no hay grabación pendiente): borra del todo
-  (fila de Supabase + video y portada de Storage + video no listado de
-  YouTube; los dos de Storage/YouTube best-effort) los clips que ya no se
-  van a usar —
-  - `estado='pendiente'` sin revisar con más de
-    `config.DIAS_LIMPIAR_PENDIENTES` (7) días: si nadie los aprobó en una
-    semana ya pasó el próximo programa.
-  - `estado='rechazado'` sin publicar con más de
-    `config.DIAS_LIMPIAR_RECHAZADOS` (30) días.
+- **App de revisión** (`app/src/App.jsx`, layout de tabs a 2×2):
+  - **Pendientes** y **Por publicar** ahora muestran **solo el programa
+    vigente** (Por publicar = aprobados/rechazados de esa semana + cualquier
+    `correccion_video`, que no caduca).
+  - Nueva pestaña **"Antiguas"**: aprobados sin publicar de programas
+    anteriores — reserva de contenido, se publica igual desde ahí (misma
+    `HistoryCard`).
+  - Sin cambio de schema. `semana` es texto libre en la tabla real (hay filas
+    de prueba tipo `qa-fixture`), así que el "vigente" se calcula descartando
+    lo que no parsea como fecha.
+- **Limpieza automática** (`limpiar_clips.py`, llamado por `auto_procesar.ps1`
+  cuando no hay grabación pendiente): borra del todo (fila de Supabase + video
+  y portada de Storage + video no listado de YouTube; los dos últimos
+  best-effort):
+  - `pendiente` y `rechazado` sin publicar **de programas anteriores** al
+    vigente.
+  - `aprobado` sin publicar cuya `semana` tiene más de
+    `config.DIAS_RESERVA_ANTIGUAS` (30) días.
 
-  No toca aprobados, publicados ni `correccion_video`. Dry-run por defecto;
-  `--apply` para borrar. Exit codes 0/3/1 como los otros bloques del
-  disparador; al borrar algo avisa a todo el equipo.
+  No toca publicados ni `correccion_video`. Dry-run por defecto; `--apply`
+  para borrar. Exit codes 0/3/1; al borrar algo avisa a todo el equipo.
 
 # Cambios aplicados — cierre institucional en los verticales (03/08)
 

@@ -265,11 +265,11 @@ if ($hayGrabacionPendiente) {
 
     # --- Limpieza automática de la cola de clips ---
     # Borra del todo (fila de Supabase + video/portada de Storage + video no
-    # listado de YouTube) los clips que ya no se van a usar: 'pendiente' sin
-    # revisar con más de config.DIAS_LIMPIAR_PENDIENTES días (nadie los aprobó
-    # en una semana) y 'rechazado' sin publicar con más de
-    # config.DIAS_LIMPIAR_RECHAZADOS días. No toca aprobados, publicados ni
-    # 'correccion_video'. Mismo esquema de exit codes que los bloques de arriba.
+    # listado de YouTube) lo que ya no se va a usar cuando entra un programa
+    # nuevo: 'pendiente' y 'rechazado' sin publicar de programas anteriores, y
+    # 'aprobado' sin publicar cuya `semana` pasó los config.DIAS_RESERVA_ANTIGUAS
+    # días. No toca publicados ni 'correccion_video'. Mismo esquema de exit
+    # codes que los bloques de arriba.
     $logLimpieza = Join-Path $LogsDir "limpiar_clips.log"
     $exitLimpieza = -1
     Push-Location $PipelineDir
@@ -283,7 +283,7 @@ if ($hayGrabacionPendiente) {
     if ($exitLimpieza -eq 3) {
         $tail = Obtener-TailLog $logLimpieza
         Enviar-Alerta "Rayando el CDA: se limpiaron clips de la cola" `
-            "Se borraron clips que ya no se iban a usar: pendientes sin revisar de hace más de una semana y/o rechazados de hace más de 30 días (registro de Supabase + video/portada de Storage + video no listado de YouTube).`n`nDetalle ($logLimpieza):`n$tail" `
+            "Se borraron clips que ya no se iban a usar: pendientes/rechazados sin publicar de programas anteriores, y aprobados sin publicar de más de 30 días (registro de Supabase + video/portada de Storage + video no listado de YouTube).`n`nDetalle ($logLimpieza):`n$tail" `
             $TeamEmails
     } elseif ($exitLimpieza -ne 0) {
         $tail = Obtener-TailLog $logLimpieza

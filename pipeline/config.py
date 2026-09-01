@@ -178,18 +178,18 @@ SUPABASE_PORTADAS_BUCKET = "portadas"
 SUPABASE_CLIPS_VIDEO_BUCKET = "clips-video"
 
 # --- Limpieza automática de la cola de clips (ver limpiar_clips.py) ---
-# Las corridas automáticas borran del todo (fila de Supabase + video/portada
-# de Storage + video no listado de YouTube):
-#   - clips en estado='pendiente' sin revisar con más de DIAS_LIMPIAR_PENDIENTES
-#     días: si nadie los aprobó en una semana ya pasó el próximo programa y no
-#     se van a usar.
-#   - clips en estado='rechazado' sin publicar con más de DIAS_LIMPIAR_RECHAZADOS
-#     días (el colchón da tiempo a deshacer un rechazo desde la app).
-# NO toca: aprobados (esos son reserva -> pestaña "Antiguas" del front tras
-# RESERVA_DIAS en app/src/lib/constants.js), publicados, ni 'correccion_video'
-# (trabajo en curso).
-DIAS_LIMPIAR_PENDIENTES = 7
-DIAS_LIMPIAR_RECHAZADOS = 30
+# El "programa vigente" es el MAX(semana) de la tabla clips. Cuando entra un
+# programa nuevo (el pipeline corre la madrugada del martes), todo lo de
+# programas anteriores deja de ser "la semana en curso":
+#   - 'pendiente' de un programa anterior -> se borra (nadie lo aprobó a
+#     tiempo, ya salió el próximo programa).
+#   - 'rechazado' sin publicar de un programa anterior -> se borra (hubo toda
+#     la semana para deshacer el rechazo desde la app).
+#   - 'aprobado' sin publicar de un programa anterior -> pasa a la pestaña
+#     "Antiguas" del front (reserva de contenido) y ahí dura hasta que su
+#     `semana` tenga más de DIAS_RESERVA_ANTIGUAS días; después se borra.
+# NO toca: publicados ni 'correccion_video' (trabajo en curso).
+DIAS_RESERVA_ANTIGUAS = 30
 
 # --- Publicación final automática (ver publicar_automatico.py) ---
 # Ambos en False por defecto: nada se publica solo. Se prenden a mano cuando

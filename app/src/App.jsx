@@ -2,16 +2,25 @@ import { useEffect, useState, useCallback } from 'react'
 import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap, Question, CheckCircle, Archive } from '@phosphor-icons/react'
 import { supabase } from './lib/supabaseClient'
 import { ORDER_COLUMN, RESERVA_DIAS } from './lib/constants'
-
-// Fecha de corte: un clip aprobado + sin publicar con `revisado_en` anterior
-// a esto ya no es "cola de la semana", es reserva (pestaña "Antiguas").
-function reservaCutoffISO() {
-  return new Date(Date.now() - RESERVA_DIAS * 24 * 60 * 60 * 1000).toISOString()
-}
 import { getReviewerName, setReviewerName } from './lib/reviewer'
 import ReviewerGate from './components/ReviewerGate'
 import ClipCard from './components/ClipCard'
 import HistoryCard from './components/HistoryCard'
+
+const FECHA_SEMANA = /^\d{4}-\d{2}-\d{2}$/
+
+// "Programa vigente" = el MAX(semana) que sea una fecha real. `semana` es
+// texto libre en la tabla (hay filas de prueba tipo 'qa-fixture'), por eso
+// se traen varias y se descarta lo que no parsea. Todo lo que tenga una
+// `semana` anterior a esta es de un programa pasado.
+async function fetchProgramaVigente() {
+  const { data } = await supabase
+    .from('clips')
+    .select('semana')
+    .order('semana', { ascending: false })
+    .limit(50)
+  return (data ?? []).find((r) => FECHA_SEMANA.test(r.semana ?? ''))?.semana ?? null
+}
 
 const EDITABLE_FIELDS = [
   'copy_instagram',
@@ -35,11 +44,12 @@ function App() {
   const loadPending = useCallback(async () => {
     setLoading(true)
     setError('')
-    const { data, error: fetchError } = await supabase
-      .from('clips')
-      .select('*')
-      .eq('estado', 'pendiente')
-      .order(ORDER_COLUMN, { ascending: false })
+    const vigente = await fetchProgramaVigente()
+    let query = supabase.from('clips').select('*').eq('estado', 'pendiente')
+    // Solo el programa vigente: los pendientes de programas anteriores los
+    // borra la limpieza automática (nadie los aprobó a tiempo).
+    if (vigente) query = query.eq('semana', vigente)
+    const { data, error: fetchError } = await query.order(ORDER_COLUMN, { ascending: false })
     if (fetchError) {
       setError(fetchError.message)
     } else {
@@ -51,16 +61,20 @@ function App() {
   const loadHistory = useCallback(async () => {
     setLoading(true)
     setError('')
-    const { data, error: fetchError } = await supabase
-      .from('clips')
-      .select('*')
-      .in('estado', ['aprobado', 'correccion_video', 'rechazado'])
-      .eq('publicado', false)
-      // Los aprobados viejos (más de RESERVA_DIAS días sin publicar) salen de
-      // acá y viven en la pestaña "Antiguas". Rechazado y corrección_video se
-      // muestran siempre, sin importar la antigüedad.
-      .or(`estado.neq.aprobado,revisado_en.gte.${reservaCutoffISO()}`)
-      .order('revisado_en', { ascending: false })
+    const vigente = await fetchProgramaVigente()
+    // "Por publicar" = solo la semana en curso: aprobados y rechazados del
+    // programa vigente, más cualquier corrección de video pendiente (esa no
+    // caduca — necesita atención igual). Los aprobados de programas
+    // anteriores viven en "Antiguas".
+    let query = supabase.from('clips').select('*').eq('publicado', false)
+    if (vigente) {
+      query = query.or(
+        `and(estado.in.(aprobado,rechazado),semana.eq.${vigente}),estado.eq.correccion_video`,
+      )
+    } else {
+      query = query.in('estado', ['aprobado', 'correccion_video', 'rechazado'])
+    }
+    const { data, error: fetchError } = await query.order('revisado_en', { ascending: false })
     if (fetchError) {
       setError(fetchError.message)
     } else {
@@ -72,14 +86,21 @@ function App() {
   const loadReserva = useCallback(async () => {
     setLoading(true)
     setError('')
-    const cutoff = reservaCutoffISO()
+    const vigente = await fetchProgramaVigente()
+    if (!vigente) {
+      setReservaClips([])
+      setLoading(false)
+      return
+    }
+    // Reserva: aprobados sin publicar de programas anteriores. La limpieza
+    // automática los borra cuando su `semana` pasa los 30 días.
     const { data, error: fetchError } = await supabase
       .from('clips')
       .select('*')
       .eq('estado', 'aprobado')
       .eq('publicado', false)
-      .or(`revisado_en.lt.${cutoff},revisado_en.is.null`)
-      .order('revisado_en', { ascending: true, nullsFirst: true })
+      .lt('semana', vigente)
+      .order('semana', { ascending: false })
     if (fetchError) {
       setError(fetchError.message)
     } else {
@@ -511,8 +532,9 @@ function App() {
           <div className="text-center py-16">
             <p className="text-base font-semibold text-foreground">No hay material de reserva</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Acá se juntan los clips aprobados que llevan más de {RESERVA_DIAS} días
-              sin publicarse — sirven de comodín para cuando falte contenido.
+              Cuando entra un programa nuevo, los clips aprobados que quedaron
+              sin publicar de la semana anterior caen acá — comodín para cuando
+              falte contenido. Se guardan hasta {RESERVA_DIAS} días.
             </p>
           </div>
         )}

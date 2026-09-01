@@ -1,26 +1,25 @@
 """Limpieza automática de la cola de clips.
 
-Borra del todo (fila de rayando_cda.clips + video y portada de Supabase
-Storage + video no listado de YouTube) los clips que ya no se van a usar:
+El "programa vigente" es el MAX(semana) de rayando_cda.clips. Cuando entra
+un programa nuevo (el pipeline corre la madrugada del martes), lo de
+programas anteriores deja de ser "la semana en curso". Este script borra
+del todo (fila de Supabase + video y portada de Storage + video no listado
+de YouTube; los dos últimos best-effort) lo que ya no se va a usar:
 
-  - estado='pendiente' sin revisar con más de config.DIAS_LIMPIAR_PENDIENTES
-    días (default 7): si nadie los aprobó en una semana ya pasó el próximo
-    programa y no se van a publicar.
-  - estado='rechazado' sin publicar con más de config.DIAS_LIMPIAR_RECHAZADOS
-    días (default 30): el colchón da tiempo a deshacer un rechazo desde la app.
+  - estado='pendiente' de un programa anterior: nadie lo aprobó a tiempo.
+  - estado='rechazado' sin publicar de un programa anterior: hubo toda la
+    semana para deshacer el rechazo desde la app.
+  - estado='aprobado' sin publicar cuya `semana` tiene más de
+    config.DIAS_RESERVA_ANTIGUAS días: estuvo en la pestaña "Antiguas"
+    (reserva) y no se publicó.
 
-NO toca: aprobados (son reserva -> pestaña "Antiguas" del front tras
-RESERVA_DIAS), publicados, ni estado='correccion_video' (trabajo en curso).
-
-Los borrados de YouTube/Storage son best-effort (un archivo huérfano no
-bloquea el borrado de la fila, mismo criterio que la app al rechazar). Lo
-disparan las corridas de auto_procesar.ps1 cuando no hay grabación pendiente.
+NO toca publicados ni estado='correccion_video' (trabajo en curso).
 
 Uso:
-    python limpiar_clips.py                       # dry-run: lista qué borraría
-    python limpiar_clips.py --apply               # borra de verdad
-    python limpiar_clips.py --apply --dias-pendientes 10 --dias-rechazados 45
-    python limpiar_clips.py --apply --clip-id <uuid>   # uno puntual (sin filtro de días)
+    python limpiar_clips.py                    # dry-run: lista qué borraría
+    python limpiar_clips.py --apply            # borra de verdad
+    python limpiar_clips.py --apply --dias-reserva 45
+    python limpiar_clips.py --apply --clip-id <uuid>   # uno puntual (sin filtros)
 
 Códigos de salida (para auto_procesar.ps1, mismo esquema que reprocesar_video.py):
     0  nada que limpiar (o dry-run)
@@ -36,50 +35,44 @@ import sys
 import config
 import publicar
 
-# estado -> qué campo mirar para la antigüedad (con fallback a created_at).
-_REFERENCIA = {
-    "pendiente": ("created_at",),
-    "rechazado": ("revisado_en", "created_at"),
-}
 
-
-def _parse_ts(valor: str | None) -> _dt.datetime | None:
+def _parse_date(valor: str | None) -> _dt.date | None:
     if not valor:
         return None
-    texto = valor.strip().replace("Z", "+00:00")
     try:
-        dt = _dt.datetime.fromisoformat(texto)
+        return _dt.date.fromisoformat(str(valor)[:10])
     except ValueError:
         return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=_dt.timezone.utc)
-    return dt
 
 
 def clips_a_limpiar(
     filas: list[dict],
-    ahora: _dt.datetime,
-    dias_pendientes: int,
-    dias_rechazados: int,
+    programa_vigente: str | None,
+    hoy: _dt.date,
+    dias_reserva: int,
 ) -> list[dict]:
-    """Filas que corresponde borrar según su estado y antigüedad. Función
-    pura, testeable. Ignora aprobados, publicados y correccion_video."""
-    limites = {
-        "pendiente": ahora - _dt.timedelta(days=dias_pendientes),
-        "rechazado": ahora - _dt.timedelta(days=dias_rechazados),
-    }
+    """Filas que corresponde borrar. Función pura, testeable.
+
+    `programa_vigente` es el MAX(semana) válido ('YYYY-MM-DD') — las filas con
+    ese `semana` (o posterior) son la semana en curso y nunca se tocan. Una
+    fila con `semana` inválida o vacía nunca se toca (no se puede ubicar en el
+    tiempo)."""
+    corte_reserva = hoy - _dt.timedelta(days=dias_reserva)
+    fecha_vigente = _parse_date(programa_vigente)
     fuera = []
     for fila in filas:
         estado = fila.get("estado")
-        if estado not in limites or fila.get("publicado"):
+        if fila.get("publicado") or estado == "correccion_video":
             continue
-        referencia = None
-        for campo in _REFERENCIA[estado]:
-            referencia = _parse_ts(fila.get(campo))
-            if referencia is not None:
-                break
-        if referencia is None or referencia < limites[estado]:
-            fuera.append(fila)
+        fecha = _parse_date(fila.get("semana"))
+        if fecha is None:
+            continue
+        if estado in ("pendiente", "rechazado"):
+            if fecha_vigente is not None and fecha < fecha_vigente:
+                fuera.append(fila)
+        elif estado == "aprobado":
+            if fecha < corte_reserva:
+                fuera.append(fila)
     return fuera
 
 
@@ -113,36 +106,61 @@ def _borrar_youtube(video_id: str | None) -> None:
         print(f"    aviso: no se pudo borrar el video de YouTube {video_id}: {e}")
 
 
+def _programa_vigente(sb) -> str | None:
+    """MAX(semana) que sea una fecha ISO válida. `semana` es texto libre en la
+    tabla real (hay filas de prueba tipo 'qa-fixture'), así que no alcanza con
+    ordenar y tomar la primera — hay que descartar lo que no parsea."""
+    res = (
+        sb.table(config.SUPABASE_TABLE)
+        .select("semana")
+        .order("semana", desc=True)
+        .limit(50)
+        .execute()
+    )
+    for fila in res.data or []:
+        if _parse_date(fila.get("semana")) is not None:
+            return fila["semana"]
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--apply", action="store_true", help="Borrar de verdad (sin esto es dry-run)")
-    parser.add_argument("--dias-pendientes", type=int, default=config.DIAS_LIMPIAR_PENDIENTES,
-                        help=f"Antigüedad mínima de un 'pendiente' en días (default {config.DIAS_LIMPIAR_PENDIENTES})")
-    parser.add_argument("--dias-rechazados", type=int, default=config.DIAS_LIMPIAR_RECHAZADOS,
-                        help=f"Antigüedad mínima de un 'rechazado' en días (default {config.DIAS_LIMPIAR_RECHAZADOS})")
-    parser.add_argument("--clip-id", help="Limpiar solo este clip (ignora el filtro de días)")
+    parser.add_argument("--dias-reserva", type=int, default=config.DIAS_RESERVA_ANTIGUAS,
+                        help=f"Días de vida de un aprobado sin publicar, contados desde su "
+                             f"`semana` (default {config.DIAS_RESERVA_ANTIGUAS})")
+    parser.add_argument("--clip-id", help="Limpiar solo este clip (ignora todos los filtros)")
     args = parser.parse_args()
 
     try:
         sb = publicar.get_supabase_client()
-        query = sb.table(config.SUPABASE_TABLE).select(
-            "id, estado, publicado, revisado_en, created_at, "
-            "youtube_video_id, video_url, portada_url, youtube_titulo"
-        ).in_("estado", ["pendiente", "rechazado"]).eq("publicado", False)
         if args.clip_id:
-            query = query.eq("id", args.clip_id)
-        filas = query.execute().data or []
+            filas = (
+                sb.table(config.SUPABASE_TABLE)
+                .select("id, estado, publicado, semana, youtube_video_id, video_url, portada_url, youtube_titulo")
+                .eq("id", args.clip_id)
+                .execute()
+                .data
+                or []
+            )
+            objetivo = filas
+        else:
+            vigente = _programa_vigente(sb)
+            filas = (
+                sb.table(config.SUPABASE_TABLE)
+                .select("id, estado, publicado, semana, youtube_video_id, video_url, portada_url, youtube_titulo")
+                .in_("estado", ["pendiente", "rechazado", "aprobado"])
+                .eq("publicado", False)
+                .execute()
+                .data
+                or []
+            )
+            objetivo = clips_a_limpiar(filas, vigente, _dt.date.today(), args.dias_reserva)
     except Exception as e:
         print(f"ERROR: no se pudo leer Supabase: {e}")
         return 1
-
-    ahora = _dt.datetime.now(_dt.timezone.utc)
-    if args.clip_id:
-        objetivo = filas
-    else:
-        objetivo = clips_a_limpiar(filas, ahora, args.dias_pendientes, args.dias_rechazados)
 
     if not objetivo:
         print("Nada que limpiar.")
@@ -153,8 +171,7 @@ def main() -> int:
     errores = 0
     for fila in objetivo:
         etiqueta = fila.get("youtube_titulo") or fila["id"]
-        fecha = fila.get("revisado_en") or fila.get("created_at")
-        print(f"  - [{fila.get('estado')}] {fila['id']} ({etiqueta}) desde {fecha}")
+        print(f"  - [{fila.get('estado')}] {fila['id']} (semana {fila.get('semana')}) {etiqueta}")
         if not args.apply:
             continue
         _borrar_youtube(fila.get("youtube_video_id"))
