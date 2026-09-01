@@ -3,8 +3,24 @@
 # procesar_programa.py sola. Pensado para correr cada 5 minutos vía Task
 # Scheduler (tarea "RayandoCDA_AutoProcesar").
 #
-# "Ya terminada" = el archivo no cambió su LastWriteTime en los últimos 5
-# minutos (mientras OBS graba, el archivo se sigue escribiendo).
+# "Ya terminada" = el archivo pasa TRES chequeos, en este orden:
+#   1. Su LastWriteTime no cambió en los últimos 5 minutos (mientras OBS
+#      graba, el archivo se sigue escribiendo) — filtro rápido, sin tocar
+#      disco de más.
+#   2. Su tamaño coincide con el que tenía la corrida anterior (persistido
+#      en grabaciones_estado.json) — es decir, "sin cambios" se confirmó en
+#      DOS corridas separadas (~5 min de diferencia real entre chequeos),
+#      no en una sola lectura instantánea. Un solo chequeo no alcanza: la
+#      noche del 24/08 OBS tuvo una pausa de escritura de varios minutos
+#      (coincidiendo con el corte de conexión del programa) mientras seguía
+#      grabando, el chequeo de "5 min sin cambios" dio falso positivo, y la
+#      grabación se transcribió a medio terminar.
+#   3. ffprobe puede leer una duración numérica válida del archivo — última
+#      red de seguridad por si los dos chequeos anteriores igual coinciden
+#      con el archivo todavía inestable.
+# Si falla el 2 o el 3, se espera a la próxima corrida sin alertar (no es
+# un error, solo "todavía no").
+#
 # "Ya procesada" = ya existe transcripciones\<nombre>\<nombre>.json.
 #
 # Solo procesa UN archivo nuevo por corrida (si hay varios pendientes, el
@@ -72,6 +88,35 @@ function Obtener-TailLog($logFile, $lineas = 30) {
     return (Get-Content -Path $logFile -Tail $lineas -Encoding UTF8) -join "`n"
 }
 
+# --- Estado persistido de "tamaño visto la corrida anterior", por archivo,
+# para el chequeo doble de "grabación terminada" (ver comentario arriba). ---
+$EstadoGrabacionesPath = Join-Path $LogsDir "grabaciones_estado.json"
+
+function Get-EstadoGrabaciones {
+    if (-not (Test-Path $EstadoGrabacionesPath)) { return @{} }
+    try {
+        $raw = Get-Content -Path $EstadoGrabacionesPath -Raw -Encoding UTF8
+        if (-not $raw) { return @{} }
+        $obj = $raw | ConvertFrom-Json
+        $ht = @{}
+        foreach ($prop in $obj.PSObject.Properties) { $ht[$prop.Name] = [int64]$prop.Value }
+        return $ht
+    } catch {
+        return @{}
+    }
+}
+
+function Set-EstadoGrabaciones($ht) {
+    ($ht | ConvertTo-Json) | Set-Content -Path $EstadoGrabacionesPath -Encoding utf8
+}
+
+function Test-DuracionValida($path) {
+    $salida = & ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$path" 2>$null
+    if (-not $salida) { return $false }
+    $numero = 0.0
+    return [double]::TryParse($salida.Trim(), [ref]$numero) -and ($numero -gt 0)
+}
+
 $candidatos = Get-ChildItem -Path $GrabacionesDir -Filter "*.mkv" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
 
 # Si hay una grabación nueva todavía sin transcribir (recién terminado el
@@ -82,6 +127,16 @@ $candidatos = Get-ChildItem -Path $GrabacionesDir -Filter "*.mkv" -ErrorAction S
 # de la semana anterior ya debería estar cerrado antes del próximo programa),
 # pero sirve de resguardo si algo quedó pendiente.
 $hayGrabacionPendiente = $false
+
+# Solo conserva estado de archivos todavía pendientes en esta corrida — así
+# no crece para siempre con grabaciones ya procesadas o borradas.
+$estadoPrevio = Get-EstadoGrabaciones
+$estadoGrabaciones = @{}
+foreach ($rec in $candidatos) {
+    $transcriptJson = Join-Path $TranscripcionesDir "$($rec.BaseName)\$($rec.BaseName).json"
+    if ((Test-Path $transcriptJson) -or (-not $estadoPrevio.ContainsKey($rec.Name))) { continue }
+    $estadoGrabaciones[$rec.Name] = $estadoPrevio[$rec.Name]
+}
 
 foreach ($rec in $candidatos) {
     $stem = $rec.BaseName
@@ -96,6 +151,21 @@ foreach ($rec in $candidatos) {
         # esperar a que se estabilice en la próxima corrida.
         continue
     }
+
+    if ($estadoGrabaciones[$rec.Name] -ne $rec.Length) {
+        # Primera vez que se ve este tamaño estable — confirmar en la
+        # próxima corrida antes de tocarlo (ver comentario arriba).
+        $estadoGrabaciones[$rec.Name] = $rec.Length
+        continue
+    }
+
+    if (-not (Test-DuracionValida $rec.FullName)) {
+        Add-Content -Path (Join-Path $LogsDir "auto_procesar_errores.log") `
+            -Value "$(Get-Date -Format o) $($rec.Name) parece estable (tamaño sin cambios en dos corridas) pero ffprobe no le pudo leer una duración válida -- se espera a la próxima corrida."
+        continue
+    }
+
+    $estadoGrabaciones.Remove($rec.Name)
 
     $logFile = Join-Path $LogsDir "$stem.log"
     Add-Content -Path $logFile -Value "$(Get-Date -Format o) Iniciando procesamiento automático de $($rec.Name)"
@@ -118,6 +188,8 @@ foreach ($rec in $candidatos) {
 
     break
 }
+
+Set-EstadoGrabaciones $estadoGrabaciones
 
 if ($hayGrabacionPendiente) {
     Add-Content -Path (Join-Path $LogsDir "loop.log") -Value "$(Get-Date -Format o) Hay una grabación nueva pendiente de transcribir/cortar — se pausa la corrección automática de pedidos anteriores hasta que no quede ninguna."
@@ -190,4 +262,35 @@ if ($hayGrabacionPendiente) {
         Enviar-Alerta "Rayando el CDA: falló la corrección automática de subtítulos" $cuerpo
     }
     # exitCode 0 (nada pendiente): no se manda mail.
+
+    # --- Limpieza automática de la cola de clips ---
+    # Borra del todo (fila de Supabase + video/portada de Storage + video no
+    # listado de YouTube) los clips que ya no se van a usar: 'pendiente' sin
+    # revisar con más de config.DIAS_LIMPIAR_PENDIENTES días (nadie los aprobó
+    # en una semana) y 'rechazado' sin publicar con más de
+    # config.DIAS_LIMPIAR_RECHAZADOS días. No toca aprobados, publicados ni
+    # 'correccion_video'. Mismo esquema de exit codes que los bloques de arriba.
+    $logLimpieza = Join-Path $LogsDir "limpiar_clips.log"
+    $exitLimpieza = -1
+    Push-Location $PipelineDir
+    try {
+        & python limpiar_clips.py --apply *>> $logLimpieza
+        $exitLimpieza = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+
+    if ($exitLimpieza -eq 3) {
+        $tail = Obtener-TailLog $logLimpieza
+        Enviar-Alerta "Rayando el CDA: se limpiaron clips de la cola" `
+            "Se borraron clips que ya no se iban a usar: pendientes sin revisar de hace más de una semana y/o rechazados de hace más de 30 días (registro de Supabase + video/portada de Storage + video no listado de YouTube).`n`nDetalle ($logLimpieza):`n$tail" `
+            $TeamEmails
+    } elseif ($exitLimpieza -ne 0) {
+        $tail = Obtener-TailLog $logLimpieza
+        $cuerpo = "Falló la limpieza automática de la cola de clips (código $exitLimpieza)."
+        $cuerpo += "`n`nÚltimas líneas del log ($logLimpieza):`n$tail"
+        $cuerpo += "`n`nRevisar el log completo y, si hace falta, correr limpiar_clips.py a mano (ver pipeline/README.md)."
+        Enviar-Alerta "Rayando el CDA: falló la limpieza de la cola de clips" $cuerpo
+    }
+    # exitCode 0 (nada que limpiar): no se manda mail.
 }

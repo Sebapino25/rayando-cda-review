@@ -1,7 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
-import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap, Question, CheckCircle } from '@phosphor-icons/react'
+import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap, Question, CheckCircle, Archive } from '@phosphor-icons/react'
 import { supabase } from './lib/supabaseClient'
-import { ORDER_COLUMN } from './lib/constants'
+import { ORDER_COLUMN, RESERVA_DIAS } from './lib/constants'
+
+// Fecha de corte: un clip aprobado + sin publicar con `revisado_en` anterior
+// a esto ya no es "cola de la semana", es reserva (pestaña "Antiguas").
+function reservaCutoffISO() {
+  return new Date(Date.now() - RESERVA_DIAS * 24 * 60 * 60 * 1000).toISOString()
+}
 import { getReviewerName, setReviewerName } from './lib/reviewer'
 import ReviewerGate from './components/ReviewerGate'
 import ClipCard from './components/ClipCard'
@@ -21,6 +27,7 @@ function App() {
   const [tab, setTab] = useState('pendientes')
   const [pendingClips, setPendingClips] = useState([])
   const [historyClips, setHistoryClips] = useState([])
+  const [reservaClips, setReservaClips] = useState([])
   const [publishedClips, setPublishedClips] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -49,11 +56,34 @@ function App() {
       .select('*')
       .in('estado', ['aprobado', 'correccion_video', 'rechazado'])
       .eq('publicado', false)
+      // Los aprobados viejos (más de RESERVA_DIAS días sin publicar) salen de
+      // acá y viven en la pestaña "Antiguas". Rechazado y corrección_video se
+      // muestran siempre, sin importar la antigüedad.
+      .or(`estado.neq.aprobado,revisado_en.gte.${reservaCutoffISO()}`)
       .order('revisado_en', { ascending: false })
     if (fetchError) {
       setError(fetchError.message)
     } else {
       setHistoryClips(data ?? [])
+    }
+    setLoading(false)
+  }, [])
+
+  const loadReserva = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    const cutoff = reservaCutoffISO()
+    const { data, error: fetchError } = await supabase
+      .from('clips')
+      .select('*')
+      .eq('estado', 'aprobado')
+      .eq('publicado', false)
+      .or(`revisado_en.lt.${cutoff},revisado_en.is.null`)
+      .order('revisado_en', { ascending: true, nullsFirst: true })
+    if (fetchError) {
+      setError(fetchError.message)
+    } else {
+      setReservaClips(data ?? [])
     }
     setLoading(false)
   }, [])
@@ -78,8 +108,9 @@ function App() {
     if (!reviewer) return
     if (tab === 'pendientes') loadPending()
     else if (tab === 'historial') loadHistory()
+    else if (tab === 'reserva') loadReserva()
     else loadPublished()
-  }, [reviewer, tab, loadPending, loadHistory, loadPublished])
+  }, [reviewer, tab, loadPending, loadHistory, loadReserva, loadPublished])
 
   function handleReviewerSubmit(name) {
     setReviewerName(name)
@@ -175,7 +206,10 @@ function App() {
   }
 
   async function handleCoverRemove(id) {
-    const clip = pendingClips.find((c) => c.id === id) || historyClips.find((c) => c.id === id)
+    const clip =
+      pendingClips.find((c) => c.id === id) ||
+      historyClips.find((c) => c.id === id) ||
+      reservaClips.find((c) => c.id === id)
     const currentUrl = clip?.portada_url
 
     const { error: updateError } = await supabase
@@ -202,6 +236,7 @@ function App() {
 
     setPendingClips((prev) => prev.map((c) => (c.id === id ? { ...c, portada_url: null } : c)))
     setHistoryClips((prev) => prev.map((c) => (c.id === id ? { ...c, portada_url: null } : c)))
+    setReservaClips((prev) => prev.map((c) => (c.id === id ? { ...c, portada_url: null } : c)))
   }
 
   async function handleUndo(id) {
@@ -214,6 +249,7 @@ function App() {
     const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
     if (updateError) throw updateError
     setHistoryClips((prev) => prev.filter((c) => c.id !== id))
+    setReservaClips((prev) => prev.filter((c) => c.id !== id))
     loadPending()
   }
 
@@ -236,11 +272,15 @@ function App() {
     setHistoryClips((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...data.clip } : c))
     )
+    setReservaClips((prev) => prev.filter((c) => c.id !== id))
     return data
   }
 
   async function handleDelete(id) {
-    const clip = historyClips.find((c) => c.id === id) || publishedClips.find((c) => c.id === id)
+    const clip =
+      historyClips.find((c) => c.id === id) ||
+      reservaClips.find((c) => c.id === id) ||
+      publishedClips.find((c) => c.id === id)
 
     if (clip?.video_url) {
       const marker = '/object/public/clips-video/'
@@ -273,6 +313,7 @@ function App() {
     if (deleteError) throw deleteError
 
     setHistoryClips((prev) => prev.filter((c) => c.id !== id))
+    setReservaClips((prev) => prev.filter((c) => c.id !== id))
     setPublishedClips((prev) => prev.filter((c) => c.id !== id))
   }
 
@@ -314,7 +355,7 @@ function App() {
           </button>
         </div>
 
-        <nav className="max-w-2xl mx-auto w-full px-4 pb-3 grid grid-cols-3 gap-1.5">
+        <nav className="max-w-2xl mx-auto w-full px-4 pb-3 grid grid-cols-2 gap-1.5">
           <button
             type="button"
             onClick={() => setTab('pendientes')}
@@ -355,6 +396,25 @@ function App() {
           </button>
           <button
             type="button"
+            onClick={() => setTab('reserva')}
+            className={`h-11 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 px-1 cursor-pointer transition-colors ${
+              tab === 'reserva' ? 'bg-white text-primary' : 'bg-white/10 text-white/85'
+            }`}
+          >
+            <Archive size={16} weight="bold" className="shrink-0" />
+            <span className="truncate">Antiguas</span>
+            {reservaClips.length > 0 && (
+              <span
+                className={`ml-0.5 rounded-full text-[10px] font-bold px-1.5 min-w-[1.1rem] text-center shrink-0 ${
+                  tab === 'reserva' ? 'bg-primary text-white' : 'bg-white/20 text-white'
+                }`}
+              >
+                {reservaClips.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => setTab('publicados')}
             className={`h-11 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 px-1 cursor-pointer transition-colors ${
               tab === 'publicados' ? 'bg-white text-primary' : 'bg-white/10 text-white/85'
@@ -388,7 +448,15 @@ function App() {
             <p className="text-sm text-destructive">{error}</p>
             <button
               type="button"
-              onClick={tab === 'pendientes' ? loadPending : tab === 'historial' ? loadHistory : loadPublished}
+              onClick={
+                tab === 'pendientes'
+                  ? loadPending
+                  : tab === 'historial'
+                    ? loadHistory
+                    : tab === 'reserva'
+                      ? loadReserva
+                      : loadPublished
+              }
               className="text-sm font-semibold text-primary flex items-center gap-1.5 cursor-pointer"
             >
               <ArrowsClockwise size={16} weight="bold" />
@@ -429,6 +497,28 @@ function App() {
 
         {!loading && !error && tab === 'historial' &&
           historyClips.map((clip) => (
+            <HistoryCard
+              key={clip.id}
+              clip={clip}
+              onUndo={handleUndo}
+              onCoverRemove={handleCoverRemove}
+              onPublicar={handlePublicar}
+              onDelete={handleDelete}
+            />
+          ))}
+
+        {!loading && !error && tab === 'reserva' && reservaClips.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-base font-semibold text-foreground">No hay material de reserva</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Acá se juntan los clips aprobados que llevan más de {RESERVA_DIAS} días
+              sin publicarse — sirven de comodín para cuando falte contenido.
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && tab === 'reserva' &&
+          reservaClips.map((clip) => (
             <HistoryCard
               key={clip.id}
               clip={clip}

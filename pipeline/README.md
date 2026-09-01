@@ -363,6 +363,31 @@ python reprocesar_video.py --apply --clip-id <id>
 
 (`--clip-id` ignora el marcador a propósito).
 
+**Limpieza automática de la cola de clips:** cada corrida sin grabación
+pendiente también corre `limpiar_clips.py --apply`, que borra del todo (fila
+de `rayando_cda.clips` + `vertical.mp4` y portada de Supabase Storage + video
+no listado de YouTube; los dos últimos best-effort) los clips que ya no se
+van a usar:
+
+- `estado='pendiente'` sin revisar con más de `config.DIAS_LIMPIAR_PENDIENTES`
+  (7) días: si nadie los aprobó en una semana ya salió el próximo programa.
+- `estado='rechazado'` sin publicar con más de `config.DIAS_LIMPIAR_RECHAZADOS`
+  (30) días — el colchón da tiempo a deshacer un rechazo desde la app
+  ("Deshacer" en la pestaña "Por publicar").
+
+No toca aprobados, publicados ni `correccion_video`. Para ver qué borraría
+sin tocar nada:
+
+```powershell
+python limpiar_clips.py            # dry-run
+python limpiar_clips.py --apply --dias-pendientes 10 --dias-rechazados 45
+```
+
+Del otro lado, en la app de revisión los clips **aprobados** sin publicar
+con más de 30 días (`RESERVA_DIAS` en `app/src/lib/constants.js`) salen de
+"Por publicar" y viven en la pestaña **"Antiguas"** — reserva de contenido
+para cuando falte material; se publican igual desde ahí.
+
 **Nota sobre Avast**: Avast puede poner en cuarentena (borrar)
 `auto_procesar_loop.ps1` y/o `registrar_tarea_programada.ps1` al
 bloquearlos por contenido, no por ser malware real — ya pasó una vez en

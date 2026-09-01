@@ -177,6 +177,20 @@ SUPABASE_TABLE = "clips"
 SUPABASE_PORTADAS_BUCKET = "portadas"
 SUPABASE_CLIPS_VIDEO_BUCKET = "clips-video"
 
+# --- Limpieza automática de la cola de clips (ver limpiar_clips.py) ---
+# Las corridas automáticas borran del todo (fila de Supabase + video/portada
+# de Storage + video no listado de YouTube):
+#   - clips en estado='pendiente' sin revisar con más de DIAS_LIMPIAR_PENDIENTES
+#     días: si nadie los aprobó en una semana ya pasó el próximo programa y no
+#     se van a usar.
+#   - clips en estado='rechazado' sin publicar con más de DIAS_LIMPIAR_RECHAZADOS
+#     días (el colchón da tiempo a deshacer un rechazo desde la app).
+# NO toca: aprobados (esos son reserva -> pestaña "Antiguas" del front tras
+# RESERVA_DIAS en app/src/lib/constants.js), publicados, ni 'correccion_video'
+# (trabajo en curso).
+DIAS_LIMPIAR_PENDIENTES = 7
+DIAS_LIMPIAR_RECHAZADOS = 30
+
 # --- Publicación final automática (ver publicar_automatico.py) ---
 # Ambos en False por defecto: nada se publica solo. Se prenden a mano cuando
 # el flujo esté validado y el equipo quiera activarlo.

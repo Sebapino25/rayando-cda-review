@@ -1,3 +1,29 @@
+# Cambios aplicados — reserva de clips antiguos + limpieza de la cola (01/09)
+
+Dos piezas para que la cola de revisión no acumule ruido ni pierda material
+aprovechable:
+
+- **Pestaña "Antiguas" en la app de revisión** (`app/src/App.jsx`): los clips
+  aprobados y sin publicar que llevan más de `RESERVA_DIAS` (30) días así
+  salen de "Por publicar" y pasan a una pestaña aparte, como reserva de
+  contenido para cuando falte material. Se puede publicar directo desde ahí
+  (misma `HistoryCard`). El corte se mide contra `revisado_en`; no hubo
+  cambio de schema.
+- **Limpieza automática de la cola** (`limpiar_clips.py`, llamado desde
+  `auto_procesar.ps1` cuando no hay grabación pendiente): borra del todo
+  (fila de Supabase + video y portada de Storage + video no listado de
+  YouTube; los dos de Storage/YouTube best-effort) los clips que ya no se
+  van a usar —
+  - `estado='pendiente'` sin revisar con más de
+    `config.DIAS_LIMPIAR_PENDIENTES` (7) días: si nadie los aprobó en una
+    semana ya pasó el próximo programa.
+  - `estado='rechazado'` sin publicar con más de
+    `config.DIAS_LIMPIAR_RECHAZADOS` (30) días.
+
+  No toca aprobados, publicados ni `correccion_video`. Dry-run por defecto;
+  `--apply` para borrar. Exit codes 0/3/1 como los otros bloques del
+  disparador; al borrar algo avisa a todo el equipo.
+
 # Cambios aplicados — cierre institucional en los verticales (03/08)
 
 René entregó 4 videos de cierre (3 verticales + 1 horizontal). `build_vertical`
