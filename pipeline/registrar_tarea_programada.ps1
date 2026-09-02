@@ -17,6 +17,12 @@
 # corridas en paralelo si una transcripción/corte real (que sí puede tardar
 # bastante) sigue corriendo cuando toca el próximo disparo cada 5 min.
 #
+# El intervalo de 5 min que se registra acá es solo el punto de partida:
+# auto_procesar.ps1 lo amplía solo a 30 min tras varias corridas sin nada que
+# hacer y lo vuelve a bajar a 5 apenas hay trabajo (ver "Ritmo adaptativo del
+# disparador" en ese script). Re-correr este registrador deja el intervalo en
+# 5 min de nuevo y reinicia ese conteo — sirve de botón de reset.
+#
 # Idempotente: si la tarea ya existe, la borra y la vuelve a crear. Además
 # mata cualquier loop viejo (auto_procesar_loop.ps1) que haya quedado
 # corriendo a mano o huérfano de una versión anterior de esta tarea.

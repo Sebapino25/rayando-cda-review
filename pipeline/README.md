@@ -320,6 +320,23 @@ PC puede quedar apagado. Si el equipo necesita un cambio fuera de la
 ventana, avisan y se hace a mano. Ver el `$trigger` en
 `registrar_tarea_programada.ps1` para el detalle exacto del horario.
 
+**Ritmo adaptativo:** una corrida es *ociosa* cuando no encuentra nada que
+hacer — ni grabación nueva, ni clip en `correccion_video`, ni subtítulos
+editados, ni nada que limpiar (o sea: todos los clips del programa vigente
+ya aprobados/publicados y sin pedidos abiertos). Tras **3 corridas ociosas
+seguidas** (15 min), `auto_procesar.ps1` amplía solo el intervalo de
+repetición de la tarea de **5 a 30 minutos**, y lo baja de nuevo a 5 apenas
+una corrida vuelve a tener trabajo real (o encuentra algo pendiente, o falla
+un paso). Así, con la cola tranquila, la tarea deja de despertarse cada 5
+min al pedo. El contador vive en `pipeline\logs_auto\ritmo_auto.json`; el
+intervalo real se lee de la tarea misma, así que re-registrar la tarea
+(abajo) lo devuelve a 5 min y reinicia el conteo. Costo del compromiso: con
+la cola tranquila, un pedido nuevo del equipo puede tardar hasta 30 min en
+procesarse (y la grabación semanal, hasta 30 min en detectarse la primera
+vez al abrir la ventana del martes — después baja a 5 min sola). Si hubo
+trabajo real pero no se pudo devolver el intervalo a 5 min, llega un mail a
+`seba.pino.v@gmail.com`.
+
 **Notificaciones por mail (vía Resend):**
 - Al terminar bien: aviso a todo el equipo (`seba.pino.v@gmail.com`,
   `Cristian.fajardoc@gmail.com`, `arriagada.rene@gmail.com`) con el link a
@@ -414,6 +431,9 @@ Windows esté iniciada (no requiere guardar la contraseña de la cuenta).
 Get-ScheduledTask -TaskName RayandoCDA_AutoProcesar | Select-Object TaskName, State
 Get-ScheduledTaskInfo -TaskName RayandoCDA_AutoProcesar
 Get-Content pipeline\logs_auto\loop.log -Tail 10
+# Intervalo de repetición actual (PT5M = ritmo rápido, PT30M = ritmo lento):
+(Get-ScheduledTask -TaskName RayandoCDA_AutoProcesar).Triggers.Repetition.Interval
+Get-Content pipeline\logs_auto\ritmo_auto.json
 ```
 
 ## Diccionario de nombres propios y corrección automática

@@ -47,6 +47,7 @@ $PipelineDir = "C:\Users\sebap\rayando-cda\pipeline"
 $GrabacionesDir = Join-Path $BaseDir "grabaciones"
 $TranscripcionesDir = Join-Path $BaseDir "transcripciones"
 $LogsDir = Join-Path $PipelineDir "logs_auto"
+$TaskName = "RayandoCDA_AutoProcesar"
 
 function Get-DotEnvValue($key, $envFile) {
     if (-not (Test-Path $envFile)) { return $null }
@@ -128,6 +129,16 @@ $candidatos = Get-ChildItem -Path $GrabacionesDir -Filter "*.mkv" -ErrorAction S
 # pero sirve de resguardo si algo quedó pendiente.
 $hayGrabacionPendiente = $false
 
+# Para el ritmo adaptativo del disparador (bloque al final): $seProcesoGrabacion
+# marca que esta corrida arrancó una transcripción real; los tres exit codes
+# quedan en -1 (sentinela "no idle") por si el bloque `else` de más abajo no
+# llega a correr — así una corrida con grabación pendiente nunca cuenta como
+# ociosa.
+$seProcesoGrabacion = $false
+$exitCode = -1
+$exitCodeSubtitulos = -1
+$exitLimpieza = -1
+
 # Solo conserva estado de archivos todavía pendientes en esta corrida — así
 # no crece para siempre con grabaciones ya procesadas o borradas.
 $estadoPrevio = Get-EstadoGrabaciones
@@ -169,6 +180,7 @@ foreach ($rec in $candidatos) {
 
     $logFile = Join-Path $LogsDir "$stem.log"
     Add-Content -Path $logFile -Value "$(Get-Date -Format o) Iniciando procesamiento automático de $($rec.Name)"
+    $seProcesoGrabacion = $true
 
     Push-Location $PipelineDir
     try {
@@ -293,4 +305,124 @@ if ($hayGrabacionPendiente) {
         Enviar-Alerta "Rayando el CDA: falló la limpieza de la cola de clips" $cuerpo
     }
     # exitCode 0 (nada que limpiar): no se manda mail.
+}
+
+# --- Ritmo adaptativo del disparador -------------------------------------------
+# Cuando una corrida no encuentra NADA que hacer (ni grabación nueva, ni
+# corrección de video/subtítulos, ni limpieza pendiente), no tiene sentido
+# seguir despertando la tarea cada 5 minutos. Tras $UMBRAL_OCIOSAS corridas
+# ociosas seguidas se amplía el intervalo de repetición de la tarea de Task
+# Scheduler a $INTERVALO_LENTO_MIN; la primera corrida que vuelve a tener
+# trabajo real (o encuentra algo pendiente, o falla algún paso) lo baja de
+# nuevo a $INTERVALO_RAPIDO_MIN.
+#
+# El contador de ociosas vive en ritmo_auto.json; el intervalo real se lee de
+# la tarea misma (fuente de verdad). Si el intervalo cambió por fuera de este
+# script (típicamente re-registrar la tarea con registrar_tarea_programada.ps1,
+# que la deja en 5 min) el contador se reinicia — o sea, re-registrar funciona
+# como botón de reset.
+#
+# Costo del compromiso: mientras la cola está tranquila, un pedido del equipo
+# en la app puede tardar hasta $INTERVALO_LENTO_MIN en procesarse, y la
+# grabación semanal puede tardar hasta ese tiempo en detectarse la primera vez
+# al abrir la ventana del martes (después baja a 5 min sola apenas ve la
+# grabación pendiente). Aceptable para trabajo a ritmo humano dentro de una
+# ventana de 34 h.
+$UMBRAL_OCIOSAS = 3
+$INTERVALO_RAPIDO_MIN = 5
+$INTERVALO_LENTO_MIN = 30
+$RitmoPath = Join-Path $LogsDir "ritmo_auto.json"
+
+$corridaOciosa = (-not $hayGrabacionPendiente) -and (-not $seProcesoGrabacion) `
+    -and ($exitCode -eq 0) -and ($exitCodeSubtitulos -eq 0) -and ($exitLimpieza -eq 0)
+
+function Get-RitmoPrevio {
+    if (-not (Test-Path $RitmoPath)) { return @{ ociosas = 0; intervaloMin = $null } }
+    try {
+        $o = Get-Content -Path $RitmoPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        return @{ ociosas = [int]$o.ociosas; intervaloMin = $o.intervaloMin }
+    } catch {
+        return @{ ociosas = 0; intervaloMin = $null }
+    }
+}
+
+function Set-Ritmo($ociosas, $intervaloMin) {
+    try {
+        @{ ociosas = $ociosas; intervaloMin = $intervaloMin; actualizado = (Get-Date -Format o) } |
+            ConvertTo-Json | Set-Content -Path $RitmoPath -Encoding utf8
+    } catch {
+        Add-Content -Path (Join-Path $LogsDir "auto_procesar_errores.log") -Value "$(Get-Date -Format o) No se pudo escribir ritmo_auto.json: $_"
+    }
+}
+
+function Get-IntervaloTareaMin {
+    # Intervalo de repetición actual de la tarea, en minutos. $null si la tarea
+    # no existe o no tiene repetición (corrida a mano fuera de Task Scheduler,
+    # tarea sin registrar) -> en ese caso no se toca nada.
+    try {
+        $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+        foreach ($trg in $task.Triggers) {
+            if ($trg.Repetition -and $trg.Repetition.Interval -match '^PT(?:(\d+)H)?(?:(\d+)M)?$') {
+                return ([int]$Matches[1] * 60 + [int]$Matches[2])
+            }
+        }
+    } catch {}
+    return $null
+}
+
+function Set-IntervaloTareaMin($minutos) {
+    # Muta SOLO el Interval de la repetición, preservando StartBoundary y el
+    # resto del trigger semanal. Reconstruir el trigger desde cero correría el
+    # riesgo de empujar el StartBoundary al próximo martes y dejar la tarea sin
+    # disparar el resto de la ventana en curso.
+    $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+    $cambiados = 0
+    foreach ($trg in $task.Triggers) {
+        if ($trg.Repetition -and $trg.Repetition.Interval) {
+            $trg.Repetition.Interval = ("PT{0}M" -f $minutos)
+            $cambiados++
+        }
+    }
+    if ($cambiados -eq 0) {
+        throw "la tarea '$TaskName' no tiene ningún trigger con repetición (re-registrala con registrar_tarea_programada.ps1)"
+    }
+    Set-ScheduledTask -TaskName $TaskName -Trigger $task.Triggers -ErrorAction Stop | Out-Null
+}
+
+$intervaloActual = Get-IntervaloTareaMin
+if ($null -ne $intervaloActual) {
+    $previo = Get-RitmoPrevio
+    $ociosasPrevias = $previo.ociosas
+    if ($null -ne $previo.intervaloMin -and [int]$previo.intervaloMin -ne $intervaloActual) {
+        # El intervalo cambió por fuera de este script -> conteo desde cero.
+        $ociosasPrevias = 0
+    }
+
+    if ($corridaOciosa) {
+        $ociosas = $ociosasPrevias + 1
+        if (($ociosas -ge $UMBRAL_OCIOSAS) -and ($intervaloActual -ne $INTERVALO_LENTO_MIN)) {
+            try {
+                Set-IntervaloTareaMin $INTERVALO_LENTO_MIN
+                Add-Content -Path (Join-Path $LogsDir "loop.log") -Value "$(Get-Date -Format o) $ociosas corridas ociosas seguidas -> intervalo del disparador ampliado a $INTERVALO_LENTO_MIN min (vuelve a $INTERVALO_RAPIDO_MIN apenas haya trabajo)."
+                Set-Ritmo $ociosas $INTERVALO_LENTO_MIN
+            } catch {
+                Add-Content -Path (Join-Path $LogsDir "auto_procesar_errores.log") -Value "$(Get-Date -Format o) No se pudo ampliar el intervalo del disparador a $INTERVALO_LENTO_MIN min: $_"
+                Set-Ritmo $ociosas $intervaloActual
+            }
+        } else {
+            Set-Ritmo $ociosas $intervaloActual
+        }
+    } elseif ($intervaloActual -ne $INTERVALO_RAPIDO_MIN) {
+        try {
+            Set-IntervaloTareaMin $INTERVALO_RAPIDO_MIN
+            Add-Content -Path (Join-Path $LogsDir "loop.log") -Value "$(Get-Date -Format o) Hay trabajo -> intervalo del disparador vuelto a $INTERVALO_RAPIDO_MIN min."
+            Set-Ritmo 0 $INTERVALO_RAPIDO_MIN
+        } catch {
+            Add-Content -Path (Join-Path $LogsDir "auto_procesar_errores.log") -Value "$(Get-Date -Format o) No se pudo volver el intervalo del disparador a $INTERVALO_RAPIDO_MIN min: $_"
+            Enviar-Alerta "Rayando el CDA: el disparador quedó en ritmo lento" "Hubo trabajo real pero no se pudo devolver el intervalo de la tarea programada a $INTERVALO_RAPIDO_MIN min (sigue en $intervaloActual min), así que los próximos pedidos del equipo pueden tardar hasta ese tiempo en procesarse.`n`nError: $_`n`nRe-registrar la tarea a mano:`npowershell -ExecutionPolicy Bypass -File pipeline\registrar_tarea_programada.ps1"
+            Set-Ritmo 0 $intervaloActual
+        }
+    } else {
+        Set-Ritmo 0 $INTERVALO_RAPIDO_MIN
+    }
 }

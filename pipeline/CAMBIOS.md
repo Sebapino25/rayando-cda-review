@@ -1,3 +1,28 @@
+# Cambios aplicados — ritmo adaptativo del disparador automático (01/09)
+
+Cuando todos los clips del programa vigente ya están aprobados/publicados y no
+hay pedidos abiertos, no tiene sentido que la tarea de Task Scheduler se
+despierte cada 5 minutos a buscar cambios que no hay.
+
+- **`auto_procesar.ps1`**: al final de cada corrida decide si fue *ociosa*
+  (sin grabación pendiente, y los tres exit codes de `reprocesar_video` /
+  `reprocesar_subtitulos` / `limpiar_clips` en 0). Tras 3 ociosas seguidas
+  (15 min) amplía el `RepetitionInterval` de la tarea `RayandoCDA_AutoProcesar`
+  de **5 a 30 min** (mutando solo el `Interval` del trigger, sin tocar
+  `StartBoundary` ni la ventana semanal). La primera corrida con trabajo real
+  —o con algo pendiente, o con un fallo— lo baja de nuevo a 5 min.
+- Contador en `pipeline\logs_auto\ritmo_auto.json`. El intervalo real se lee
+  de la tarea, no del json: si cambió por fuera (re-registro con
+  `registrar_tarea_programada.ps1`, que lo deja en 5 min) el conteo se
+  reinicia solo.
+- Si hubo trabajo real pero `Set-ScheduledTask` falla al volver a 5 min, llega
+  un mail a `seba.pino.v@gmail.com` (los pedidos podrían tardar hasta 30 min).
+- `pipeline\logs_auto\` pasó a estar en `.gitignore` (estado de runtime).
+
+Costo del compromiso: con la cola tranquila un pedido nuevo puede tardar hasta
+30 min en procesarse, y la grabación semanal hasta 30 min en detectarse la
+primera vez al abrir la ventana del martes (después baja a 5 min sola).
+
 # Cambios aplicados — pestaña "Antiguas" + limpieza de la cola por programa (01/09)
 
 El eje es el **programa vigente** = `MAX(semana)` válido de `rayando_cda.clips`.

@@ -3,3 +3,6 @@ youtube_token.json
 errores_publicacion.log
 __pycache__/
 *.pyc
+# Estado de runtime del disparador automático (grabaciones_estado.json,
+# ritmo_auto.json, *.log, marcadores de fallos): nunca va a git.
+logs_auto/
