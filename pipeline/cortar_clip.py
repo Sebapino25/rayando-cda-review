@@ -96,7 +96,18 @@ def ffprobe_duration(path: Path) -> float:
     result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode != 0:
         raise RuntimeError(f"ffprobe falló para {path}: {result.stderr}")
-    return float(result.stdout.strip())
+    salida = result.stdout.strip()
+    try:
+        return float(salida)
+    except ValueError:
+        # Un archivo .mkv todavía en escritura (OBS grabando) puede no tener
+        # el header de duración finalizado y ffprobe devuelve "N/A" o vacío
+        # en vez de un número — pasó de verdad el 24/08 con una grabación
+        # agarrada a medio escribir por auto_procesar.ps1.
+        raise RuntimeError(
+            f"ffprobe no devolvió una duración válida para {path} (salida: '{salida}'). "
+            "Puede que el archivo todavía se esté escribiendo."
+        ) from None
 
 
 def ffprobe_dimensions(path: Path) -> tuple[int, int]:
