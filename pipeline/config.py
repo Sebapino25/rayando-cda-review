@@ -27,6 +27,23 @@ REEL_MAX_SECONDS = 90
 CLIP_PAD_SECONDS = 0.4  # margen de silencio agregado antes del inicio y después del fin
 CLIP_FADE_SECONDS = 0.25  # duración del fade-in/fade-out de video y audio (debe ser <= CLIP_PAD_SECONDS)
 
+# --- Normalización de audio de los clips ---
+# El audio de OBS es una sola pista mezclada (no hay un micrófono por persona),
+# así que no se puede subir el volumen de una sola voz. Lo que sí se hace acá:
+# emparejar niveles en cada clip con un compresor suave + loudnorm (EBU R128)
+# al target de loudness que usan las redes. Ayuda a las voces que quedan bajas
+# en la mezcla (pedido del 08/09) y deja todos los clips a un volumen parejo.
+# Se aplica en build_vertical SOLO sobre el audio del clip, no sobre el cierre
+# institucional (ese ya viene a nivel). AUDIO_NORMALIZAR=False vuelve al audio crudo.
+AUDIO_NORMALIZAR = True
+AUDIO_LOUDNORM_I = -14     # loudness integrado objetivo (LUFS); -14 = referencia YouTube/TikTok
+AUDIO_LOUDNORM_TP = -1.5   # true peak máximo (dBTP)
+AUDIO_LOUDNORM_LRA = 11    # rango de loudness objetivo
+# Nivelado previo: dynaudnorm sube las partes bajas (la voz que queda baja en
+# la mezcla) hacia las altas, en ventanas cortas. maxgain acotado a 8 dB para
+# no inflar ruido de sala ni bombear. Corre ANTES de loudnorm.
+AUDIO_NIVELADO = "dynaudnorm=framelen=250:gausssize=15:peak=0.9:maxgain=8:targetrms=0"
+
 SUBTITLE_FONT_NAME = "Arial"
 # Subido de 58 a 64 (pedido de René: letra un poco más grande).
 SUBTITLE_FONT_SIZE = 64

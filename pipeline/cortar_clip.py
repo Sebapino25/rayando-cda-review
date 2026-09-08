@@ -347,9 +347,23 @@ def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | Non
     cierre_path = _siguiente_cierre_vertical()
     cierre_idx = next_input_idx
     cmd += ["-i", str(cierre_path)]
+
+    _aformat = "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo"
+    if config.AUDIO_NORMALIZAR:
+        # nivelado (dynaudnorm) -> loudnorm (EBU R128) -> vuelvo a fijar el
+        # formato, porque loudnorm trabaja internamente a 192kHz y puede
+        # cambiar el sample rate de salida (tiene que calzar con el audio del
+        # cierre para el concat). Ver config.AUDIO_* y el comentario ahí.
+        audio_clip = (
+            f"{_aformat},{config.AUDIO_NIVELADO},"
+            f"loudnorm=I={config.AUDIO_LOUDNORM_I}:TP={config.AUDIO_LOUDNORM_TP}:"
+            f"LRA={config.AUDIO_LOUDNORM_LRA},{_aformat}"
+        )
+    else:
+        audio_clip = _aformat
     filter_complex += (
         f";[outv]fps=30,setsar=1,format=yuv420p[outvn]"
-        f";[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outan]"
+        f";[0:a]{audio_clip}[outan]"
         f";[{cierre_idx}:v]fps=30,scale={w}:{h},setsar=1,format=yuv420p[cierrev]"
         f";[{cierre_idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[cierrea]"
         f";[outvn][outan][cierrev][cierrea]concat=n=2:v=1:a=1[vfinal][afinal]"
