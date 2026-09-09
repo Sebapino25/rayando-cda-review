@@ -1,3 +1,34 @@
+# Cambios aplicados — reintento ante errores transitorios de Supabase (08/09)
+
+El 08/09, en la ventana del programa, un **522 de Cloudflare** ("The initial
+connection between Cloudflare's network and the origin web server timed out")
+en el primer `select` de `reprocesar_subtitulos.py` cortó la corrida y disparó
+el mail "falló la corrección automática de subtítulos" con la página de error
+de Cloudflare entera pegada adentro. El proyecto de Supabase estaba sano; el
+mismo select andaba bien en la corrida siguiente (se auto-recuperó porque la
+corrección de subtítulos reintenta cada 5 min). Antes, en varias corridas, ya
+había pasado lo mismo con cortes de DNS del PC (`getaddrinfo failed`).
+
+- **`publicar.py`**: nuevas `reintentar_transitorio(fn, …)` y
+  `_es_error_transitorio(exc)`. Reintenta (backoff exponencial, 4 intentos:
+  3s → 9s → 27s) ante errores de red/infra transitorios: `httpx.ConnectError`
+  / timeouts, `getaddrinfo failed`, y 5xx de Cloudflare/PostgREST
+  (500/502/503/504/520/521/522/524, incluye el `APIError` de postgrest con
+  `.code` numérico). Cualquier otra excepción se re-lanza en el acto (un
+  `PGRST106`, un 400, un `ValueError` no se reintentan).
+- Aplicado a los cuatro helpers de Supabase de `publicar.py`
+  (`insertar_clip_supabase`, `actualizar_clip_supabase`,
+  `subir_portada_storage`, `subir_video_storage`) y al primer query de
+  `reprocesar_subtitulos.py`, `reprocesar_video.py` y `limpiar_clips.py`
+  (`buscar_pendientes` / `_programa_vigente`) — que es donde pegó el 522.
+- **`test_publicar_reintentos.py`** (nuevo): 5 casos — reconoce transitorios
+  vs permanentes, reintenta y devuelve, no reintenta lo permanente, agota y
+  re-lanza la última excepción.
+
+No cambia nada del comportamiento normal (sin error, `fn()` corre una sola
+vez). Un fallo que persiste los 4 integrantes sigue cortando la corrida y
+mandando la alerta, igual que antes.
+
 # Cambios aplicados — ritmo adaptativo del disparador automático (01/09)
 
 Cuando todos los clips del programa vigente ya están aprobados/publicados y no

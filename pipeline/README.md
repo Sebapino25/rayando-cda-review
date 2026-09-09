@@ -634,6 +634,52 @@ modelo de Whisper, tamaño del formato vertical, escala del video en primer
 plano, duración máxima de reel, estilo de subtítulos, logo, portadas, copys)
 están centralizados en `config.py`.
 
+## Instagram (token de publicación)
+
+La publicación a Instagram (Reels, vía la Edge Function `publicar-clip`) usa
+un token de **Instagram API con inicio de sesión de Instagram** (`IGAA…`,
+dura 60 días) guardado en `rayando_cda.instagram_token`. La Edge Function
+programada `refrescar-token-instagram` lo refresca sola cada semana mientras
+siga vivo — no hay nada que hacer en el uso normal.
+
+**Cuándo hay que renovarlo a mano:** si al publicar aparece
+`OAuthException code 190` ("The session has been invalidated because the
+user changed their password or Facebook has changed the session…"). Eso es
+un token muerto de raíz: el refresco automático no lo arregla (sigue
+"refrescando" un token zombie y `vence_en` en la base aparenta estar al
+día). Pasó el 08/09/2026.
+
+**Cómo renovarlo** (~5 min, sin scripts):
+
+1. `developers.facebook.com` → app **"Rayando el CDA"** → menú izquierdo
+   **Casos de uso** → caso **"Administrar mensajes y contenido en
+   Instagram"** → **Personalizar**.
+2. Sub-menú izquierdo → **"Configuración de la API con inicio de sesión de
+   Instagram"** (NO la de "…de Facebook").
+3. Sección **"2. Generar tokens de acceso"** → fila de la cuenta
+   `rayandoelcda` (ID `17841472353468522`) → **"Generar token"**.
+4. Popup → loguearse como `@rayandoelcda` → aceptar todos los permisos. Si
+   ofrece **re-vincular** la cuenta (por el cambio de contraseña), hacerlo.
+5. Copiar el token (`IGAA…`, ~180 caracteres).
+6. Verificar antes de guardar:
+   ```
+   curl "https://graph.instagram.com/me?fields=user_id,username&access_token=TOKEN"
+   ```
+   Tiene que devolver `{"user_id":"17841472353468522","username":"rayandoelcda",…}`.
+7. Guardar en Supabase (SQL Editor del proyecto `qfxfwfcdgqcbmdspjvtk`):
+   ```sql
+   update rayando_cda.instagram_token
+   set access_token = 'TOKEN', vence_en = now() + interval '60 days',
+       actualizado_en = now()
+   where id = true;
+   ```
+8. Re-publicar el/los clip(s) que fallaron desde "Publicar en redes" en la
+   app (el guard `!instagram_media_id` evita duplicar YouTube).
+
+El App ID / Secret NO están cargados como secrets (el refresco automático no
+los necesita), así que el flujo OAuth por `curl` no es una opción — el botón
+"Generar token" del dashboard es el camino.
+
 ## TikTok
 
 El Developer App fue aprobado (06/08/2026): OAuth completo

@@ -82,7 +82,7 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     query = supabase.table(config.SUPABASE_TABLE).select(columnas)
     if clip_id:
         query = query.eq("id", clip_id)
-    filas = query.execute().data
+    filas = publicar.reintentar_transitorio(query.execute).data
 
     pendientes = [
         f for f in filas

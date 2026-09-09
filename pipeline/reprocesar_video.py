@@ -123,7 +123,7 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     query = supabase.table(config.SUPABASE_TABLE).select(columnas).eq("estado", "correccion_video")
     if clip_id:
         query = query.eq("id", clip_id)
-    filas = query.order("created_at").execute().data
+    filas = publicar.reintentar_transitorio(query.order("created_at").execute).data
     # Defensivo: el fixture de QA (estado='prueba') nunca debería calzar
     # con este filtro, pero se excluye igual por si queda en un estado raro.
     return [f for f in filas if f.get("estado") != "prueba"]

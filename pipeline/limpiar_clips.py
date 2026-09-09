@@ -110,12 +110,12 @@ def _programa_vigente(sb) -> str | None:
     """MAX(semana) que sea una fecha ISO válida. `semana` es texto libre en la
     tabla real (hay filas de prueba tipo 'qa-fixture'), así que no alcanza con
     ordenar y tomar la primera — hay que descartar lo que no parsea."""
-    res = (
+    res = publicar.reintentar_transitorio(
         sb.table(config.SUPABASE_TABLE)
         .select("semana")
         .order("semana", desc=True)
         .limit(50)
-        .execute()
+        .execute
     )
     for fila in res.data or []:
         if _parse_date(fila.get("semana")) is not None:

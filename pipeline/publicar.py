@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -147,6 +148,75 @@ def eliminar_youtube(video_id: str) -> None:
 
 # ---------- Supabase ----------
 
+# Errores de red/infra transitorios de Supabase que conviene reintentar en
+# vez de fallar la corrida entera y mandar una alerta al equipo: cortes de
+# DNS del PC (getaddrinfo), timeouts de conexión/lectura, y los 5xx que
+# Cloudflare devuelve —como una página HTML entera— cuando el origen de
+# Supabase no responde a tiempo. Caso real 2026-09-08: un 522 en el primer
+# select de reprocesar_subtitulos.py cortó la corrida y disparó un mail con
+# la página de error de Cloudflare pegada adentro; el mismo select andaba
+# bien ~10 s después.
+_HTTP_TRANSITORIOS = {500, 502, 503, 504, 520, 521, 522, 524}
+
+
+def _es_error_transitorio(exc: Exception) -> bool:
+    try:
+        import httpx
+
+        if isinstance(
+            exc,
+            (
+                httpx.ConnectError,
+                httpx.ConnectTimeout,
+                httpx.ReadTimeout,
+                httpx.WriteTimeout,
+                httpx.PoolTimeout,
+                httpx.RemoteProtocolError,
+            ),
+        ):
+            return True
+    except ImportError:
+        pass
+
+    # postgrest.exceptions.APIError y las excepciones de storage3 exponen el
+    # código HTTP como .code (str o int) o dentro de args[0] cuando se
+    # construyeron desde un dict.
+    codigo = getattr(exc, "code", None)
+    if codigo is None and exc.args and isinstance(exc.args[0], dict):
+        codigo = exc.args[0].get("code")
+    try:
+        if codigo is not None and int(codigo) in _HTTP_TRANSITORIOS:
+            return True
+    except (TypeError, ValueError):
+        pass
+
+    texto = str(exc).lower()
+    return (
+        "getaddrinfo failed" in texto
+        or "temporary failure in name resolution" in texto
+        or "the initial connection between cloudflare" in texto
+    )
+
+
+def reintentar_transitorio(fn, *, intentos: int = 4, espera_inicial: float = 3.0, factor: float = 3.0):
+    """Ejecuta fn() reintentando ante errores de red/infra transitorios (ver
+    _es_error_transitorio) con backoff exponencial. Cualquier otra excepción
+    se re-lanza en el acto. Si se agotan los intentos, re-lanza la última."""
+    espera = espera_inicial
+    for intento in range(1, intentos + 1):
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001 - se re-lanza si no es transitorio
+            if intento == intentos or not _es_error_transitorio(exc):
+                raise
+            print(
+                f"  Error transitorio de Supabase ({type(exc).__name__}); "
+                f"reintento {intento}/{intentos - 1} en {espera:.0f}s..."
+            )
+            time.sleep(espera)
+            espera *= factor
+
+
 def get_supabase_client():
     from supabase import create_client
     from supabase.client import ClientOptions
@@ -159,7 +229,7 @@ def get_supabase_client():
 def insertar_clip_supabase(payload: dict) -> str:
     """Inserta un registro en rayando_cda.clips. Devuelve el id insertado."""
     supabase = get_supabase_client()
-    result = supabase.table(config.SUPABASE_TABLE).insert(payload).execute()
+    result = reintentar_transitorio(supabase.table(config.SUPABASE_TABLE).insert(payload).execute)
     return result.data[0]["id"]
 
 
@@ -168,7 +238,9 @@ def actualizar_clip_supabase(supabase_id: str, payload: dict) -> None:
     un clip re-cortado bajo un youtube_video_id nuevo, sin duplicar la fila
     ni perder la revisión/estado ya cargada por René)."""
     supabase = get_supabase_client()
-    supabase.table(config.SUPABASE_TABLE).update(payload).eq("id", supabase_id).execute()
+    reintentar_transitorio(
+        supabase.table(config.SUPABASE_TABLE).update(payload).eq("id", supabase_id).execute
+    )
 
 
 def subir_portada_storage(portada_path: Path, storage_path: str) -> str | None:
@@ -182,10 +254,12 @@ def subir_portada_storage(portada_path: Path, storage_path: str) -> str | None:
         return None
     supabase = get_supabase_client()
     data = portada_path.read_bytes()
-    supabase.storage.from_(config.SUPABASE_PORTADAS_BUCKET).upload(
-        storage_path,
-        data,
-        {"content-type": "image/jpeg", "upsert": "true"},
+    reintentar_transitorio(
+        lambda: supabase.storage.from_(config.SUPABASE_PORTADAS_BUCKET).upload(
+            storage_path,
+            data,
+            {"content-type": "image/jpeg", "upsert": "true"},
+        )
     )
     return supabase.storage.from_(config.SUPABASE_PORTADAS_BUCKET).get_public_url(storage_path)
 
@@ -198,8 +272,10 @@ def subir_video_storage(video_path: Path, storage_path: str) -> str:
     propaga, no hay fallback silencioso como en subir_portada_storage."""
     supabase = get_supabase_client()
     data = video_path.read_bytes()
-    supabase.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).upload(
-        storage_path, data, {"content-type": "video/mp4", "upsert": "true"}
+    reintentar_transitorio(
+        lambda: supabase.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).upload(
+            storage_path, data, {"content-type": "video/mp4", "upsert": "true"}
+        )
     )
     return supabase.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).get_public_url(storage_path)
 
