@@ -49,16 +49,30 @@ lista, inclusive en ambos extremos) que corresponden al pedido. NUNCA \
 inventes un timestamp en segundos — siempre elegí índices reales de la \
 lista.
 
-Si el pedido es claro y la frase/momento referenciado existe en la \
-transcripción, devolvé confianza=true con los índices elegidos y un \
-motivo breve (1 frase) de qué interpretaste. Si el pedido es ambiguo, \
-referencia algo que no aparece en la transcripción, o no podés \
-determinar con seguridad razonable qué rango corresponde, devolvé \
-confianza=false con un motivo específico de por qué no pudiste — NUNCA \
-adivines un rango "aproximado" cuando no estás seguro. Ante la duda, \
-preferí confianza=false: alguien va a revisar tu respuesta a mano en ese \
-caso, así que es preferible que no adivines a que cortes mal un video \
-que después se publica."""
+Este flujo SOLO cambia dónde empieza y dónde termina el clip (in/out \
+point). Muchos pedidos del equipo NO son sobre eso: se quejan del \
+título/portada, de los subtítulos (texto, tamaño, posición, timing), del \
+logo, de algún texto o gráfico en pantalla, del audio, del encuadre \
+vertical, etc. Si el pedido es sobre cualquiera de esas cosas y no sobre \
+mover el inicio o el final del clip, devolvé confianza=false con un motivo \
+que diga explícitamente que el pedido no es una corrección de in/out y hay \
+que resolverlo a mano. Ojo con pedidos que mencionan una palabra o frase \
+("...en la parte que dice X", "donde aparece Y"): a veces esa frase es solo \
+una referencia para ubicar OTRO problema (ej. "el título tapa el video en la \
+parte que dice X" = problema de título, no de corte), no un pedido de cortar \
+ahí. Solo interpretá un corte cuando el pedido claramente pide mover el \
+inicio o el final.
+
+Si el pedido es claramente un cambio de in/out, la frase/momento \
+referenciado existe en la transcripción y podés determinar el rango, \
+devolvé confianza=true con los índices elegidos y un motivo breve (1 \
+frase) de qué interpretaste. Si el pedido es ambiguo, no es sobre in/out, \
+referencia algo que no aparece en la transcripción, o no podés determinar \
+con seguridad razonable qué rango corresponde, devolvé confianza=false con \
+un motivo específico de por qué no pudiste — NUNCA adivines un rango \
+"aproximado" cuando no estás seguro. Ante la duda, preferí confianza=false: \
+alguien va a revisar tu respuesta a mano en ese caso, así que es preferible \
+que no adivines a que cortes mal un video que después se publica."""
 
 _SCHEMA = {
     "type": "object",

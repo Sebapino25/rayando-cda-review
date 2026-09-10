@@ -141,10 +141,26 @@ def _es_composicion_vs(titulo: str, override: bool | None) -> bool:
     return bool(re.search(r"\bvs\b", titulo, flags=re.IGNORECASE))
 
 
+def _block_height(font: ImageFont.FreeTypeFont, n_lines: int, line_height_factor: float = 1.28) -> int:
+    """Alto en px del bloque de `n_lines` líneas con `font`, con el mismo
+    cálculo de interlineado que usan los llamadores al dibujar (getbbox de
+    ascendentes/descendentes por line_height_factor)."""
+    bbox = font.getbbox("AÁÑQypg")
+    return int((bbox[3] - bbox[1]) * line_height_factor) * n_lines
+
+
 def _fit_title(
     draw: ImageDraw.ImageDraw, titulo: str, font_path: str, max_width: int,
     max_lines: int, max_size: int, min_size: int,
+    max_total_height: int | None = None, line_height_factor: float = 1.28,
 ) -> tuple[ImageFont.FreeTypeFont, list[str]]:
+    """Elige el font más grande (bajando de a 6px desde max_size) con el que
+    `titulo` entra en `max_width` de ancho y `max_lines` de alto. Si se pasa
+    `max_total_height`, además exige que el bloque de texto completo
+    (line_height_factor por alto de glifo, por cantidad de líneas) entre en
+    ese alto — sin esto, un título que wrapea a varias líneas se dibuja con
+    la fuente máxima y se desborda del espacio disponible (ej. el titulo_video
+    sobre la franja superior del vertical se metía sobre el video real)."""
     size = max_size
     while size >= min_size:
         font = ImageFont.truetype(font_path, size)
@@ -152,7 +168,10 @@ def _fit_title(
         wrap_width = max(3, int(max_width / avg_char_w * 1.12))
         lines = textwrap.wrap(titulo, width=wrap_width) or [titulo]
         widths = [draw.textlength(line, font=font) for line in lines]
-        if (not widths or max(widths) <= max_width) and len(lines) <= max_lines:
+        cabe_ancho = not widths or max(widths) <= max_width
+        cabe_lineas = len(lines) <= max_lines
+        cabe_alto = max_total_height is None or _block_height(font, len(lines), line_height_factor) <= max_total_height
+        if cabe_ancho and cabe_lineas and cabe_alto:
             return font, lines
         size -= 6
     font = ImageFont.truetype(font_path, min_size)
@@ -232,13 +251,20 @@ def render_video_titulo_png(out_path: Path, width: int, height: int, titulo: str
     font, lines = _fit_title(
         draw, titulo.upper(), config.PORTADA_FONT_PATH, max_width,
         config.VIDEO_TITULO_MAX_LINEAS, max_size, min_size,
+        max_total_height=usable_height,
     )
     bbox = font.getbbox("AÁÑQypg")
     line_height = int((bbox[3] - bbox[1]) * 1.28)
     total_text_h = line_height * len(lines)
     stroke_width = max(2, int(font.size * config.PORTADA_TEXTO_STROKE_RATIO))
 
+    # Centrado en el espacio libre bajo el logo. Si el bloque igual no entra
+    # (título largo que cae en el fallback a min_size), se empuja hacia arriba
+    # para que el borde inferior nunca pase de `height` (el inicio del video
+    # real): preferimos que el texto roce el logo antes que taparse con el
+    # video, que es justo lo que se quería evitar.
     text_top = top_offset + (usable_height - total_text_h) / 2
+    text_top = max(0.0, min(text_top, height - total_text_h))
     palabra_clave = _detectar_palabra_clave(titulo, None)
     _draw_title_lines(draw, lines, font, palabra_clave, text_top, line_height, width, stroke_width)
 

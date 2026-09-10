@@ -390,6 +390,21 @@ def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | Non
     run_ffmpeg(cmd, cwd=out_dir)
 
 
+def titulo_portada_de_copys(carpeta: Path) -> str | None:
+    """Lee el título de portada desde copys.md (línea `**Portada:** ...`), el
+    mismo archivo que escribe build_copys() al cortar el clip por primera vez.
+    Es el título correcto para reusar cuando se regenera el vertical sin volver
+    a generar los copys (reproceso de subtítulos o de in/out) — evita depender
+    de clip_overrides.json, que para la mayoría de los clips no tiene una
+    entrada titulo_portada. Devuelve None si copys.md no existe o no tiene la
+    línea esperada (el llamador decide el fallback)."""
+    copys_path = carpeta / "copys.md"
+    if not copys_path.exists():
+        return None
+    match = re.search(r"\*\*Portada:\*\*\s*(.+)", copys_path.read_text(encoding="utf-8"))
+    return match.group(1).strip() if match else None
+
+
 def _cargar_overrides(nombre_clip: str) -> dict:
     path = Path(__file__).parent / "clip_overrides.json"
     if not path.exists():

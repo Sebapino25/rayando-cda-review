@@ -190,8 +190,17 @@ def procesar_fila(row: dict, apply: bool) -> bool:
     cortar_clip.build_clip_srt(nuevos_segmentos, carpeta / "subtitulos.srt")
     cortar_clip.build_clip_ass(nuevos_segmentos, carpeta / "subtitulos.ass")
 
+    # El título de portada NO se regenera en un reproceso de subtítulos (solo
+    # cambia el texto quemado), pero hay que volver a pasárselo a build_vertical:
+    # sin esto el vertical se rearmaba sin el texto del título en la franja
+    # superior, así que cada corrección de subtítulos borraba el título del
+    # video (mismo criterio que reprocesar_video._ejecutar_recorte).
+    titulo_portada = (
+        cortar_clip.titulo_portada_de_copys(carpeta)
+        or cortar_clip._cargar_overrides(carpeta.name).get("titulo_portada")
+    )
     print("  Quemando subtítulos sobre horizontal_original.mp4 (cortar_clip.build_vertical)...")
-    cortar_clip.build_vertical(carpeta, has_subtitles=True)
+    cortar_clip.build_vertical(carpeta, has_subtitles=True, titulo_portada=titulo_portada)
     vertical_path = carpeta / "vertical.mp4"
 
     try:
