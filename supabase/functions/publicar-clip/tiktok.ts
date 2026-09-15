@@ -102,10 +102,21 @@ export async function obtenerCreatorInfoParaUI(
 // vertical) siempre entran en un solo chunk (límite de un chunk: 64MB).
 // Solo se llama desde index.ts si PUBLICAR_TIKTOK=true y el usuario configuró
 // la publicación a TikTok en la pantalla de la app.
+
+// Códigos de error de TikTok que significan "esta cuenta ya posteó todo lo
+// que puede por ahora" — no es un bug ni un dato mal armado, hay que avisar
+// y reintentar más tarde (punto 1.b de las Content Sharing Guidelines).
+const CODIGOS_LIMITE_ALCANZADO = new Set([
+  'spam_risk_too_many_posts',
+  'spam_risk_too_many_pending_share',
+  'rate_limit_exceeded',
+])
+
 export async function publicarTiktok(
   videoUrl: string,
   config: TikTokConfig,
   opciones: TikTokPostOpciones,
+  videoDurationSec: number,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   // Se re-consulta creator_info server-side para validar lo que mandó el
@@ -113,6 +124,15 @@ export async function publicarTiktok(
   // la cuenta deshabilitó comentarios/duet/stitch hay que respetarlo aunque
   // el cliente diga otra cosa (las guidelines de TikTok lo exigen).
   const creatorInfo = await consultarCreatorInfo(config, fetchImpl)
+
+  // Punto 1.c de las Content Sharing Guidelines: validar la duración contra
+  // lo que devuelve creator_info antes de postear, no confiar en que el
+  // cliente ya lo chequeó.
+  if (creatorInfo.maxVideoPostDurationSec > 0 && videoDurationSec > creatorInfo.maxVideoPostDurationSec) {
+    throw new Error(
+      `TikTok: el clip dura ${videoDurationSec}s, más que el máximo que permite la cuenta (${creatorInfo.maxVideoPostDurationSec}s). No se publica.`,
+    )
+  }
 
   if (!creatorInfo.privacyLevelOptions.includes(opciones.privacyLevel)) {
     throw new Error(
@@ -169,6 +189,11 @@ export async function publicarTiktok(
   }
   const initData = await initResp.json()
   if (initData.error && initData.error.code && initData.error.code !== 'ok') {
+    if (CODIGOS_LIMITE_ALCANZADO.has(initData.error.code)) {
+      throw new Error(
+        `TikTok: se alcanzó el límite de publicaciones de la cuenta por ahora (${initData.error.code}). Cancelado — reintentá más tarde.`,
+      )
+    }
     throw new Error(`TikTok: la API devolvió un error: ${JSON.stringify(initData.error)}`)
   }
   const uploadUrl = initData.data?.upload_url as string | undefined
@@ -190,4 +215,42 @@ export async function publicarTiktok(
   }
 
   return publishId
+}
+
+export interface EstadoPublicacion {
+  status: string
+  failReason?: string
+}
+
+// Punto 5.e de las Content Sharing Guidelines: el publish_id que devuelve
+// publicarTiktok solo confirma que TikTok recibió los bytes, no que el post
+// ya está visible en el perfil — hay que consultar este endpoint para saber
+// el estado real (PROCESSING_UPLOAD / PUBLISH_COMPLETE / FAILED). Se llama
+// desde la app (polling), no desde publicarTiktok, para no atar el tiempo de
+// respuesta de publicar-clip a cuánto tarde TikTok en procesar el video.
+export async function consultarEstadoPublicacion(
+  publishId: string,
+  config: TikTokConfig,
+  fetchImpl: typeof fetch = fetch,
+): Promise<EstadoPublicacion> {
+  const resp = await fetchImpl(`${TIKTOK_API_BASE}/post/publish/status/fetch/`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.accessToken}`,
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: JSON.stringify({ publish_id: publishId }),
+  })
+  if (!resp.ok) {
+    throw new Error(`TikTok: error al consultar el estado de la publicación (${resp.status}): ${await resp.text()}`)
+  }
+  const data = await resp.json()
+  if (data.error && data.error.code && data.error.code !== 'ok') {
+    throw new Error(`TikTok: la API devolvió un error al consultar el estado: ${JSON.stringify(data.error)}`)
+  }
+  const d = data.data ?? {}
+  return {
+    status: d.status ?? 'UNKNOWN',
+    failReason: d.fail_reason || undefined,
+  }
 }

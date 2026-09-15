@@ -686,11 +686,18 @@ El Developer App fue aprobado (06/08/2026): OAuth completo
 (`rayando_cda.tiktok_token` con access + refresh token vigentes),
 `refrescar-token-tiktok` corriendo cada 12hs sin intervención.
 
-**Estado (30/08/2026) — auditoría de Direct Post ENVIADA.** Frontend y Edge
-Function `publicar-clip` (v24) deployados, probado end-to-end (clip real
-publicado con `tiktok_publish_id` guardado), demos grabadas y auditoría enviada
-en `developers.tiktok.com/application/content-posting-api` — respuesta en 2–4
-semanas. Detalle y pasos post-envío en `docs/tiktok-direct-post-estado.md`.
+**Estado (09/09/2026) — auditoría de Direct Post RECHAZADA, código corregido,
+falta regrabar demo y reenviar.** La auditoría enviada el 30/08 fue rechazada
+el 08/09 (referencia `20260831034842`) por no cumplir los puntos 1 y 5 de
+"Required UX Implementation in Your App" de las Content Sharing Guidelines.
+No era solo la demo: había gaps reales de implementación (sin chequeo de
+duración de video, sin manejo del límite de posteo, sin preview del video en
+el panel, sin aviso de tiempo de procesamiento, sin monitoreo del estado real
+del post vía `publish/status/fetch`). Corregidos el 09/09 en
+`supabase/functions/publicar-clip/tiktok.ts` / `index.ts` y
+`app/src/components/TikTokPublishPanel.jsx` / `TikTokStatusBadge.jsx` (nuevo).
+Falta: deployar la Edge Function, regrabar las demos mostrando lo nuevo, y
+reenviar. Detalle completo en `docs/tiktok-direct-post-estado.md`.
 
 La app ya tiene la **pantalla de publicación a TikTok** que exigen las
 Content Sharing Guidelines (ver `app/src/components/TikTokPublishPanel.jsx`):

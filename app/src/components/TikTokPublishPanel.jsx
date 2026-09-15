@@ -99,6 +99,17 @@ export default function TikTokPublishPanel({ clip, onChange, onValidityChange })
     [data, brandedNoPrivate],
   )
 
+  // Content Sharing Guidelines, punto 1.c: la app tiene que chequear la
+  // duración contra lo que dice creator_info antes de dejar publicar. El
+  // clip no guarda su duración aparte; timestamp_fin - timestamp_inicio es
+  // el corte real sobre el video original (ver pipeline/publicar.py).
+  const duracionClip =
+    clip.timestamp_fin != null && clip.timestamp_inicio != null
+      ? Number(clip.timestamp_fin) - Number(clip.timestamp_inicio)
+      : null
+  const maxDuracion = data?.max_video_post_duration_sec || 0
+  const duracionExcedida = Boolean(duracionClip && maxDuracion && duracionClip > maxDuracion)
+
   // Si la opción elegida deja de ser válida (p.ej. se marcó "contenido de marca"
   // y estaba en "Solo yo"), se limpia para forzar re-elección.
   useEffect(() => {
@@ -113,8 +124,8 @@ export default function TikTokPublishPanel({ clip, onChange, onValidityChange })
   }, [data, allowComment, allowDuet, allowStitch])
 
   const captionTrimmed = caption.trim()
-  const tiktokActivo = enabled && habilitado && !!data
-  const valid = !enabled || !habilitado
+  const tiktokActivo = enabled && habilitado && !!data && !duracionExcedida
+  const valid = !enabled || !habilitado || duracionExcedida
     ? true
     : loading || fetchError || !data
       ? false
@@ -222,8 +233,28 @@ export default function TikTokPublishPanel({ clip, onChange, onValidityChange })
             </p>
           )}
 
-          {!loading && !fetchError && data && (
+          {!loading && !fetchError && data && duracionExcedida && (
+            <p className="flex items-start gap-1.5 text-sm text-warning bg-warning-bg/60 rounded-lg px-3 py-2">
+              <Info size={16} className="shrink-0 mt-0.5" />
+              Este clip dura {Math.round(duracionClip)}s, más que el máximo que permite tu cuenta de TikTok (
+              {maxDuracion}s). No se va a publicar en TikTok; sí en YouTube e Instagram.
+            </p>
+          )}
+
+          {!loading && !fetchError && data && !duracionExcedida && (
             <>
+              {clip.video_url && (
+                <div className="flex flex-col gap-1.5">
+                  <span className="block text-sm font-semibold text-foreground">Esto es lo que se va a publicar</span>
+                  <video
+                    src={clip.video_url}
+                    controls
+                    playsInline
+                    className="w-full max-w-[220px] mx-auto aspect-[9/16] rounded-xl border border-border bg-black object-contain"
+                  />
+                </div>
+              )}
+
               <div className="flex items-center gap-2.5">
                 {data.creator_avatar_url ? (
                   <img
@@ -353,6 +384,9 @@ export default function TikTokPublishPanel({ clip, onChange, onValidityChange })
                 )}
               </div>
 
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                TikTok puede tardar unos minutos en procesar el video antes de que aparezca en el perfil.
+              </p>
               <p className="text-xs text-muted-foreground leading-relaxed">{complianceText}</p>
             </>
           )}

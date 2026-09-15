@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts'
 import { enviarAlerta } from '../_shared/email.ts'
-import { refrescarTokenInstagram } from './refresh.ts'
+import { refrescarTokenInstagram, validarTokenInstagram } from './refresh.ts'
 
 Deno.serve(async (_req: Request) => {
   const supabase = getSupabaseAdmin()
@@ -36,6 +36,18 @@ Deno.serve(async (_req: Request) => {
         status: 500,
       })
     }
+
+    try {
+      await validarTokenInstagram(nuevo.accessToken)
+    } catch (e) {
+      const mensaje = e instanceof Error ? e.message : String(e)
+      await enviarAlerta(
+        'Rayando el CDA: el token de Instagram se refrescó pero sigue muerto (zombie)',
+        `${mensaje}\n\nEl refresco "funcionó" (Meta devolvió un token nuevo y ya quedó guardado en la base), pero no sirve para publicar. Hay que renovarlo a mano: ver pipeline/README.md § "Instagram (token de publicación)".`,
+      )
+      return new Response(JSON.stringify({ error: mensaje }), { status: 500 })
+    }
+
     return new Response(JSON.stringify({ ok: true, vence_en: nuevo.venceEn }), { status: 200 })
   } catch (e) {
     const mensaje = e instanceof Error ? e.message : String(e)

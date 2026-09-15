@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown, DownloadSimple, Trash, Info } from '@phosphor-icons/react'
 import { downloadUrl } from '../lib/downloadUrl'
 import TikTokPublishPanel from './TikTokPublishPanel'
+import TikTokStatusBadge from './TikTokStatusBadge'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -335,10 +336,13 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
           </div>
         )}
         {clip.publicado && (
-          <span className="self-start flex items-center gap-1.5 text-sm font-semibold text-accent">
-            <CheckCircle size={15} weight="fill" />
-            Publicado
-          </span>
+          <div className="flex flex-col items-start gap-1">
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-accent">
+              <CheckCircle size={15} weight="fill" />
+              Publicado
+            </span>
+            {clip.tiktok_publish_id && <TikTokStatusBadge publishId={clip.tiktok_publish_id} />}
+          </div>
         )}
         {!clip.publicado && (
           <button

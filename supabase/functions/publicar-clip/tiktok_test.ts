@@ -1,5 +1,15 @@
-import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts'
-import { obtenerCreatorInfoParaUI, publicarTiktok, TikTokPostOpciones } from './tiktok.ts'
+import { assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts'
+import {
+  obtenerCreatorInfoParaUI,
+  publicarTiktok,
+  consultarEstadoPublicacion,
+  TikTokPostOpciones,
+} from './tiktok.ts'
+
+// max_video_post_duration_sec en fakeFetchExitoso es 600s — todos los tests
+// existentes usan un clip bien por debajo para no gatillar el chequeo de
+// duración (que tiene sus propios tests más abajo).
+const DURACION_OK = 60
 
 function opcionesBase(over: Partial<TikTokPostOpciones> = {}): TikTokPostOpciones {
   return {
@@ -69,6 +79,7 @@ Deno.test('publicarTiktok consulta creator_info, descarga el video, inicia con F
     'https://storage.ejemplo.com/clip.mp4',
     { accessToken: 'token-tt' },
     opcionesBase(),
+    DURACION_OK,
     fakeFetch,
   )
   assertEquals(publishId, 'pub-1')
@@ -101,6 +112,7 @@ Deno.test('publicarTiktok usa el privacy_level que se le pasa (no lo calcula sol
     'https://storage.ejemplo.com/clip.mp4',
     { accessToken: 'token-tt' },
     opcionesBase({ privacyLevel: 'PUBLIC_TO_EVERYONE', auditoriaAprobada: true }),
+    DURACION_OK,
     fakeFetch,
   )
   const init = llamadas.find((l) => l.url === 'https://open.tiktokapis.com/v2/post/publish/video/init/')!
@@ -116,6 +128,7 @@ Deno.test('publicarTiktok lanza error si el privacy_level pedido no está entre 
       'https://storage.ejemplo.com/clip.mp4',
       { accessToken: 'token-tt' },
       opcionesBase({ privacyLevel: 'PUBLIC_TO_EVERYONE' }),
+      DURACION_OK,
       fakeFetch,
     )
   } catch {
@@ -132,6 +145,7 @@ Deno.test('publicarTiktok lanza error si se pide PUBLIC_TO_EVERYONE sin auditor�
       'https://storage.ejemplo.com/clip.mp4',
       { accessToken: 'token-tt' },
       opcionesBase({ privacyLevel: 'PUBLIC_TO_EVERYONE', auditoriaAprobada: false }),
+      DURACION_OK,
       fakeFetch,
     )
   } catch {
@@ -146,6 +160,7 @@ Deno.test('publicarTiktok fuerza disable_duet=true si creator_info lo restringe 
     'https://storage.ejemplo.com/clip.mp4',
     { accessToken: 'token-tt' },
     opcionesBase({ disableDuet: false }),
+    DURACION_OK,
     fakeFetch,
   )
   const init = llamadas.find((l) => l.url === 'https://open.tiktokapis.com/v2/post/publish/video/init/')!
@@ -163,6 +178,7 @@ Deno.test('publicarTiktok manda los brand toggles al init', async () => {
       brandContentToggle: true,
       brandOrganicToggle: true,
     }),
+    DURACION_OK,
     fakeFetch,
   )
   const init = llamadas.find((l) => l.url === 'https://open.tiktokapis.com/v2/post/publish/video/init/')!
@@ -179,6 +195,7 @@ Deno.test('publicarTiktok lanza error si el contenido de marca se quiere publica
       'https://storage.ejemplo.com/clip.mp4',
       { accessToken: 'token-tt' },
       opcionesBase({ privacyLevel: 'SELF_ONLY', brandContentToggle: true }),
+      DURACION_OK,
       fakeFetch,
     )
   } catch {
@@ -191,7 +208,13 @@ Deno.test('publicarTiktok lanza error si creator_info no trae ninguna privacy_le
   const { fakeFetch } = fakeFetchExitoso([])
   let lanzo = false
   try {
-    await publicarTiktok('https://storage.ejemplo.com/clip.mp4', { accessToken: 'token' }, opcionesBase(), fakeFetch)
+    await publicarTiktok(
+      'https://storage.ejemplo.com/clip.mp4',
+      { accessToken: 'token' },
+      opcionesBase(),
+      DURACION_OK,
+      fakeFetch,
+    )
   } catch {
     lanzo = true
   }
@@ -212,7 +235,7 @@ Deno.test('publicarTiktok lanza error si no se puede descargar el video', async 
   }
   let lanzo = false
   try {
-    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), fakeFetch as typeof fetch)
+    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), DURACION_OK, fakeFetch as typeof fetch)
   } catch {
     lanzo = true
   }
@@ -234,7 +257,7 @@ Deno.test('publicarTiktok lanza error si el init no es 200', async () => {
   }
   let lanzo = false
   try {
-    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), fakeFetch as typeof fetch)
+    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), DURACION_OK, fakeFetch as typeof fetch)
   } catch {
     lanzo = true
   }
@@ -256,7 +279,7 @@ Deno.test('publicarTiktok lanza error si el init responde con error.code distint
   }
   let lanzo = false
   try {
-    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), fakeFetch as typeof fetch)
+    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), DURACION_OK, fakeFetch as typeof fetch)
   } catch {
     lanzo = true
   }
@@ -278,7 +301,7 @@ Deno.test('publicarTiktok lanza error si falta upload_url o publish_id en la res
   }
   let lanzo = false
   try {
-    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), fakeFetch as typeof fetch)
+    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), DURACION_OK, fakeFetch as typeof fetch)
   } catch {
     lanzo = true
   }
@@ -306,7 +329,100 @@ Deno.test('publicarTiktok lanza error si la subida del video no es 2xx', async (
   }
   let lanzo = false
   try {
-    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), fakeFetch as typeof fetch)
+    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), DURACION_OK, fakeFetch as typeof fetch)
+  } catch {
+    lanzo = true
+  }
+  assertEquals(lanzo, true)
+})
+
+Deno.test('publicarTiktok lanza error si el clip dura más que max_video_post_duration_sec', async () => {
+  const { fakeFetch, llamadas } = fakeFetchExitoso(['SELF_ONLY']) // max_video_post_duration_sec: 600
+  let mensaje = ''
+  try {
+    await publicarTiktok(
+      'https://storage.ejemplo.com/clip.mp4',
+      { accessToken: 'token-tt' },
+      opcionesBase(),
+      601,
+      fakeFetch,
+    )
+  } catch (e) {
+    mensaje = e instanceof Error ? e.message : String(e)
+  }
+  assertStringIncludes(mensaje, '601')
+  assertStringIncludes(mensaje, '600')
+  // No debe haber llegado a descargar el video ni a llamar a init/upload.
+  assertEquals(llamadas.length, 1)
+})
+
+Deno.test('publicarTiktok no lanza por duración si el clip entra justo en el máximo', async () => {
+  const { fakeFetch } = fakeFetchExitoso(['SELF_ONLY']) // max_video_post_duration_sec: 600
+  const publishId = await publicarTiktok(
+    'https://storage.ejemplo.com/clip.mp4',
+    { accessToken: 'token-tt' },
+    opcionesBase(),
+    600,
+    fakeFetch,
+  )
+  assertEquals(publishId, 'pub-1')
+})
+
+Deno.test('publicarTiktok da un mensaje claro de "reintentá más tarde" si TikTok dice que se alcanzó el límite de posteo', async () => {
+  let llamada = 0
+  const fakeFetch = async () => {
+    llamada++
+    if (llamada === 1) {
+      return new Response(
+        JSON.stringify({ data: { privacy_level_options: ['SELF_ONLY'], max_video_post_duration_sec: 600 }, error: { code: 'ok' } }),
+        { status: 200 },
+      )
+    }
+    if (llamada === 2) return new Response(new Uint8Array([1]), { status: 200 })
+    return new Response(
+      JSON.stringify({ error: { code: 'spam_risk_too_many_posts', message: 'x' } }),
+      { status: 200 },
+    )
+  }
+  let mensaje = ''
+  try {
+    await publicarTiktok('url', { accessToken: 'token' }, opcionesBase(), DURACION_OK, fakeFetch as typeof fetch)
+  } catch (e) {
+    mensaje = e instanceof Error ? e.message : String(e)
+  }
+  assertStringIncludes(mensaje, 'reintentá más tarde')
+})
+
+Deno.test('consultarEstadoPublicacion devuelve el status y fail_reason que manda TikTok', async () => {
+  const fakeFetch = async (url: string | URL, init?: RequestInit) => {
+    assertEquals(url.toString(), 'https://open.tiktokapis.com/v2/post/publish/status/fetch/')
+    assertEquals(JSON.parse(init!.body as string), { publish_id: 'pub-1' })
+    return new Response(
+      JSON.stringify({ data: { status: 'PUBLISH_COMPLETE' }, error: { code: 'ok' } }),
+      { status: 200 },
+    )
+  }
+  const estado = await consultarEstadoPublicacion('pub-1', { accessToken: 'token' }, fakeFetch as typeof fetch)
+  assertEquals(estado.status, 'PUBLISH_COMPLETE')
+  assertEquals(estado.failReason, undefined)
+})
+
+Deno.test('consultarEstadoPublicacion trae el fail_reason cuando el status es FAILED', async () => {
+  const fakeFetch = async () =>
+    new Response(
+      JSON.stringify({ data: { status: 'FAILED', fail_reason: 'video_pull_failed' }, error: { code: 'ok' } }),
+      { status: 200 },
+    )
+  const estado = await consultarEstadoPublicacion('pub-1', { accessToken: 'token' }, fakeFetch as typeof fetch)
+  assertEquals(estado.status, 'FAILED')
+  assertEquals(estado.failReason, 'video_pull_failed')
+})
+
+Deno.test('consultarEstadoPublicacion lanza error si la respuesta no es 200', async () => {
+  const fakeFetch = async () => new Response('error', { status: 500 })
+  let lanzo = false
+  try {
+    await consultarEstadoPublicacion('pub-1', { accessToken: 'token' }, fakeFetch as typeof fetch)
   } catch {
     lanzo = true
   }

@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts'
-import { refrescarTokenInstagram } from './refresh.ts'
+import { refrescarTokenInstagram, validarTokenInstagram } from './refresh.ts'
 
 Deno.test('refrescarTokenInstagram arma la URL correcta y calcula vence_en', async () => {
   let urlCapturada: string | undefined
@@ -23,6 +23,34 @@ Deno.test('refrescarTokenInstagram lanza error si el refresh falla', async () =>
   let lanzo = false
   try {
     await refrescarTokenInstagram('token-viejo', fakeFetch as typeof fetch)
+  } catch {
+    lanzo = true
+  }
+  assertEquals(lanzo, true)
+})
+
+Deno.test('validarTokenInstagram no lanza si GET /me responde ok', async () => {
+  const fakeFetch = async () => new Response(JSON.stringify({ id: '123' }), { status: 200 })
+  await validarTokenInstagram('token-nuevo', fakeFetch as typeof fetch)
+})
+
+Deno.test('validarTokenInstagram detecta el token zombie (OAuthException 190)', async () => {
+  const fakeFetch = async () =>
+    new Response(JSON.stringify({ error: { code: 190, message: 'Session invalidated' } }), { status: 400 })
+  let mensaje = ''
+  try {
+    await validarTokenInstagram('token-nuevo', fakeFetch as typeof fetch)
+  } catch (e) {
+    mensaje = e instanceof Error ? e.message : String(e)
+  }
+  assertStringIncludes(mensaje, '190')
+})
+
+Deno.test('validarTokenInstagram lanza un error genérico ante otras fallas', async () => {
+  const fakeFetch = async () => new Response('boom', { status: 500 })
+  let lanzo = false
+  try {
+    await validarTokenInstagram('token-nuevo', fakeFetch as typeof fetch)
   } catch {
     lanzo = true
   }

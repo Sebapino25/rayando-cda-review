@@ -3,7 +3,7 @@ import { enviarAlerta } from '../_shared/email.ts'
 import { excedeLimite, VENTANA_MINUTOS_PIN, MAX_INTENTOS_PIN } from './pin.ts'
 import { obtenerAccessTokenYoutube, publicarYoutube } from './youtube.ts'
 import { publicarReel } from './instagram.ts'
-import { publicarTiktok, obtenerCreatorInfoParaUI, TikTokPostOpciones } from './tiktok.ts'
+import { publicarTiktok, obtenerCreatorInfoParaUI, consultarEstadoPublicacion, TikTokPostOpciones } from './tiktok.ts'
 
 const CLAIM_EXPIRA_MINUTOS = 10
 
@@ -49,6 +49,7 @@ Deno.serve(async (req: Request) => {
     dry_run?: boolean
     action?: string
     tiktok?: TikTokClientPayload | null
+    publish_id?: string
   }
   try {
     body = await req.json()
@@ -99,6 +100,41 @@ Deno.serve(async (req: Request) => {
             max_video_post_duration_sec: info.maxVideoPostDurationSec,
           },
         }),
+        { status: 200, headers: jsonHeaders },
+      )
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ ok: false, error: e instanceof Error ? e.message : String(e) }),
+        { status: 200, headers: jsonHeaders },
+      )
+    }
+  }
+
+  // --- Estado real de una publicación ya iniciada en TikTok ---
+  // La app hace polling acá después de publicar (ver TikTokStatusBadge.jsx)
+  // para saber cuándo terminó de procesarse (o si falló), tal como exige el
+  // punto 5.e de las Content Sharing Guidelines. No pide PIN: es una lectura,
+  // no una acción sobre la cuenta.
+  if (body.action === 'tiktok_publish_status') {
+    const publishId = body.publish_id
+    if (!publishId) {
+      return new Response(JSON.stringify({ error: 'Falta publish_id' }), { status: 400, headers: jsonHeaders })
+    }
+    const { data: tokenRow, error: tokenError } = await supabase
+      .from('tiktok_token')
+      .select('access_token')
+      .eq('id', true)
+      .maybeSingle()
+    if (tokenError || !tokenRow) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'No hay token de TikTok guardado — revisar refrescar-token-tiktok.' }),
+        { status: 200, headers: jsonHeaders },
+      )
+    }
+    try {
+      const estado = await consultarEstadoPublicacion(publishId, { accessToken: tokenRow.access_token })
+      return new Response(
+        JSON.stringify({ ok: true, status: estado.status, fail_reason: estado.failReason }),
         { status: 200, headers: jsonHeaders },
       )
     } catch (e) {
@@ -295,10 +331,23 @@ Deno.serve(async (req: Request) => {
         brandOrganicToggle: Boolean(tk.brand_organic_toggle),
         auditoriaAprobada: tiktokAuditoriaAprobada(),
       }
+      // timestamp_inicio/timestamp_fin son los cortes del clip sobre el video
+      // original (ver pipeline/publicar.py) — su diferencia es la duración
+      // real del archivo que se está por subir.
+      const duracionSeg = Number(reclamada.timestamp_fin) - Number(reclamada.timestamp_inicio)
+      if (!Number.isFinite(duracionSeg) || duracionSeg <= 0) {
+        // No confiar en el chequeo de duración de publicarTiktok si no hay con
+        // qué compararlo: sin esto, un timestamp_inicio/fin faltante daría
+        // NaN y el chequeo del punto 1.c se saltearía en silencio.
+        throw new Error(
+          `No se pudo calcular la duración del clip (timestamp_inicio=${reclamada.timestamp_inicio}, timestamp_fin=${reclamada.timestamp_fin}) — no se puede validar contra el máximo de TikTok.`,
+        )
+      }
       const publishId = await publicarTiktok(
         reclamada.video_url,
         { accessToken: tiktokTokenRow.access_token },
         opciones,
+        duracionSeg,
       )
       actualizacion.tiktok_publish_id = publishId
     } catch (e) {

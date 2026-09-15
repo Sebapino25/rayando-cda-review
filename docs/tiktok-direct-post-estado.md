@@ -1,6 +1,6 @@
 # TikTok Direct Post — estado y pasos pendientes
 
-_Última actualización: 30/08/2026._
+_Última actualización: 09/09/2026._
 
 Contexto completo: sección `## TikTok` de [`pipeline/README.md`](../pipeline/README.md).
 Plan de implementación: `~/.claude/plans/stateful-wiggling-kay.md`.
@@ -9,8 +9,58 @@ Plan de implementación: `~/.claude/plans/stateful-wiggling-kay.md`.
 
 Retomar la **publicación automática a TikTok**. Hoy los clips se suben a mano
 (botones "Descargar clip" / "Descargar portada" en la app). El bloqueo es la
-**auditoría de Direct Post de TikTok**, que nunca se envió, y que revisa la UX
-de publicación de la app.
+**auditoría de Direct Post de TikTok**, que revisa la UX de publicación de la
+app.
+
+## Rechazo del 08/09/2026 (referencia `20260831034842`) — causa y corrección
+
+La auditoría enviada el 30/08 (ver más abajo) fue rechazada. El texto de
+TikTok (visible en `developers.tiktok.com` → Notifications, y en el tooltip
+del botón "Reapply" de la fila Direct Post) es genérico:
+
+> Your application did not follow our UX Guidelines. Please refer to point
+> No. 1 & 5 under 'Required UX Implementation in Your App' in the Content
+> Sharing Guidelines. The ending must show that had been post under TikTok.
+
+Comparando esos dos puntos (con sus sub-incisos a–e) contra el código, había
+**gaps reales de implementación**, no solo de la demo grabada:
+
+| Punto | Requisito | Estado antes del 09/09 |
+|---|---|---|
+| 1a | Mostrar nickname/username del creador | ✅ ya cumplía |
+| 1b | Si `creator_info`/el intento de post indica que se llegó al límite de posteo, cancelar y avisar "reintentá más tarde" | ❌ sin manejo |
+| 1c | Validar la duración del clip contra `max_video_post_duration_sec` antes de postear | ❌ el dato se pedía pero nunca se comparaba |
+| 5a | Preview de qué se va a publicar | ❌ el panel no mostraba el video |
+| 5b | Sin marca de agua propia, texto editable | ✅ ya cumplía |
+| 5c | Consentimiento explícito antes de subir | ✅ ya cumplía (PIN + botón) |
+| 5d | Avisar que el procesamiento puede tardar varios minutos | ❌ sin ese texto |
+| 5e | Usar `publish/status/fetch` para monitorear el estado real del post | ❌ el código asumía éxito apenas terminaba la subida |
+
+**Corregido el 09/09/2026:**
+
+| Archivo | Cambio |
+|---|---|
+| `supabase/functions/publicar-clip/tiktok.ts` | `publicarTiktok` ahora recibe `videoDurationSec` y lanza error si excede `max_video_post_duration_sec` de `creator_info` (1c), antes de descargar/subir nada. El `init` reconoce los códigos de error de límite de posteo (`spam_risk_too_many_posts`, `spam_risk_too_many_pending_share`, `rate_limit_exceeded`) y da un mensaje de "reintentá más tarde" en vez de un error genérico (1b). Nueva `consultarEstadoPublicacion` que llama `POST /v2/post/publish/status/fetch/` (5e). |
+| `supabase/functions/publicar-clip/index.ts` | Calcula la duración real del clip (`timestamp_fin - timestamp_inicio`) y se la pasa a `publicarTiktok`. Nueva acción `tiktok_publish_status` (sin PIN, solo lectura) que la app usa para hacer polling del estado. |
+| `app/src/components/TikTokPublishPanel.jsx` | Muestra el `<video>` del clip antes de publicar (5a). Si la duración excede el máximo de la cuenta, avisa y saltea TikTok automáticamente (publica igual en YouTube/Instagram) en vez de bloquear todo. Agrega el texto "TikTok puede tardar unos minutos en procesar..." (5d). |
+| `app/src/components/TikTokStatusBadge.jsx` | **Nuevo.** Hace polling de `tiktok_publish_status` cada 5s (hasta 10 min) y muestra "procesando" / "publicado" / "falló (motivo)" en la tarjeta del clip publicado (5e). |
+
+Tests nuevos en `tiktok_test.ts`: duración excedida, duración justo en el
+límite (no lanza), mensaje de "reintentá más tarde" ante los códigos de
+límite, y 3 tests de `consultarEstadoPublicacion`. **No se pudo correr `deno
+test` en el entorno donde se escribió esto** (no hay `deno` instalado) —
+correrlo antes de deployar.
+
+**Pendiente para reenviar:**
+1. Deployar `publicar-clip` (CLI + legacy token, ver paso 1 más abajo).
+2. Regrabar el **tramo 2** de la demo (flujo de publicación): ahora tiene que
+   mostrarse el preview del video, y si corresponde, el aviso de tiempo de
+   procesamiento.
+3. Grabar un **tramo nuevo** mostrando el badge de estado pasando de
+   "procesando" a "publicado" en la tarjeta del clip — esto es lo que
+   responde directamente a "the ending must show that had been post under
+   TikTok".
+4. Reenviar con "Reapply" (mismo wizard que "Apply", ver paso 5 más abajo).
 
 ## Qué se hizo el 28/08/2026 (commit `422cfc2`)
 
