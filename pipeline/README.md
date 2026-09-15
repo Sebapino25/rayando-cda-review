@@ -291,10 +291,7 @@ qué IDs de Supabase.
    saltarse RLS). Las variables de YouTube (`YOUTUBE_CLIENT_ID`/
    `YOUTUBE_CLIENT_SECRET`) ya quedaron completadas a partir del
    `client_secret_*.json` que ya tenías descargado de Google Cloud Console.
-   También completa `RESEND_API_KEY` (dashboard de Resend) — sin ella, el
-   disparador automático (ver sección "Disparador automático" más abajo) no
-   puede mandar los mails de aviso/error; el resto de las variables está
-   documentado en `.env.example`.
+   El resto de las variables está documentado en `.env.example`.
 4. `pip install -r requirements.txt` (agrega `python-dotenv`,
    `google-api-python-client`, `google-auth-oauthlib` y `supabase`).
 5. La **primera vez** que cortes y subas un clip, se abrirá el navegador para
@@ -334,16 +331,15 @@ intervalo real se lee de la tarea misma, así que re-registrar la tarea
 la cola tranquila, un pedido nuevo del equipo puede tardar hasta 30 min en
 procesarse (y la grabación semanal, hasta 30 min en detectarse la primera
 vez al abrir la ventana del martes — después baja a 5 min sola). Si hubo
-trabajo real pero no se pudo devolver el intervalo a 5 min, llega un mail a
-`seba.pino.v@gmail.com`.
+trabajo real pero no se pudo devolver el intervalo a 5 min, queda registrado
+en `pipeline\logs_auto\auto_procesar_errores.log`.
 
-**Notificaciones por mail (vía Resend):**
-- Al terminar bien: aviso a todo el equipo (`seba.pino.v@gmail.com`,
-  `Cristian.fajardoc@gmail.com`, `arriagada.rene@gmail.com`) con el link a
-  la app para revisar los clips nuevos.
-- Si falla: aviso solo a `seba.pino.v@gmail.com`, con las últimas líneas
-  del log de esa corrida incluidas en el mail. El log completo queda en
-  `pipeline\logs_auto\<nombre-grabación>.log`.
+**Registro de actividad (sin mail):** cada corrida deja rastro en
+`pipeline\logs_auto\`. Los resultados (éxito o error) de cada paso quedan en
+`loop.log` / `auto_procesar_errores.log`, y el detalle completo de cada
+procesamiento en `<nombre-grabación>.log`, `correccion_video.log`,
+`correccion_subtitulos.log` y `limpiar_clips.log`. No hay notificación por
+mail — hay que entrar a esos logs (o a la app) para ver si hubo novedades.
 
 **Corrección automática de video:** además de procesar grabaciones
 nuevas, cada corrida también revisa si hay algún clip en
@@ -357,20 +353,17 @@ técnico más adelante (ffmpeg, validación, YouTube, Storage o el update de
 Supabase), el clip se **restaura automáticamente a su versión anterior**
 deshaciendo el respaldo `vN\`, para que la carpeta siga siendo
 correlacionable y el siguiente intento reporte el error real. En los dos
-casos el clip queda en `estado='correccion_video'` y llega un mail solo a
-`seba.pino.v@gmail.com` con el detalle. Si sale bien, el clip vuelve a
-`estado='pendiente'` y el equipo recibe el mismo tipo de aviso que al
-terminar de procesar una grabación nueva.
+casos el clip queda en `estado='correccion_video'` y el detalle queda en
+`pipeline\logs_auto\auto_procesar_errores.log`. Si sale bien, el clip vuelve
+a `estado='pendiente'` y queda anotado en `loop.log`.
 
 **Un pedido que falla no se reintenta solo.** Después de un intento
 fallido queda un marcador en
 `pipeline\logs_auto\correccion_video_fallos.log` (clip id + hash de
 `comentarios_video`), y las corridas automáticas saltean esa fila mientras
 el texto del pedido no cambie. Así una sola fila trabada no gasta una
-llamada a la API de Anthropic con la transcripción completa ni manda un
-mail cada 5 minutos (Resend corta alrededor de 100 mails diarios en el
-plan gratis, y pasado ese límite se perderían **todas** las alertas del
-pipeline), y tampoco bloquea a los demás pedidos pendientes. Para
+llamada a la API de Anthropic con la transcripción completa en cada corrida
+de 5 minutos, y tampoco bloquea a los demás pedidos pendientes. Para
 destrabarlo: editá `comentarios_video` en la app (el hash cambia y se
 reintenta solo), o forzá el reintento a mano con
 
