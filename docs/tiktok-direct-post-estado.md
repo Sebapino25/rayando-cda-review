@@ -1,9 +1,60 @@
 # TikTok Direct Post — estado y pasos pendientes
 
-_Última actualización: 09/09/2026._
+_Última actualización: 21/09/2026._
 
 Contexto completo: sección `## TikTok` de [`pipeline/README.md`](../pipeline/README.md).
 Plan de implementación: `~/.claude/plans/stateful-wiggling-kay.md`.
+
+## Sesión 21/09/2026 — hallazgo real: el frontend nunca se había desplegado
+
+Se intentó regrabar la demo (tramos 2, 3 y 4) para reenviar. Hallazgos y avances reales:
+
+- **El fix del 09/09 (commit `4fdf389`) nunca llegó a producción.** Estaba commiteado en
+  local pero nunca se hizo `git push` — quedaron 2 commits (`4fdf389` +
+  `f652b67`) sin subir a `origin/main`. Como el workflow de GitHub Pages
+  (`.github/workflows/deploy.yml`) solo corre sobre push real, el sitio en
+  `sebapino25.github.io/rayando-cda-review/` seguía sirviendo el build del
+  28/08 — sin preview de video, sin aviso de "puede tardar unos minutos", sin
+  `TikTokStatusBadge`. Se hizo `git push` (17:33) y el deploy corrió y terminó
+  ok (confirmado con `gh run list`) — **el frontend corregido recién quedó
+  público hoy, no el 09/09.**
+- **Token de Instagram vencido, renovado.** A mitad de una prueba de
+  publicación real, el token de `rayando_cda.instagram_token` falló ("se
+  acabó la API"). Se generó uno nuevo desde `developers.facebook.com` → app
+  **"Rayando el CDA"** (no confundir con la app nueva de Agencia del Barrio)
+  → Casos de uso → API de Instagram → **"Configuración de la API con inicio
+  de sesión de Instagram"** (⚠️ no la de "...con Facebook") → sección
+  "Generar tokens de acceso" → cuenta `rayandoelcda` (ID
+  `17841472353468522`) → botón "Generar token" (abre un popup fuera del
+  navegador controlado, el login lo hace Seba a mano). Token verificado con
+  `curl https://graph.instagram.com/me?fields=user_id,username&access_token=...`
+  antes de guardarlo con `update rayando_cda.instagram_token set
+  access_token=..., vence_en=now()+interval '60 days'`. Vence 20/11/2026.
+- **2 publicaciones reales de prueba** (privadas en TikTok, **públicas e
+  irreversibles en YouTube/Instagram**): clip "La doble vara con Bielsa que
+  nadie se atreve a decir" (con el frontend viejo, antes del deploy — no
+  sirve como evidencia del fix) y clip "Dónde vieron el título: cada uno
+  tiene su historia" (con el frontend corregido ya desplegado — este sí
+  mostró el preview del video, el aviso de procesamiento, y el
+  `TikTokStatusBadge` pasando a "TikTok: publicado". **Este es el que había
+  que grabar.**)
+- **La grabación de la toma buena se perdió.** Xbox Game Bar (`Win`+`Alt`+`R`)
+  grabó la ventana que tenía el foco en ese momento — que era la terminal de
+  Claude Code, no Chrome — dos veces seguidas (intento con el clip "La doble
+  vara" antes del fix de Instagram, y el intento bueno con el clip "Dónde
+  vieron el título" después del deploy). Las únicas grabaciones de navegador
+  reales que quedaron son: una del clip "La doble vara" ya publicado pero
+  **con el panel viejo** (no sirve, no muestra preview/aviso/badge), y el
+  tramo 3 (resultado en el perfil, ese sí generico y reutilizable). **Antes
+  de regrabar: confirmar con un clic en la ventana de Chrome que Game Bar
+  está capturando el navegador, no el terminal.**
+- `PUBLICAR_TIKTOK` quedó de vuelta en `false` al cerrar la sesión (kill-switch
+  seguro, como siempre entre pruebas).
+- **Pendiente real, pospuesto a mañana:** regrabar tramos 2 y 4 (el panel
+  corregido + el badge de estado) con un clip nuevo — el clip "Dónde vieron
+  el título" ya quedó público en YouTube/Instagram esta sesión, no se puede
+  reusar para una demo "antes de publicar". Tramos 1 y 3 pueden reusarse tal
+  cual (1: el del 17/08 ya guardado; 3: el de hoy, genérico).
 
 ## Objetivo
 
@@ -51,15 +102,18 @@ límite, y 3 tests de `consultarEstadoPublicacion`. **No se pudo correr `deno
 test` en el entorno donde se escribió esto** (no hay `deno` instalado) —
 correrlo antes de deployar.
 
-**Pendiente para reenviar:**
-1. Deployar `publicar-clip` (CLI + legacy token, ver paso 1 más abajo).
-2. Regrabar el **tramo 2** de la demo (flujo de publicación): ahora tiene que
-   mostrarse el preview del video, y si corresponde, el aviso de tiempo de
-   procesamiento.
-3. Grabar un **tramo nuevo** mostrando el badge de estado pasando de
-   "procesando" a "publicado" en la tarjeta del clip — esto es lo que
-   responde directamente a "the ending must show that had been post under
-   TikTok".
+**Pendiente para reenviar (actualizado 21/09/2026):**
+1. ~~Deployar `publicar-clip`~~ — ✅ hecho, v31 en producción (confirmado).
+   ~~Deployar el frontend~~ — ✅ hecho recién hoy (ver sesión 21/09 arriba;
+   antes de hoy seguía corriendo el build del 28/08 pese a estar commiteado
+   desde el 09/09).
+2. **Regrabar el tramo 2 y el tramo 4** (flujo + badge de estado) — el panel
+   corregido ya está confirmado funcionando en producción (probado en vivo
+   hoy con el clip "Dónde vieron el título"), pero la grabación se perdió
+   (Game Bar capturó el terminal). Repetir con OTRO clip nuevo, confirmando
+   antes que la grabación apunta a la ventana de Chrome.
+3. Tramos 1 (OAuth, del 17/08) y 3 (resultado en el perfil, grabado hoy)
+   están listos, no hace falta regrabarlos.
 4. Reenviar con "Reapply" (mismo wizard que "Apply", ver paso 5 más abajo).
 
 ## Qué se hizo el 28/08/2026 (commit `422cfc2`)
