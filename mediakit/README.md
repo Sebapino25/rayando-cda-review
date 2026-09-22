@@ -100,6 +100,7 @@ Claude Code para que corra el `update`, o pegar el SQL directo en Supabase.
 | Vistas totales YT | `yt_vistas_historicas` | YouTube Studio > todo el tiempo |
 | Vistas YT 28/30d | `yt_vistas_30d` | YouTube Studio > últimos 28 días |
 | Seguidores Facebook | `fb_seguidores` | Meta Business Suite > Público > Datos demográficos |
+| Vistas Facebook 28d | `fb_vistas_28d` | Meta Business Suite > Resumen > últimos 28 días |
 | Vistas Facebook 90d | `fb_vistas_90d` | Meta Business Suite > Resultados > últimos 90 días |
 | Espectadores Facebook 90d | `fb_espectadores_90d` | Meta Business Suite > Resultados > últimos 90 días |
 | Interacciones Facebook 90d | `fb_interacciones_90d` | Meta Business Suite > Resultados > últimos 90 días |
@@ -115,21 +116,32 @@ video más visto" sino "vistas de la cuenta en 30 días" (se corrigió el campo
 sin renombrar la columna, ver el plan del subsistema). La etiqueta en la
 página dice lo correcto.
 
-Facebook se agregó el 22/09/2026 (página recién abierta). Tres decisiones a
-propósito, para que una próxima actualización no las deshaga sin querer:
+Facebook se agregó el 22/09/2026 (página recién abierta), y `fb_vistas_28d`
+un rato después el mismo día (Seba notó que el hero seguía sin subir).
+Decisiones a propósito, para que una próxima actualización no las deshaga
+sin querer:
 
-- **`fb_vistas_90d` NO entra en el hero "alcance 30 días"** (IG+TikTok+
-  YouTube, `heroTotal` en `app.js`). Facebook solo tiene ventana de 90 días
-  en Meta Business Suite, no 30 — sumarlo mezclaría ventanas de tiempo
-  distintas en un mismo total.
-- **Ni `fb_seguidores` ni `fb_vistas_90d` entran en los 2 sparklines
-  combinados de `#evolucion`** (`cargarEvolucion()` en `app.js`). Esa suma
-  usa `?? 0` para no descartar todo el gráfico si una plataforma falla, así
-  que si se le agregara Facebook, todos los snapshots históricos (que no
-  tienen esas columnas) se leerían como 0 y el primer snapshot real de
-  Facebook se vería como un salto de crecimiento falso. Facebook tiene sus
-  propios 3 gráficos nuevos en `dashboard/` (uso interno), que van a
-  arrancar cortos igual que pasó con `yt_vistas_30d`.
+- **`fb_vistas_28d` SÍ entra en el hero "alcance 30 días"** (`heroTotal` en
+  `app.js`), pero **`fb_vistas_90d` NO**. Meta Business Suite tiene dos
+  paneles con ventanas distintas para Facebook: "Resumen" (28 días,
+  comparable con `ig_vistas_30d`/`tiktok_video_top_vistas`/`yt_vistas_30d`)
+  y "Resultados" (90 días, el que se usa para `fb_interacciones_90d`, igual
+  criterio que `ig_interacciones_90d`). Sumar la de 90 días al hero de 30
+  días mezclaría ventanas de tiempo distintas en un mismo total — la de 28
+  días no tiene ese problema.
+- **Ni `fb_seguidores` ni ningún campo de Facebook entran en los 2
+  sparklines combinados de `#evolucion`** (`cargarEvolucion()` en
+  `app.js`), aunque `fb_vistas_28d` ya tenga la ventana correcta para
+  hacerlo. La razón acá no es la ventana de tiempo sino el historial: esa
+  suma usa `?? 0` para no descartar todo el gráfico si una plataforma
+  falla, así que si se le agregara Facebook, todos los snapshots
+  anteriores al 22/09/2026 (que no tienen esas columnas) se leerían como 0
+  y el primer snapshot real de Facebook se vería como un salto de
+  crecimiento falso. Facebook tiene sus propios 4 gráficos nuevos en
+  `dashboard/` (uso interno, incluyendo `fb_vistas_28d`), que van a
+  arrancar cortos igual que pasó con `yt_vistas_30d` — una vez que haya
+  varias semanas de historial real, ahí sí se podría sumar al combinado
+  público sin el salto falso.
 - El **`recordatorio-stats-mediakit`** (mail de los lunes) todavía no pide
   los campos de Facebook ni los % de no-seguidores — sigue con los 9
   campos originales (`CAMPOS_MANUALES` en

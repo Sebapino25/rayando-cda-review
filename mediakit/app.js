@@ -54,10 +54,14 @@ async function cargarStats() {
     // pared de guiones a la marca que está mirando la página.
     if (!stats) return
 
-    // El total del hero sí usa `?? 0`: es una suma de 3 campos, y si uno
+    // El total del hero sí usa `?? 0`: es una suma de 4 campos, y si uno
     // solo viene NULL (plataforma caída) preferimos un total parcial en
     // vivo antes que descartar todo el hero y mostrar el snapshot viejo.
-    const heroTotal = (stats.ig_vistas_30d ?? 0) + (stats.tiktok_video_top_vistas ?? 0) + (stats.yt_vistas_30d ?? 0)
+    // fb_vistas_28d entró el 22/09/2026 (no fb_vistas_90d): es la única
+    // vista de Facebook con una ventana comparable a los otros 3 campos
+    // (~28-30 días) — sumar la de 90 días acá mezclaría ventanas de tiempo
+    // distintas en un solo total (ver mediakit/README.md).
+    const heroTotal = (stats.ig_vistas_30d ?? 0) + (stats.tiktok_video_top_vistas ?? 0) + (stats.yt_vistas_30d ?? 0) + (stats.fb_vistas_28d ?? 0)
     setText('stat-hero-vistas', fmt.format(heroTotal))
 
     // Costo por 1.000 vistas del plan Presencia, recalculado del alcance
@@ -87,7 +91,7 @@ async function cargarStats() {
     // historial combinado crearía un salto falso en el sparkline el día
     // que se activó (ver mediakit/README.md).
     setStatSiEsNumero('stat-fb-seguidores', stats.fb_seguidores)
-    setStatSiEsNumero('stat-fb-vistas', stats.fb_vistas_90d)
+    setStatSiEsNumero('stat-fb-vistas', stats.fb_vistas_28d)
     setStatSiEsNumero('stat-fb-interacciones', stats.fb_interacciones_90d)
     setStatSiEsNumero('stat-fb-hombres', stats.fb_hombres_pct)
     setStatSiEsNumero('stat-fb-fuera-santiago', stats.fb_fuera_santiago_pct)

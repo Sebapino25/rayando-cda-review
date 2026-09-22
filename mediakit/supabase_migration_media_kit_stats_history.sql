@@ -24,6 +24,11 @@ create table if not exists rayando_cda.media_kit_stats_history (
 alter table rayando_cda.media_kit_stats_history add column if not exists fb_seguidores numeric;
 alter table rayando_cda.media_kit_stats_history add column if not exists fb_vistas_90d numeric;
 alter table rayando_cda.media_kit_stats_history add column if not exists fb_interacciones_90d numeric;
+-- fb_vistas_28d entra al historial (a diferencia de fb_vistas_90d) porque
+-- desde el 22/09/2026 SÍ se suma al hero de 30 días y por lo tanto podría
+-- graficarse junto al resto de "Cómo venimos creciendo" el día que se
+-- decida incluirla ahí (ver mediakit/README.md).
+alter table rayando_cda.media_kit_stats_history add column if not exists fb_vistas_28d numeric;
 
 grant select on table rayando_cda.media_kit_stats_history to anon;
 grant all on table rayando_cda.media_kit_stats_history to service_role;
@@ -53,12 +58,12 @@ begin
     ig_seguidores, ig_vistas_30d, ig_interacciones_90d,
     tiktok_seguidores, tiktok_likes, tiktok_video_top_vistas,
     yt_suscriptores, yt_vistas_historicas, yt_vistas_30d, programas_emitidos,
-    fb_seguidores, fb_vistas_90d, fb_interacciones_90d
+    fb_seguidores, fb_vistas_90d, fb_interacciones_90d, fb_vistas_28d
   ) values (
     new.ig_seguidores, new.ig_vistas_30d, new.ig_interacciones_90d,
     new.tiktok_seguidores, new.tiktok_likes, new.tiktok_video_top_vistas,
     new.yt_suscriptores, new.yt_vistas_historicas, new.yt_vistas_30d, new.programas_emitidos,
-    new.fb_seguidores, new.fb_vistas_90d, new.fb_interacciones_90d
+    new.fb_seguidores, new.fb_vistas_90d, new.fb_interacciones_90d, new.fb_vistas_28d
   );
   return new;
 end;

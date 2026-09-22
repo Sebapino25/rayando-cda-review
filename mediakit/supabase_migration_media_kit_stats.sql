@@ -54,6 +54,12 @@ alter table rayando_cda.media_kit_stats add column if not exists audiencia_fuera
 -- audiencia_fuera_santiago_pct pero para Facebook, no para IG.
 alter table rayando_cda.media_kit_stats add column if not exists fb_seguidores numeric;
 alter table rayando_cda.media_kit_stats add column if not exists fb_vistas_90d numeric;
+-- fb_vistas_28d se agregó el 22/09/2026, un rato después que el resto de
+-- las columnas de Facebook: Meta Business Suite sí tiene una vista de 28
+-- días (panel "Resumen"), comparable con ig_vistas_30d/tiktok_video_top_vistas/
+-- yt_vistas_30d — a diferencia de fb_vistas_90d (panel "Resultados"), que
+-- por eso NO entra al hero de 30 días (ver más abajo).
+alter table rayando_cda.media_kit_stats add column if not exists fb_vistas_28d numeric;
 alter table rayando_cda.media_kit_stats add column if not exists fb_espectadores_90d numeric;
 alter table rayando_cda.media_kit_stats add column if not exists fb_interacciones_90d numeric;
 alter table rayando_cda.media_kit_stats add column if not exists fb_actualizado_en timestamptz;
