@@ -55,8 +55,8 @@ async function cargarDashboard() {
         v: campos.reduce((acc, c) => acc + (f[c] ?? 0), 0),
       }))
 
-    dibujar('chart-alcance', 'growth-alcance', serieCombinada('ig_vistas_30d', 'tiktok_video_top_vistas', 'yt_vistas_30d'))
-    dibujar('chart-audiencia', 'growth-audiencia', serieCombinada('ig_seguidores', 'tiktok_seguidores', 'yt_suscriptores'))
+    dibujar('chart-alcance', 'growth-alcance', serieCombinada('ig_vistas_30d', 'tiktok_video_top_vistas', 'yt_vistas_30d', 'fb_vistas_28d'))
+    dibujar('chart-audiencia', 'growth-audiencia', serieCombinada('ig_seguidores', 'tiktok_seguidores', 'yt_suscriptores', 'fb_seguidores'))
 
     dibujar('chart-ig-seguidores', 'growth-ig-seguidores', serie('ig_seguidores'))
     dibujar('chart-ig-vistas', 'growth-ig-vistas', serie('ig_vistas_30d'))

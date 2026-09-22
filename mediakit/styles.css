@@ -293,6 +293,7 @@ p { max-width: 68ch; }
   font-size: 15px;
   margin-top: 6px;
 }
+.evolution-note { font-size: 12.5px; color: #6B6653; margin: 10px 0 0; }
 
 /* ---------- Callout (no vendemos seguidores) ---------- */
 .callout {

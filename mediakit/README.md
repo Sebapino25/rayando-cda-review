@@ -129,19 +129,19 @@ sin querer:
   criterio que `ig_interacciones_90d`). Sumar la de 90 días al hero de 30
   días mezclaría ventanas de tiempo distintas en un mismo total — la de 28
   días no tiene ese problema.
-- **Ni `fb_seguidores` ni ningún campo de Facebook entran en los 2
-  sparklines combinados de `#evolucion`** (`cargarEvolucion()` en
-  `app.js`), aunque `fb_vistas_28d` ya tenga la ventana correcta para
-  hacerlo. La razón acá no es la ventana de tiempo sino el historial: esa
-  suma usa `?? 0` para no descartar todo el gráfico si una plataforma
-  falla, así que si se le agregara Facebook, todos los snapshots
-  anteriores al 22/09/2026 (que no tienen esas columnas) se leerían como 0
-  y el primer snapshot real de Facebook se vería como un salto de
-  crecimiento falso. Facebook tiene sus propios 4 gráficos nuevos en
-  `dashboard/` (uso interno, incluyendo `fb_vistas_28d`), que van a
-  arrancar cortos igual que pasó con `yt_vistas_30d` — una vez que haya
-  varias semanas de historial real, ahí sí se podría sumar al combinado
-  público sin el salto falso.
+- **`fb_vistas_28d` y `fb_seguidores` SÍ entran en los 2 sparklines
+  combinados de `#evolucion`** (`cargarEvolucion()` en `app.js`, y su
+  espejo en `dashboard/app.js`) desde el 22/09/2026 — decisión explícita
+  de Seba, no un descuido. Los snapshots anteriores a esa fecha no tienen
+  esas columnas, así que `?? 0` los deja en el total de las 3 plataformas
+  de siempre, y el 22/09 aparece un salto real en las dos curvas: no es
+  que Instagram/TikTok/YouTube crecieron de golpe, es que se sumó una
+  plataforma nueva. **Por eso el salto va siempre acompañado de una
+  aclaración** — `.evolution-note` bajo los 2 gráficos en `index.html` —
+  para que no se lea como un crecimiento orgánico inflado. Si se
+  reescribe esa sección en algún momento, mantener la aclaración
+  (o una equivalente) es lo que hace que el salto sea honesto en vez de
+  engañoso.
 - El **`recordatorio-stats-mediakit`** (mail de los lunes) todavía no pide
   los campos de Facebook ni los % de no-seguidores — sigue con los 9
   campos originales (`CAMPOS_MANUALES` en

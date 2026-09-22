@@ -127,7 +127,7 @@ async function cargarStats() {
 async function cargarEvolucion() {
   try {
     const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/media_kit_stats_history?select=snapshot_en,ig_vistas_30d,tiktok_video_top_vistas,yt_vistas_30d,ig_seguidores,tiktok_seguidores,yt_suscriptores&order=snapshot_en.asc`,
+      `${SUPABASE_URL}/rest/v1/media_kit_stats_history?select=snapshot_en,ig_vistas_30d,tiktok_video_top_vistas,yt_vistas_30d,ig_seguidores,tiktok_seguidores,yt_suscriptores,fb_vistas_28d,fb_seguidores&order=snapshot_en.asc`,
       {
         headers: {
           apikey: SUPABASE_ANON_KEY,
@@ -140,13 +140,20 @@ async function cargarEvolucion() {
     const filas = await resp.json()
     if (!Array.isArray(filas) || filas.length < 2) return
 
+    // Desde el 22/09/2026 estas 2 series suman Facebook (fb_vistas_28d,
+    // fb_seguidores). Los snapshots anteriores a esa fecha no tienen esas
+    // columnas, así que `?? 0` los deja en el total de las 3 plataformas de
+    // siempre — el salto real que aparece en el gráfico ese día es la nueva
+    // plataforma sumándose, no que IG/TikTok/YouTube crecieron de golpe. Se
+    // avisa con `.evolution-note` en index.html para que no se lea como un
+    // salto raro sin explicación.
     const puntosAlcance = filas.map((f) => ({
       t: new Date(f.snapshot_en),
-      v: (f.ig_vistas_30d ?? 0) + (f.tiktok_video_top_vistas ?? 0) + (f.yt_vistas_30d ?? 0),
+      v: (f.ig_vistas_30d ?? 0) + (f.tiktok_video_top_vistas ?? 0) + (f.yt_vistas_30d ?? 0) + (f.fb_vistas_28d ?? 0),
     }))
     const puntosAudiencia = filas.map((f) => ({
       t: new Date(f.snapshot_en),
-      v: (f.ig_seguidores ?? 0) + (f.tiktok_seguidores ?? 0) + (f.yt_suscriptores ?? 0),
+      v: (f.ig_seguidores ?? 0) + (f.tiktok_seguidores ?? 0) + (f.yt_suscriptores ?? 0) + (f.fb_seguidores ?? 0),
     }))
 
     const okAlcance = dibujarEvolucion('chart-alcance', 'growth-alcance', puntosAlcance)
