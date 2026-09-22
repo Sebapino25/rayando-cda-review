@@ -216,7 +216,7 @@ p { max-width: 68ch; }
 .gallery-card figcaption span { font-size: 13px; color: #524D3C; }
 
 /* ---------- Plataformas ---------- */
-.platform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 18px 0; }
+.platform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 18px 0; }
 @media (max-width: 640px) { .platform-grid { grid-template-columns: 1fr; } }
 .platform-card {
   background: #fff;
@@ -268,6 +268,14 @@ p { max-width: 68ch; }
 .platform-card .metric { font-family: var(--font-mono); font-weight: 700; font-size: 24px; color: var(--navy); }
 .platform-card .metric-label { font-size: 12px; color: #6B6653; margin-bottom: 10px; }
 
+/* ---------- Contenido que ya funcionó (top posts por plataforma) ---------- */
+.top-content-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0; }
+.top-content-card { background: #fff; border: 1px solid #DDD6C2; border-radius: 10px; padding: 18px; }
+.top-content-card h3 { margin: 0 0 12px; font-family: var(--font-display); font-weight: 800; font-size: 16px; color: var(--navy); }
+.top-content-card ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.top-content-card li { font-size: 13px; color: #524D3C; }
+.tc-views { display: block; font-family: var(--font-mono); font-weight: 700; font-size: 18px; color: var(--red); }
+
 /* ---------- Evolución (sparklines) ---------- */
 .evolution-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
 @media (max-width: 640px) { .evolution-grid { grid-template-columns: 1fr; } }
@@ -296,6 +304,17 @@ p { max-width: 68ch; }
 }
 .callout .big-number { font-family: var(--font-mono); font-weight: 700; color: var(--gold); font-size: 42px; }
 .callout blockquote { border-left: 3px solid var(--gold); margin: 16px 0 0; padding-left: 16px; font-style: italic; color: #E5ECFB; }
+.discovery-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+@media (max-width: 640px) { .discovery-stats { grid-template-columns: 1fr; } }
+.discovery-stats span { display: block; font-family: var(--font-mono); font-weight: 700; color: var(--gold); font-size: 26px; }
+.discovery-stats small { display: block; color: #D7E1F7; font-size: 12.5px; margin-top: 2px; }
 
 /* ---------- Captura de prueba (evidencia real, sin retocar) ---------- */
 .proof-grid {
@@ -347,6 +366,18 @@ p { max-width: 68ch; }
   margin: 18px 0 10px;
 }
 @media (max-width: 640px) { .audience-grid { grid-template-columns: 1fr; } }
+.audience-grid--compact { grid-template-columns: 1fr 1fr; margin-top: 12px; }
+@media (max-width: 640px) { .audience-grid--compact { grid-template-columns: 1fr; } }
+.audience-subhead {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #6B6653;
+  margin: 22px 0 0;
+}
+.audience-subhead:first-of-type { margin-top: 8px; }
 .audience-stat {
   background: #fff;
   border: 1px solid #DDD6C2;

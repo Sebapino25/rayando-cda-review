@@ -82,6 +82,20 @@ async function cargarStats() {
     setStatSiEsNumero('stat-audiencia-fuera-santiago', stats.audiencia_fuera_santiago_pct)
     setStatSiEsNumero('stat-audiencia-hombres-25-44', stats.audiencia_hombres_25_44_pct)
 
+    // Facebook (agregado 22/09/2026). No entra en heroTotal ni en
+    // cargarEvolucion(): sus números son a 90 días, no a 30, y sumarlo al
+    // historial combinado crearía un salto falso en el sparkline el día
+    // que se activó (ver mediakit/README.md).
+    setStatSiEsNumero('stat-fb-seguidores', stats.fb_seguidores)
+    setStatSiEsNumero('stat-fb-vistas', stats.fb_vistas_90d)
+    setStatSiEsNumero('stat-fb-interacciones', stats.fb_interacciones_90d)
+    setStatSiEsNumero('stat-fb-hombres', stats.fb_hombres_pct)
+    setStatSiEsNumero('stat-fb-fuera-santiago', stats.fb_fuera_santiago_pct)
+
+    setStatSiEsNumero('stat-ig-no-seguidores', stats.ig_no_seguidores_pct)
+    setStatSiEsNumero('stat-tiktok-para-ti', stats.tiktok_para_ti_pct)
+    setStatSiEsNumero('stat-fb-no-seguidores', stats.fb_no_seguidores_pct)
+
     if (
       typeof stats.ig_seguidores === 'number' && Number.isFinite(stats.ig_seguidores) && stats.ig_seguidores > 0 &&
       typeof stats.ig_vistas_30d === 'number' && Number.isFinite(stats.ig_vistas_30d)

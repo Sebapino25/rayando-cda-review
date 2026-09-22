@@ -45,6 +45,31 @@ alter table rayando_cda.media_kit_stats add column if not exists audiencia_hombr
 -- con su último valor bueno, igual que ig_alcance_90d.
 alter table rayando_cda.media_kit_stats add column if not exists audiencia_fuera_santiago_pct numeric;
 
+-- Facebook (agregado 22/09/2026, página recién abierta). Mismas ventanas
+-- de tiempo que ya usa IG: seguidores actuales sin ventana, 90 días para
+-- vistas/espectadores/interacciones (no 30 días — Meta Business Suite no
+-- da esa ventana para Facebook, y mezclarla con la de 30 días de IG/TikTok
+-- sería comparar cosas distintas). audiencia por plataforma: fb_hombres_pct
+-- y fb_fuera_santiago_pct son el equivalente de audiencia_hombres_pct /
+-- audiencia_fuera_santiago_pct pero para Facebook, no para IG.
+alter table rayando_cda.media_kit_stats add column if not exists fb_seguidores numeric;
+alter table rayando_cda.media_kit_stats add column if not exists fb_vistas_90d numeric;
+alter table rayando_cda.media_kit_stats add column if not exists fb_espectadores_90d numeric;
+alter table rayando_cda.media_kit_stats add column if not exists fb_interacciones_90d numeric;
+alter table rayando_cda.media_kit_stats add column if not exists fb_actualizado_en timestamptz;
+alter table rayando_cda.media_kit_stats add column if not exists fb_hombres_pct numeric;
+alter table rayando_cda.media_kit_stats add column if not exists fb_fuera_santiago_pct numeric;
+
+-- % de alcance a gente que no nos sigue, uno por plataforma (agregado
+-- 22/09/2026). No es un dato nuevo que juntar aparte: ya está visible en
+-- los mismos paneles que se fotografían cada semana (Instagram Insights
+-- 30d, "Fuente de tráfico" de TikTok Studio — ahí se lee como "Para ti" en
+-- vez de "no seguidores", pero mide lo mismo: alcance por afuera de la
+-- base de seguidores —, y el resumen de 28 días de Facebook).
+alter table rayando_cda.media_kit_stats add column if not exists ig_no_seguidores_pct numeric;
+alter table rayando_cda.media_kit_stats add column if not exists tiktok_para_ti_pct numeric;
+alter table rayando_cda.media_kit_stats add column if not exists fb_no_seguidores_pct numeric;
+
 grant all on table rayando_cda.media_kit_stats to service_role;
 grant select on table rayando_cda.media_kit_stats to anon;
 

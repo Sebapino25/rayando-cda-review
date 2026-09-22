@@ -91,12 +91,21 @@ Claude Code para que corra el `update`, o pegar el SQL directo en Supabase.
 | Seguidores IG | `ig_seguidores` | Instagram > Insights |
 | Vistas IG 30d | `ig_vistas_30d` | Instagram > Insights > últimos 30 días |
 | Interacciones IG 90d | `ig_interacciones_90d` | Instagram > Insights > últimos 90 días |
+| % no seguidores IG | `ig_no_seguidores_pct` | Instagram > Insights > últimos 30 días (breakdown de Visualizaciones) |
 | Seguidores TikTok | `tiktok_seguidores` | TikTok Studio > Analytics |
-| Likes TikTok | `tiktok_likes` | TikTok Studio > Analytics |
+| Likes TikTok | `tiktok_likes` | TikTok Studio > Analytics (perfil, "Me gusta" acumulado) |
 | Vistas TikTok 30d | `tiktok_video_top_vistas` | TikTok Studio > últimos 30 días |
+| % "Para ti" TikTok | `tiktok_para_ti_pct` | TikTok Studio > Estadísticas > Fuente de tráfico |
 | Suscriptores YT | `yt_suscriptores` | YouTube Studio |
 | Vistas totales YT | `yt_vistas_historicas` | YouTube Studio > todo el tiempo |
 | Vistas YT 28/30d | `yt_vistas_30d` | YouTube Studio > últimos 28 días |
+| Seguidores Facebook | `fb_seguidores` | Meta Business Suite > Público > Datos demográficos |
+| Vistas Facebook 90d | `fb_vistas_90d` | Meta Business Suite > Resultados > últimos 90 días |
+| Espectadores Facebook 90d | `fb_espectadores_90d` | Meta Business Suite > Resultados > últimos 90 días |
+| Interacciones Facebook 90d | `fb_interacciones_90d` | Meta Business Suite > Resultados > últimos 90 días |
+| % no seguidores Facebook | `fb_no_seguidores_pct` | Meta Business Suite > Resumen > últimos 28 días ("De no seguidores") |
+| % hombres Facebook | `fb_hombres_pct` | Meta Business Suite > Público > Datos demográficos ("Edad y sexo") |
+| % fuera de Santiago Facebook | `fb_fuera_santiago_pct` | Meta Business Suite > Público > Datos demográficos ("Principales ciudades") |
 
 `ig_alcance_90d` sigue existiendo en la tabla pero **ningún elemento del
 HTML lo muestra** (ver `app.js`) — no hace falta juntarlo.
@@ -105,6 +114,28 @@ Nombre engañoso, a propósito: `tiktok_video_top_vistas` ya no es "vistas del
 video más visto" sino "vistas de la cuenta en 30 días" (se corrigió el campo
 sin renombrar la columna, ver el plan del subsistema). La etiqueta en la
 página dice lo correcto.
+
+Facebook se agregó el 22/09/2026 (página recién abierta). Tres decisiones a
+propósito, para que una próxima actualización no las deshaga sin querer:
+
+- **`fb_vistas_90d` NO entra en el hero "alcance 30 días"** (IG+TikTok+
+  YouTube, `heroTotal` en `app.js`). Facebook solo tiene ventana de 90 días
+  en Meta Business Suite, no 30 — sumarlo mezclaría ventanas de tiempo
+  distintas en un mismo total.
+- **Ni `fb_seguidores` ni `fb_vistas_90d` entran en los 2 sparklines
+  combinados de `#evolucion`** (`cargarEvolucion()` en `app.js`). Esa suma
+  usa `?? 0` para no descartar todo el gráfico si una plataforma falla, así
+  que si se le agregara Facebook, todos los snapshots históricos (que no
+  tienen esas columnas) se leerían como 0 y el primer snapshot real de
+  Facebook se vería como un salto de crecimiento falso. Facebook tiene sus
+  propios 3 gráficos nuevos en `dashboard/` (uso interno), que van a
+  arrancar cortos igual que pasó con `yt_vistas_30d`.
+- El **`recordatorio-stats-mediakit`** (mail de los lunes) todavía no pide
+  los campos de Facebook ni los % de no-seguidores — sigue con los 9
+  campos originales (`CAMPOS_MANUALES` en
+  `supabase/functions/recordatorio-stats-mediakit/mensaje.ts`). Pendiente
+  de actualizar esa Edge Function; mientras tanto, estos campos se piden y
+  cargan a mano fuera del flujo del mail.
 
 ### Si un número queda atrasado
 

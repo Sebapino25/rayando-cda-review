@@ -17,6 +17,14 @@ create table if not exists rayando_cda.media_kit_stats_history (
     programas_emitidos integer
 );
 
+-- Facebook (agregado 22/09/2026): mismo trío que ya trackea IG (seguidores
+-- + alcance + interacciones), no las columnas de % ni de audiencia — esas
+-- no se grafican en ningún sparkline, igual que audiencia_hombres_pct
+-- tampoco está en este historial.
+alter table rayando_cda.media_kit_stats_history add column if not exists fb_seguidores numeric;
+alter table rayando_cda.media_kit_stats_history add column if not exists fb_vistas_90d numeric;
+alter table rayando_cda.media_kit_stats_history add column if not exists fb_interacciones_90d numeric;
+
 grant select on table rayando_cda.media_kit_stats_history to anon;
 grant all on table rayando_cda.media_kit_stats_history to service_role;
 
@@ -44,11 +52,13 @@ begin
   insert into rayando_cda.media_kit_stats_history (
     ig_seguidores, ig_vistas_30d, ig_interacciones_90d,
     tiktok_seguidores, tiktok_likes, tiktok_video_top_vistas,
-    yt_suscriptores, yt_vistas_historicas, yt_vistas_30d, programas_emitidos
+    yt_suscriptores, yt_vistas_historicas, yt_vistas_30d, programas_emitidos,
+    fb_seguidores, fb_vistas_90d, fb_interacciones_90d
   ) values (
     new.ig_seguidores, new.ig_vistas_30d, new.ig_interacciones_90d,
     new.tiktok_seguidores, new.tiktok_likes, new.tiktok_video_top_vistas,
-    new.yt_suscriptores, new.yt_vistas_historicas, new.yt_vistas_30d, new.programas_emitidos
+    new.yt_suscriptores, new.yt_vistas_historicas, new.yt_vistas_30d, new.programas_emitidos,
+    new.fb_seguidores, new.fb_vistas_90d, new.fb_interacciones_90d
   );
   return new;
 end;

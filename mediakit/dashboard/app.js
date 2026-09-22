@@ -70,6 +70,10 @@ async function cargarDashboard() {
     dibujar('chart-yt-vistas-historicas', 'growth-yt-vistas-historicas', serie('yt_vistas_historicas'))
     dibujar('chart-yt-vistas-30d', 'growth-yt-vistas-30d', serie('yt_vistas_30d'))
 
+    dibujar('chart-fb-seguidores', 'growth-fb-seguidores', serie('fb_seguidores'))
+    dibujar('chart-fb-vistas', 'growth-fb-vistas', serie('fb_vistas_90d'))
+    dibujar('chart-fb-interacciones', 'growth-fb-interacciones', serie('fb_interacciones_90d'))
+
     dibujar('chart-programas', 'growth-programas', serie('programas_emitidos'))
   } catch (err) {
     console.error('No se pudo cargar el dashboard:', err)
