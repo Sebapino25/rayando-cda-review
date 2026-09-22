@@ -204,9 +204,12 @@ años", decían "25 a 44 años" con números distintos (una es el cruce, la
 otra el marginal) y confundía a quien mira la página rápido. No hace falta
 seguir juntando este número.
 
-Última actualización: 2026-08-20. `audiencia_hombres_pct` (81%) y
-`audiencia_fuera_santiago_pct` (46%) salen del panel nativo de Meta
-Business Suite descrito arriba, sobre un total de 14.308 seguidoras/es de
+Última actualización: 2026-09-22. `audiencia_hombres_pct` (81%) y
+`audiencia_fuera_santiago_pct` (45%) salen del panel nativo de Meta
+Business Suite descrito arriba, sobre un total de 15.461 seguidoras/es de
 Instagram. `audiencia_hombres_25_44_pct` (54%, el cruzado) sigue congelado
 desde el 2026-07-31 con el último dato real de Windsor.ai — no se ha
-podido recalcular desde que venció el trial.
+podido recalcular desde que venció el trial: el gráfico "Edad y sexo" de
+Meta Business Suite muestra el cruce por barra (ver captura), pero leer un
+número preciso desde la altura de una barra es exactamente el "estimarlo a
+ojo" que este mismo párrafo dice evitar, así que se deja el valor viejo.
