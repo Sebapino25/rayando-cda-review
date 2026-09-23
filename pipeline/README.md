@@ -13,7 +13,7 @@ para revisión editorial — todo disparado solo cada 5 minutos (ver
 "Disparador automático" más abajo). Una vez que el equipo aprueba un clip en
 la app de revisión, el botón "Publicar en redes" lo publica de verdad en
 YouTube (público) e Instagram (Reels) vía Supabase Edge Functions, y si
-pide una corrección de in/out point, se re-corta solo con IA (ver
+pide una corrección de in/out point o de título interno, se rehace solo con IA (ver
 "Corrección automática de video" más abajo).
 
 Lo único pendiente es TikTok: el código de publicación ya está construido
@@ -343,12 +343,20 @@ mail — hay que entrar a esos logs (o a la app) para ver si hubo novedades.
 
 **Corrección automática de video:** además de procesar grabaciones
 nuevas, cada corrida también revisa si hay algún clip en
-`estado='correccion_video'` (pedido de ajustar el in/out point vía
-`comentarios_video` en la app de revisión) y, si lo hay, corre
-`reprocesar_video.py --apply --uno` para interpretarlo con IA y volver a
-cortar el clip solo. Si la IA no tiene confianza en el pedido, o no se
-puede encontrar la carpeta local del clip sin ambigüedad, aborta antes de
-tocar ningún archivo — nunca se adivina un corte. Y si falla un paso
+`estado='correccion_video'` (pedido vía `comentarios_video` en la app de
+revisión) y, si lo hay, corre `reprocesar_video.py --apply --uno` para
+interpretarlo con IA y rehacer el clip solo. Entiende dos tipos de pedido,
+combinables: ajustar el in/out point (re-corta desde la grabación) y
+cambiar el título interno, el texto grande quemado arriba del vertical y en
+la portada (ej. `Cambiar el título por "El país es anti U de Chile"`: no
+re-corta, solo re-quema vertical + portadas y guarda el título nuevo en la
+línea `**Portada:**` de `copys.md`, que es de donde lo leen los reprocesos
+siguientes). El título se usa literal: si el pedido no dice textualmente el
+título nuevo, no se inventa uno. Cualquier otro pedido (posición del
+título, logo, copy de redes, etc.) aborta para resolver a mano. Si la IA no
+tiene confianza en el pedido, o no se puede encontrar la carpeta local del
+clip sin ambigüedad, aborta antes de tocar ningún archivo — nunca se
+adivina un corte ni un título. Y si falla un paso
 técnico más adelante (ffmpeg, validación, YouTube, Storage o el update de
 Supabase), el clip se **restaura automáticamente a su versión anterior**
 deshaciendo el respaldo `vN\`, para que la carpeta siga siendo

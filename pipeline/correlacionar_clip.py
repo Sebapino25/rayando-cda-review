@@ -114,6 +114,11 @@ def _siguiente_version_dir(carpeta: Path) -> Path:
 # Archivos que respaldar_version_anterior mueve a vN\ (y que
 # restaurar_version_respaldada devuelve a su lugar si el reproceso falla).
 ARCHIVOS_VERSIONADOS = ("vertical.mp4", "subtitulos.srt", "subtitulos.ass", "horizontal_original.mp4")
+# Las portadas se COPIAN (no se mueven) al respaldo: build_portadas las
+# regenera siempre, pero si el reproceso falla hay que poder devolver las
+# originales (importa sobre todo en un cambio de título, donde la portada
+# nueva lleva otro texto).
+PORTADAS_VERSIONADAS = ("portada_vertical.jpg", "portada_horizontal.jpg")
 
 
 def respaldar_version_anterior(carpeta: Path) -> Path:
@@ -125,6 +130,10 @@ def respaldar_version_anterior(carpeta: Path) -> Path:
         origen = carpeta / nombre
         if origen.exists():
             shutil.move(str(origen), str(destino / nombre))
+    for nombre in PORTADAS_VERSIONADAS:
+        origen = carpeta / nombre
+        if origen.exists():
+            shutil.copy2(origen, destino / nombre)
     return destino
 
 
@@ -143,9 +152,9 @@ def restaurar_version_respaldada(carpeta: Path, destino: Path) -> None:
     la carpeta exactamente como estaba antes del intento, para que el
     siguiente reintento vuelva a encontrarla y reporte el error real.
 
-    NO toca portada_vertical.jpg / portada_horizontal.jpg: esas no se
-    respaldan (limitación conocida y aceptada), así que borrarlas perdería
-    las originales sin poder recuperarlas."""
+    Las portadas se devuelven solo si están en el respaldo (respaldos
+    anteriores a que se copiaran no las tienen): nunca se borra una portada
+    sin tener la original para reponer."""
     if not destino.exists():
         return
     for nombre in ARCHIVOS_VERSIONADOS:
@@ -155,6 +164,10 @@ def restaurar_version_respaldada(carpeta: Path, destino: Path) -> None:
             nuevo.unlink()
         if respaldado.exists():
             shutil.move(str(respaldado), str(nuevo))
+    for nombre in PORTADAS_VERSIONADAS:
+        respaldado = destino / nombre
+        if respaldado.exists():
+            shutil.move(str(respaldado), str(carpeta / nombre))
     try:
         destino.rmdir()
     except OSError:

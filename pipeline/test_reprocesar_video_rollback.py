@@ -25,7 +25,11 @@ import reprocesar_video as rv
 TEXTO_VIEJO = "hola que tal como andan"
 TEXTO_NUEVO = "que tal como andan hoy"
 
-ARCHIVOS = ("vertical.mp4", "subtitulos.srt", "subtitulos.ass", "horizontal_original.mp4")
+ARCHIVOS = (
+    "vertical.mp4", "subtitulos.srt", "subtitulos.ass", "horizontal_original.mp4",
+    "portada_vertical.jpg", "portada_horizontal.jpg", "copys.md",
+)
+COPYS = "# Clip\n\n**Portada:** El anti U es Chile\n\n## YouTube\n**Título:** algo\n"
 
 
 def _srt(texto: str) -> str:
@@ -39,6 +43,9 @@ def _crear_clip(base: Path, semana: str, nombre: str, texto: str) -> Path:
     (carpeta / "subtitulos.ass").write_text("ass viejo", encoding="utf-8")
     (carpeta / "vertical.mp4").write_bytes(b"vertical viejo")
     (carpeta / "horizontal_original.mp4").write_bytes(b"horizontal viejo")
+    (carpeta / "portada_vertical.jpg").write_bytes(b"portada vieja")
+    (carpeta / "portada_horizontal.jpg").write_bytes(b"portada h vieja")
+    (carpeta / "copys.md").write_text(COPYS, encoding="utf-8")
     (carpeta / "metadata.json").write_text(
         json.dumps({"video_fuente": str(base / "2026-07-27 20-00-00.mkv")}), encoding="utf-8"
     )
@@ -56,6 +63,7 @@ def _simular_recorte_nuevo(carpeta: Path) -> None:
     (carpeta / "subtitulos.ass").write_text("ass nuevo", encoding="utf-8")
     (carpeta / "vertical.mp4").write_bytes(b"vertical nuevo")
     (carpeta / "horizontal_original.mp4").write_bytes(b"horizontal nuevo")
+    (carpeta / "portada_vertical.jpg").write_bytes(b"portada nueva")
 
 
 def test_restaurar_deja_la_carpeta_igual_que_antes(tmp: Path) -> None:
@@ -105,10 +113,18 @@ def _decision(carpeta: Path) -> rv.DecisionReproceso:
     )
 
 
-def _procesar_con_fallo(carpeta: Path, **mocks):
+def _decision_titulo(carpeta: Path) -> rv.DecisionReproceso:
+    return rv.DecisionReproceso(
+        carpeta=carpeta, nuevo_inicio=None, nuevo_fin=None,
+        motivo_abort=None, interpretacion_motivo="cambio de título",
+        titulo_nuevo="El país es anti U de Chile",
+    )
+
+
+def _procesar_con_fallo(carpeta: Path, decision=None, **mocks):
     """Corre procesar_fila(apply=True) con decidir() mockeado y el fallo que
     se le pase, sin tocar nada real."""
-    with patch.object(rv, "decidir", return_value=_decision(carpeta)), \
+    with patch.object(rv, "decidir", return_value=decision or _decision(carpeta)), \
          patch.object(rv.cortar_clip, "program_date_from_name", return_value="2026-07-27"), \
          patch.object(rv, "registrar_fallo", lambda *a, **k: None), \
          patch.object(rv, "limpiar_fallo", lambda *a, **k: None):
@@ -190,6 +206,95 @@ def test_exito_no_restaura_y_deja_el_respaldo(tmp: Path) -> None:
     shutil.rmtree(carpeta.parent)
 
 
+class _PublicarOk:
+    llamadas: dict = {}
+
+    @staticmethod
+    def validar_clip(*a, **k):
+        return None
+
+    ClipInvalido = RuntimeError
+
+    @staticmethod
+    def subir_youtube(*a, **k):
+        return "NUEVO456"
+
+    @staticmethod
+    def subir_portada_storage(*a, **k):
+        return None
+
+    @staticmethod
+    def subir_video_storage(*a, **k):
+        return None
+
+    @staticmethod
+    def actualizar_clip_supabase(clip_id, campos):
+        _PublicarOk.llamadas["supabase"] = campos
+
+
+def _rearmar_falso(carpeta: Path, titulos: list):
+    """Reemplaza build_vertical/build_portadas: deja archivos 'nuevos' y
+    anota con qué título se llamó."""
+    def build_vertical(out_dir, has_subtitles, titulo_portada=None):
+        titulos.append(titulo_portada)
+        (out_dir / "vertical.mp4").write_bytes(b"vertical titulo nuevo")
+
+    def build_portadas(out_dir, horizontal_path, titulo_portada, overrides):
+        assert horizontal_path.exists(), "el horizontal tiene que estar repuesto antes de armar la portada"
+        (out_dir / "portada_vertical.jpg").write_bytes(b"portada titulo nuevo")
+
+    return build_vertical, build_portadas
+
+
+def test_cambio_de_titulo_exito(tmp: Path) -> None:
+    carpeta = _crear_clip(tmp, "2026-07-27", "clip-a", TEXTO_VIEJO)
+    titulos: list = []
+    build_vertical, build_portadas = _rearmar_falso(carpeta, titulos)
+    _PublicarOk.llamadas = {}
+
+    with patch.object(rv.cortar_clip, "build_vertical", build_vertical), \
+         patch.object(rv.portadas, "build_portadas", build_portadas):
+        ok = _procesar_con_fallo(carpeta, decision=_decision_titulo(carpeta), publicar=_PublicarOk,
+                                 _ejecutar_recorte=lambda *a, **k: (_ for _ in ()).throw(AssertionError("no debe re-cortar")))
+
+    assert ok is True
+    assert titulos == ["El país es anti U de Chile"]
+    campos = _PublicarOk.llamadas["supabase"]
+    assert campos["youtube_video_id"] == "NUEVO456" and campos["estado"] == "pendiente"
+    # Un cambio de título no toca corte ni transcripción.
+    assert not {"timestamp_inicio", "timestamp_fin", "transcripcion", "transcripcion_original"} & set(campos)
+    # Horizontal y subtítulos siguen siendo los mismos (no se re-cortó) ...
+    assert (carpeta / "horizontal_original.mp4").read_bytes() == b"horizontal viejo"
+    assert (carpeta / "subtitulos.srt").read_text(encoding="utf-8") == _srt(TEXTO_VIEJO)
+    # ... así que la carpeta sigue correlacionando con la fila.
+    fila = {"id": "abc-123", "semana": "2026-07-27", "transcripcion_original": TEXTO_VIEJO}
+    assert correlacionar_clip.encontrar_carpetas_candidatas(fila) == [carpeta]
+    # El título nuevo queda en copys.md para los reprocesos siguientes, sin tocar el resto.
+    assert rv.cortar_clip.titulo_portada_de_copys(carpeta) == "El país es anti U de Chile"
+    assert "**Título:** algo" in (carpeta / "copys.md").read_text(encoding="utf-8")
+    assert (carpeta / "v1" / "portada_vertical.jpg").read_bytes() == b"portada vieja"
+    shutil.rmtree(carpeta.parent)
+
+
+def test_cambio_de_titulo_fallido_deja_todo_como_estaba(tmp: Path) -> None:
+    carpeta = _crear_clip(tmp, "2026-07-27", "clip-a", TEXTO_VIEJO)
+    antes = _snapshot(carpeta)
+    titulos: list = []
+    build_vertical, build_portadas = _rearmar_falso(carpeta, titulos)
+    publicar_falso = type("P", (_PublicarOk,), {
+        "subir_youtube": staticmethod(lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cuota de YouTube agotada"))),
+    })
+
+    with patch.object(rv.cortar_clip, "build_vertical", build_vertical), \
+         patch.object(rv.portadas, "build_portadas", build_portadas):
+        ok = _procesar_con_fallo(carpeta, decision=_decision_titulo(carpeta), publicar=publicar_falso)
+
+    assert ok is False
+    assert _snapshot(carpeta) == antes, "portada, copys.md y video tienen que volver a la versión con el título viejo"
+    assert not (carpeta / "v1").exists()
+    shutil.rmtree(carpeta.parent)
+
+
 def main() -> None:
     tmp = Path(tempfile.mkdtemp(prefix="rayando_cda_rollback_"))
     try:
@@ -199,7 +304,10 @@ def main() -> None:
             test_rollback_si_falla_el_recorte(tmp)
             test_rollback_si_falla_youtube(tmp)
             test_exito_no_restaura_y_deja_el_respaldo(tmp)
-        print("OK: el rollback restaura la carpeta ante fallo de recorte/YouTube y el éxito no restaura.")
+            test_cambio_de_titulo_exito(tmp)
+            test_cambio_de_titulo_fallido_deja_todo_como_estaba(tmp)
+        print("OK: el rollback restaura la carpeta ante fallo de recorte/YouTube, el éxito no restaura, "
+              "y el cambio de título re-quema sin re-cortar (y se deshace si falla).")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

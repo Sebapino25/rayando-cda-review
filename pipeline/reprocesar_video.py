@@ -1,11 +1,17 @@
-"""Cierra el loop de corrección de in/out points pedida por el equipo
-editorial: busca en rayando_cda.clips las filas con
-estado='correccion_video', usa la API de Anthropic (interpretar_correccion)
-para interpretar comentarios_video contra la transcripción completa del
-programa y, si hay confianza, vuelve a cortar el clip (horizontal +
-vertical con subtítulos/logo/portada) desde la grabación original con el
-nuevo rango, lo sube como nuevo video no listado de YouTube y actualiza la
-fila (estado vuelve a 'pendiente').
+"""Cierra el loop de corrección de video pedida por el equipo editorial:
+busca en rayando_cda.clips las filas con estado='correccion_video', usa la
+API de Anthropic (interpretar_correccion) para interpretar comentarios_video
+contra la transcripción completa del programa y, si hay confianza, rehace
+el clip, lo sube como nuevo video no listado de YouTube y actualiza la fila
+(estado vuelve a 'pendiente').
+
+Dos tipos de corrección, combinables en un mismo pedido:
+- in/out point: vuelve a cortar el clip (horizontal + vertical con
+  subtítulos/logo/título) desde la grabación original con el nuevo rango.
+- título interno (titulo_portada, el texto grande quemado arriba del
+  vertical y en la portada): sin volver a cortar, re-quema el vertical y
+  regenera las portadas con el título nuevo, y lo deja guardado en copys.md
+  para que los reprocesos siguientes lo respeten.
 
 Nunca adivina: si la interpretación no tiene confianza, o la carpeta local
 no se puede correlacionar sin ambigüedad, aborta sin tocar nada. Y si un
@@ -24,6 +30,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
+import shutil
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -48,6 +56,9 @@ class DecisionReproceso:
     nuevo_fin: float | None
     motivo_abort: str | None
     interpretacion_motivo: str = ""
+    # None = el pedido no cambia el título. nuevo_inicio/nuevo_fin en None
+    # (sin motivo_abort) = el pedido no cambia el corte.
+    titulo_nuevo: str | None = None
 
 
 def cargar_segments_de_carpeta(carpeta: Path) -> list[dict] | None:
@@ -111,6 +122,7 @@ def decidir(row: dict) -> DecisionReproceso:
         nuevo_fin=interpretacion.timestamp_fin,
         motivo_abort=None,
         interpretacion_motivo=interpretacion.motivo,
+        titulo_nuevo=interpretacion.titulo_nuevo,
     )
 
 
@@ -236,9 +248,71 @@ class EjecutarError(Exception):
     """Falló un paso técnico al ejecutar la corrección (recorte, validación o subida)."""
 
 
-def _ejecutar_recorte(carpeta: Path, video_path: Path, nuevo_inicio: float, nuevo_fin: float, nombre_clip: str):
-    """Re-corta horizontal+vertical (subtítulos/logo/portada) con el nuevo
-    rango, reusando las funciones de cortar_clip.py. Devuelve
+def _titulo_portada_actual(carpeta: Path, nombre_clip: str) -> str | None:
+    return cortar_clip.titulo_portada_de_copys(carpeta) or cortar_clip._cargar_overrides(nombre_clip).get("titulo_portada")
+
+
+def guardar_titulo_en_copys(carpeta: Path, titulo: str) -> None:
+    """Deja el título nuevo en la línea `**Portada:**` de copys.md, que es de
+    donde lo leen todos los reprocesos (cortar_clip.titulo_portada_de_copys).
+    Sin esto, la próxima corrección de subtítulos o de in/out volvería a
+    quemar el título viejo."""
+    copys_path = carpeta / "copys.md"
+    linea = f"**Portada:** {titulo}"
+    if not copys_path.exists():
+        copys_path.write_text(linea + "\n", encoding="utf-8")
+        return
+    texto = copys_path.read_text(encoding="utf-8")
+    nuevo, n = re.subn(r"\*\*Portada:\*\*[^\r\n]*", lambda _m: linea, texto, count=1)
+    if n == 0:
+        nuevo = texto.rstrip("\n") + "\n\n" + linea + "\n"
+    copys_path.write_text(nuevo, encoding="utf-8")
+
+
+def _rearmar_vertical_y_portadas(carpeta: Path, has_subtitles: bool, titulo_portada: str | None, overrides: dict) -> Path:
+    horizontal_path = carpeta / "horizontal_original.mp4"
+    try:
+        cortar_clip.build_vertical(carpeta, has_subtitles, titulo_portada)
+    except Exception as e:
+        raise EjecutarError(f"Falló la generación del vertical: {e}") from e
+
+    try:
+        portadas.build_portadas(carpeta, horizontal_path, titulo_portada, overrides)
+    except Exception as e:
+        raise EjecutarError(f"Falló la generación de la portada: {e}") from e
+
+    vertical_path = carpeta / "vertical.mp4"
+    try:
+        publicar.validar_clip(vertical_path)
+    except publicar.ClipInvalido as e:
+        raise EjecutarError(f"El vertical.mp4 recién generado no pasó la validación técnica: {e}") from e
+    return vertical_path
+
+
+def _ejecutar_cambio_titulo(carpeta: Path, destino_backup: Path, titulo: str, nombre_clip: str) -> Path:
+    """Cambio de título sin re-cortar: repone desde el respaldo el
+    horizontal y los subtítulos (respaldar_version_anterior los movió) y
+    vuelve a armar vertical + portadas con el título nuevo. Devuelve
+    vertical_path."""
+    try:
+        for nombre in ("horizontal_original.mp4", "subtitulos.srt", "subtitulos.ass"):
+            if (destino_backup / nombre).exists():
+                shutil.copy2(destino_backup / nombre, carpeta / nombre)
+    except OSError as e:
+        raise EjecutarError(f"No se pudo reponer el horizontal/subtítulos desde {destino_backup}: {e}") from e
+    if not (carpeta / "horizontal_original.mp4").exists():
+        raise EjecutarError(f"No existe horizontal_original.mp4 en {carpeta} (ni en el respaldo).")
+
+    has_subtitles = (carpeta / "subtitulos.ass").exists()
+    overrides = cortar_clip._cargar_overrides(nombre_clip)
+    return _rearmar_vertical_y_portadas(carpeta, has_subtitles, titulo, overrides)
+
+
+def _ejecutar_recorte(carpeta: Path, video_path: Path, nuevo_inicio: float, nuevo_fin: float, nombre_clip: str,
+                      titulo_nuevo: str | None = None):
+    """Re-corta horizontal+vertical (subtítulos/logo/título/portada) con el
+    nuevo rango, reusando las funciones de cortar_clip.py. Si viene
+    titulo_nuevo, se usa en vez del título actual. Devuelve
     (vertical_path, transcripcion_texto)."""
     horizontal_path = carpeta / "horizontal_original.mp4"
     try:
@@ -265,22 +339,8 @@ def _ejecutar_recorte(carpeta: Path, video_path: Path, nuevo_inicio: float, nuev
         cortar_clip.build_clip_ass(captions, carpeta / "subtitulos.ass")
 
     overrides = cortar_clip._cargar_overrides(nombre_clip)
-    titulo_portada = cortar_clip.titulo_portada_de_copys(carpeta) or overrides.get("titulo_portada")
-    try:
-        cortar_clip.build_vertical(carpeta, has_subtitles, titulo_portada)
-    except Exception as e:
-        raise EjecutarError(f"Falló la generación del vertical: {e}") from e
-
-    try:
-        portadas.build_portadas(carpeta, horizontal_path, titulo_portada, overrides)
-    except Exception as e:
-        raise EjecutarError(f"Falló la generación de la portada: {e}") from e
-
-    vertical_path = carpeta / "vertical.mp4"
-    try:
-        publicar.validar_clip(vertical_path)
-    except publicar.ClipInvalido as e:
-        raise EjecutarError(f"El vertical.mp4 recién generado no pasó la validación técnica: {e}") from e
+    titulo_portada = titulo_nuevo or _titulo_portada_actual(carpeta, nombre_clip)
+    vertical_path = _rearmar_vertical_y_portadas(carpeta, has_subtitles, titulo_portada, overrides)
 
     transcripcion_texto = cortar_clip.join_transcripcion(clipped)
     return vertical_path, transcripcion_texto
@@ -304,12 +364,17 @@ def procesar_fila(row: dict, apply: bool) -> bool:
             registrar_fallo(row, decision.motivo_abort)
         return False
 
+    cambia_corte = decision.nuevo_inicio is not None and decision.nuevo_fin is not None
     print(f"  Carpeta local: {decision.carpeta}")
-    print(f"  Nuevo rango: {cortar_clip.format_hhmmss(decision.nuevo_inicio)} -> {cortar_clip.format_hhmmss(decision.nuevo_fin)}")
+    if cambia_corte:
+        print(f"  Nuevo rango: {cortar_clip.format_hhmmss(decision.nuevo_inicio)} -> {cortar_clip.format_hhmmss(decision.nuevo_fin)}")
+    if decision.titulo_nuevo:
+        print(f"  Título: {_titulo_portada_actual(decision.carpeta, decision.carpeta.name)!r} -> {decision.titulo_nuevo!r}")
     print(f"  Interpretación: {decision.interpretacion_motivo}")
 
     if not apply:
-        print("  [dry-run] Se respaldaría la versión anterior, se re-cortaría con este rango, "
+        accion = "se re-cortaría con este rango" if cambia_corte else "se re-quemaría el vertical con el título nuevo (sin re-cortar)"
+        print(f"  [dry-run] Se respaldaría la versión anterior, {accion}, "
               "se subiría un video nuevo a YouTube y se actualizaría la fila a estado='pendiente'.")
         return True
 
@@ -339,9 +404,15 @@ def procesar_fila(row: dict, apply: bool) -> bool:
     exito = False
     try:
         try:
-            vertical_path, transcripcion_texto = _ejecutar_recorte(
-                decision.carpeta, video_path, decision.nuevo_inicio, decision.nuevo_fin, nombre_clip
-            )
+            if cambia_corte:
+                vertical_path, transcripcion_texto = _ejecutar_recorte(
+                    decision.carpeta, video_path, decision.nuevo_inicio, decision.nuevo_fin, nombre_clip,
+                    titulo_nuevo=decision.titulo_nuevo,
+                )
+            else:
+                vertical_path = _ejecutar_cambio_titulo(
+                    decision.carpeta, destino_backup, decision.titulo_nuevo, nombre_clip
+                )
         except EjecutarError as e:
             print(f"  FALLÓ: {e}")
             return False
@@ -370,21 +441,22 @@ def procesar_fila(row: dict, apply: bool) -> bool:
             print(f"  FALLÓ la re-subida del video a Storage: {e}")
             return False
 
-        print("  Actualizando Supabase (estado -> pendiente, nuevos timestamps, youtube_video_id)...")
+        campos = {
+            "youtube_video_id": nuevo_video_id,
+            "estado": "pendiente",
+            "revisado_por": None,
+            "revisado_en": None,
+        }
+        if cambia_corte:
+            campos.update({
+                "timestamp_inicio": decision.nuevo_inicio,
+                "timestamp_fin": decision.nuevo_fin,
+                "transcripcion": transcripcion_texto,
+                "transcripcion_original": transcripcion_texto,
+            })
+        print(f"  Actualizando Supabase ({', '.join(campos)})...")
         try:
-            publicar.actualizar_clip_supabase(
-                clip_id,
-                {
-                    "youtube_video_id": nuevo_video_id,
-                    "timestamp_inicio": decision.nuevo_inicio,
-                    "timestamp_fin": decision.nuevo_fin,
-                    "transcripcion": transcripcion_texto,
-                    "transcripcion_original": transcripcion_texto,
-                    "estado": "pendiente",
-                    "revisado_por": None,
-                    "revisado_en": None,
-                },
-            )
+            publicar.actualizar_clip_supabase(clip_id, campos)
         except Exception as e:
             print(f"  FALLÓ la actualización de Supabase: {e}")
             return False
@@ -403,11 +475,25 @@ def procesar_fila(row: dict, apply: bool) -> bool:
                       f"{decision.carpeta} puede haber quedado inconsistente con Supabase.")
             registrar_fallo(row, "Falló un paso técnico del reproceso (ver el log de esta corrida).")
 
+    if decision.titulo_nuevo:
+        # Recién ahora, con la fila ya actualizada: si algo fallaba antes, el
+        # copys.md tenía que seguir con el título viejo (el del video restaurado).
+        try:
+            guardar_titulo_en_copys(decision.carpeta, decision.titulo_nuevo)
+        except OSError as e:
+            print(f"  ADVERTENCIA: no se pudo guardar el título nuevo en copys.md ({e}). "
+                  "Un reproceso futuro volvería a quemar el título anterior: editá la línea **Portada:** a mano.")
+
     video_id_anterior = row.get("youtube_video_id")
+    lineas_cambio = ""
+    if cambia_corte:
+        lineas_cambio += f"Nuevo rango: {cortar_clip.format_hhmmss(decision.nuevo_inicio)} -> {cortar_clip.format_hhmmss(decision.nuevo_fin)}\n"
+    if decision.titulo_nuevo:
+        lineas_cambio += f"Título nuevo: {decision.titulo_nuevo}\n"
     resumen_extra = (
-        "\n--- Reproceso de video (corrección de in/out) ---\n"
+        "\n--- Reproceso de video (corrección de in/out y/o título) ---\n"
         f"Pedido: {row.get('comentarios_video')}\n"
-        f"Nuevo rango: {cortar_clip.format_hhmmss(decision.nuevo_inicio)} -> {cortar_clip.format_hhmmss(decision.nuevo_fin)}\n"
+        f"{lineas_cambio}"
         f"YouTube video ID anterior: {video_id_anterior}\n"
         f"YouTube video ID nuevo: {nuevo_video_id}\n"
         f"YouTube URL nueva: {nueva_url}\n"
@@ -426,7 +512,8 @@ def main():
         description=(
             "Busca clips en estado='correccion_video', interpreta el pedido de "
             "comentarios_video con IA y, si hay confianza, vuelve a cortar el clip "
-            "con el nuevo in/out y lo sube de nuevo. Nunca adivina: si algo es "
+            "con el nuevo in/out y/o le cambia el título interno, y lo sube de "
+            "nuevo. Nunca adivina: si algo es "
             "ambiguo o de baja confianza, aborta esa fila sin tocar nada."
         )
     )

@@ -102,12 +102,54 @@ def test_truncado_por_max_tokens() -> None:
     assert "formato esperado" not in mensaje, mensaje
 
 
+def test_solo_titulo_no_toca_el_corte() -> None:
+    payload = {
+        "confianza": True, "cambia_corte": False, "idx_inicio": 0, "idx_fin": 0,
+        "titulo_nuevo": '"El país es anti U de Chile"', "motivo": "Cambio de título",
+    }
+    fake_client = _fake_client(payload)
+    with patch.object(ic, "_client", lambda: fake_client):
+        resultado = ic.interpretar_correccion('Cambiar el título por "El país es anti U de Chile"', SEGMENTS)
+    assert resultado.confianza is True
+    assert resultado.timestamp_inicio is None and resultado.timestamp_fin is None
+    # Sin las comillas envolventes, texto literal.
+    assert resultado.titulo_nuevo == "El país es anti U de Chile", resultado.titulo_nuevo
+
+
+def test_corte_y_titulo_juntos() -> None:
+    payload = {
+        "confianza": True, "cambia_corte": True, "idx_inicio": 1, "idx_fin": 1,
+        "titulo_nuevo": "Clásico  universitario", "motivo": "Corte + título",
+    }
+    fake_client = _fake_client(payload)
+    with patch.object(ic, "_client", lambda: fake_client):
+        resultado = ic.interpretar_correccion("pedido", SEGMENTS)
+    assert resultado.confianza is True
+    assert (resultado.timestamp_inicio, resultado.timestamp_fin) == (2.0, 5.5)
+    assert resultado.titulo_nuevo == "Clásico universitario"
+
+
+def test_sin_corte_ni_titulo_es_sin_confianza() -> None:
+    payload = {
+        "confianza": True, "cambia_corte": False, "idx_inicio": 0, "idx_fin": 0,
+        "titulo_nuevo": "  ", "motivo": "nada",
+    }
+    fake_client = _fake_client(payload)
+    with patch.object(ic, "_client", lambda: fake_client):
+        resultado = ic.interpretar_correccion("pedido", SEGMENTS)
+    assert resultado.confianza is False
+    assert resultado.titulo_nuevo is None
+
+
 def main() -> None:
     test_confiado()
     test_sin_confianza()
     test_indices_invalidos_se_tratan_como_sin_confianza()
     test_truncado_por_max_tokens()
-    print("OK: interpretar_correccion cubre confianza / sin-confianza / índices inválidos / truncamiento.")
+    test_solo_titulo_no_toca_el_corte()
+    test_corte_y_titulo_juntos()
+    test_sin_corte_ni_titulo_es_sin_confianza()
+    print("OK: interpretar_correccion cubre confianza / sin-confianza / índices inválidos / truncamiento / título.")
 
 
 if __name__ == "__main__":

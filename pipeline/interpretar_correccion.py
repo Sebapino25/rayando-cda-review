@@ -1,7 +1,11 @@
-"""Interpreta un pedido en texto libre de corrección de in/out point
-(comentarios_video de una fila en estado='correccion_video') contra la
-transcripción completa del programa, usando la API de Anthropic — mismo
-patrón de llamada que detectar_momentos.py/copys_ia.py.
+"""Interpreta un pedido en texto libre de corrección (comentarios_video de
+una fila en estado='correccion_video') contra la transcripción completa del
+programa, usando la API de Anthropic — mismo patrón de llamada que
+detectar_momentos.py/copys_ia.py.
+
+Entiende dos tipos de pedido, combinables: cambio de in/out point (dónde
+empieza/termina el clip) y cambio del título interno (el texto grande
+quemado en la franja superior del vertical y en la portada, titulo_portada).
 
 Los nuevos timestamps SIEMPRE calzan con el inicio/fin de un segmento
 real de la transcripción (mismo principio que detectar_momentos.py): el
@@ -35,10 +39,29 @@ load_dotenv(config.PROJECT_DIR / ".env")
 MODEL = config.CANDIDATOS_MODEL
 
 SYSTEM_PROMPT = """Sos el/la encargado/a técnico/a de interpretar pedidos \
-de corrección de in/out point para clips de "Rayando el CDA". El equipo \
-editorial ya revisó un clip y pidió un cambio de corte en texto libre \
-(ej. "empezá 2 segundos antes", "cortá antes de que diga tal frase", \
-"terminá cuando dice tal otra cosa").
+de corrección para clips de "Rayando el CDA". El equipo editorial ya \
+revisó un clip y pidió un cambio en texto libre. Este flujo sabe hacer \
+exactamente dos cosas, que pueden venir juntas en el mismo pedido:
+
+1. CORTE: mover dónde empieza y/o dónde termina el clip (in/out point). \
+Ej. "empezá 2 segundos antes", "cortá antes de que diga tal frase", \
+"terminá cuando dice tal otra cosa".
+2. TÍTULO: cambiar el título interno del video, el texto grande que va \
+quemado arriba del video vertical y en la portada. Ej. "cambiar el título \
+por: X", "el título tiene que decir X", "poné de título X". El equipo lo \
+llama título, título del video, título de portada o texto de arriba.
+
+Para el TÍTULO: titulo_nuevo es el texto nuevo EXACTO que pidió el equipo, \
+copiado literal del pedido (sin comillas envolventes, sin agregar ni sacar \
+palabras, sin corregir ni reformular; las mayúsculas no importan, se \
+renderiza todo en mayúsculas). Si el pedido quiere cambiar el título pero \
+no dice textualmente cuál es el nuevo (ej. "el título está feo, poné algo \
+mejor"), devolvé confianza=false: nunca inventes un título. Si el pedido \
+no toca el título, titulo_nuevo es "".
+
+Para el CORTE: cambia_corte=true solo si el pedido pide mover el inicio o \
+el final. Si es solo un cambio de título, cambia_corte=false y idx_inicio \
+e idx_fin se ignoran (poné 0 en ambos).
 
 Te paso ese pedido y la transcripción completa del programa como una \
 lista numerada de segmentos (cada uno con su índice, tiempo de inicio/fin \
@@ -49,50 +72,57 @@ lista, inclusive en ambos extremos) que corresponden al pedido. NUNCA \
 inventes un timestamp en segundos — siempre elegí índices reales de la \
 lista.
 
-Este flujo SOLO cambia dónde empieza y dónde termina el clip (in/out \
-point). Muchos pedidos del equipo NO son sobre eso: se quejan del \
-título/portada, de los subtítulos (texto, tamaño, posición, timing), del \
-logo, de algún texto o gráfico en pantalla, del audio, del encuadre \
-vertical, etc. Si el pedido es sobre cualquiera de esas cosas y no sobre \
-mover el inicio o el final del clip, devolvé confianza=false con un motivo \
-que diga explícitamente que el pedido no es una corrección de in/out y hay \
-que resolverlo a mano. Ojo con pedidos que mencionan una palabra o frase \
-("...en la parte que dice X", "donde aparece Y"): a veces esa frase es solo \
-una referencia para ubicar OTRO problema (ej. "el título tapa el video en la \
-parte que dice X" = problema de título, no de corte), no un pedido de cortar \
-ahí. Solo interpretá un corte cuando el pedido claramente pide mover el \
-inicio o el final.
+Muchos pedidos del equipo NO son sobre ninguna de esas dos cosas: se \
+quejan de la posición/tamaño/color del título (no de su texto), de los \
+subtítulos (texto, tamaño, posición, timing), del logo, de algún otro texto \
+o gráfico en pantalla, del audio, del encuadre vertical, del título de \
+YouTube/Instagram (el copy de la publicación, no el texto quemado), etc. Si \
+el pedido incluye cualquiera de esas cosas, devolvé confianza=false con un \
+motivo que diga explícitamente qué parte no se puede hacer automático y hay \
+que resolver a mano — no hagas "la mitad" de un pedido. Ojo con pedidos que \
+mencionan una palabra o frase ("...en la parte que dice X", "donde aparece \
+Y"): a veces esa frase es solo una referencia para ubicar OTRO problema (ej. \
+"el título tapa el video en la parte que dice X" = problema de posición del \
+título, no de corte ni de texto), no un pedido de cortar ahí. Solo \
+interpretá un corte cuando el pedido claramente pide mover el inicio o el \
+final.
 
-Si el pedido es claramente un cambio de in/out, la frase/momento \
-referenciado existe en la transcripción y podés determinar el rango, \
-devolvé confianza=true con los índices elegidos y un motivo breve (1 \
-frase) de qué interpretaste. Si el pedido es ambiguo, no es sobre in/out, \
-referencia algo que no aparece en la transcripción, o no podés determinar \
-con seguridad razonable qué rango corresponde, devolvé confianza=false con \
-un motivo específico de por qué no pudiste — NUNCA adivines un rango \
-"aproximado" cuando no estás seguro. Ante la duda, preferí confianza=false: \
+Si el pedido es claro, la frase/momento referenciado existe en la \
+transcripción (si hay corte) y podés determinar el resultado, devolvé \
+confianza=true con los campos correspondientes y un motivo breve (1 frase) \
+de qué interpretaste. Si el pedido es ambiguo, referencia algo que no \
+aparece en la transcripción, o no podés determinar con seguridad razonable \
+qué rango o qué título corresponde, devolvé confianza=false con un motivo \
+específico de por qué no pudiste — NUNCA adivines un rango "aproximado" ni \
+un título cuando no estás seguro. Ante la duda, preferí confianza=false: \
 alguien va a revisar tu respuesta a mano en ese caso, así que es preferible \
-que no adivines a que cortes mal un video que después se publica."""
+que no adivines a que arruines un video que después se publica."""
 
 _SCHEMA = {
     "type": "object",
     "properties": {
         "confianza": {"type": "boolean"},
+        "cambia_corte": {"type": "boolean"},
         "idx_inicio": {"type": "integer"},
         "idx_fin": {"type": "integer"},
+        "titulo_nuevo": {"type": "string"},
         "motivo": {"type": "string"},
     },
-    "required": ["confianza", "idx_inicio", "idx_fin", "motivo"],
+    "required": ["confianza", "cambia_corte", "idx_inicio", "idx_fin", "titulo_nuevo", "motivo"],
     "additionalProperties": False,
 }
 
 
 @dataclass
 class InterpretacionCorreccion:
+    """Con confianza=True: timestamp_inicio/fin son None si el pedido no
+    cambia el corte, y titulo_nuevo es None si no cambia el título (al menos
+    uno de los dos viene siempre)."""
     confianza: bool
     timestamp_inicio: float | None
     timestamp_fin: float | None
     motivo: str
+    titulo_nuevo: str | None = None
 
 
 class InterpretacionError(Exception):
@@ -106,6 +136,13 @@ def _client():
     if not api_key:
         raise InterpretacionError("Falta la variable de entorno ANTHROPIC_API_KEY (revisa tu .env)")
     return anthropic.Anthropic(api_key=api_key)
+
+
+def _limpiar_titulo(texto: str | None) -> str | None:
+    """Espacios colapsados y sin comillas envolventes (el equipo suele
+    escribir 'cambiar el título por "X"'). None si queda vacío."""
+    limpio = " ".join((texto or "").split()).strip("\"'“”«» ")
+    return limpio or None
 
 
 def interpretar_correccion(comentarios_video: str, segments: list[dict]) -> InterpretacionCorreccion:
@@ -169,6 +206,18 @@ def interpretar_correccion(comentarios_video: str, segments: list[dict]) -> Inte
     if not data.get("confianza"):
         return InterpretacionCorreccion(confianza=False, timestamp_inicio=None, timestamp_fin=None, motivo=motivo)
 
+    titulo_nuevo = _limpiar_titulo(data.get("titulo_nuevo"))
+    if data.get("cambia_corte") is False:
+        if not titulo_nuevo:
+            # Dijo que tenía confianza pero no pidió nada: no es utilizable.
+            return InterpretacionCorreccion(
+                confianza=False, timestamp_inicio=None, timestamp_fin=None,
+                motivo=f"El modelo no devolvió ni corte ni título nuevo. {motivo}".strip(),
+            )
+        return InterpretacionCorreccion(
+            confianza=True, timestamp_inicio=None, timestamp_fin=None, motivo=motivo, titulo_nuevo=titulo_nuevo,
+        )
+
     idx_inicio, idx_fin = data.get("idx_inicio"), data.get("idx_fin")
     n = len(segments)
     if not isinstance(idx_inicio, int) or not isinstance(idx_fin, int) or not (0 <= idx_inicio <= idx_fin < n):
@@ -187,4 +236,5 @@ def interpretar_correccion(comentarios_video: str, segments: list[dict]) -> Inte
         timestamp_inicio=segments[idx_inicio]["start"],
         timestamp_fin=segments[idx_fin]["end"],
         motivo=motivo,
+        titulo_nuevo=titulo_nuevo,
     )
