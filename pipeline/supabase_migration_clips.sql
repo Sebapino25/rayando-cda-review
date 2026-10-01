@@ -126,3 +126,8 @@ alter table rayando_cda.tiktok_token enable row level security;
 -- si las policies del bucket se recrean desde cero.
 drop policy if exists clips_video_anon_insert on storage.objects;
 drop policy if exists clips_video_anon_update on storage.objects;
+
+-- --- Portadas hechas por la agencia (docs en El_Proyecto: docs/proceso-portadas-clip.md) ---
+-- La app marca acá cuándo el equipo pidió la portada a la agencia; portada_clip.py (en El_Proyecto) la
+-- limpia al subir la portada. Ya aplicado contra el proyecto real el 01/10/2026.
+alter table rayando_cda.clips add column if not exists portada_agencia_solicitada_en timestamptz;

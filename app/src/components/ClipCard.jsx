@@ -45,12 +45,14 @@ function Field({ label, value, onChange, multiline, rows = 3 }) {
   )
 }
 
-export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReject, onCoverUpload, onCoverRemove }) {
+export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReject, onCoverUpload, onCoverRemove, onCoverRequest }) {
   const fileInputRef = useRef(null)
   const [coverUrl, setCoverUrl] = useState(clip.portada_url ?? '')
   const [uploadingCover, setUploadingCover] = useState(false)
   const [removingCover, setRemovingCover] = useState(false)
   const [coverError, setCoverError] = useState('')
+  const [coverRequested, setCoverRequested] = useState(Boolean(clip.portada_agencia_solicitada_en))
+  const [requestingCover, setRequestingCover] = useState(false)
 
   async function handleCoverFileChange(e) {
     const file = e.target.files?.[0]
@@ -65,6 +67,20 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
       setCoverError(err.message || 'No se pudo subir la portada. Probá de nuevo.')
     } finally {
       setUploadingCover(false)
+    }
+  }
+
+  async function handleCoverRequestClick() {
+    const solicitar = !coverRequested
+    setRequestingCover(true)
+    setCoverError('')
+    try {
+      await onCoverRequest(clip.id, solicitar)
+      setCoverRequested(solicitar)
+    } catch (err) {
+      setCoverError(err.message || 'No se pudo pedir la portada. Probá de nuevo.')
+    } finally {
+      setRequestingCover(false)
     }
   }
 
@@ -204,6 +220,26 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
               )}
               {coverUrl ? 'Reemplazar portada' : 'Subir portada propia'}
             </button>
+            {onCoverRequest && (
+              <button
+                type="button"
+                onClick={handleCoverRequestClick}
+                disabled={requestingCover}
+                className="w-fit flex items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-40 cursor-pointer"
+              >
+                {requestingCover ? (
+                  <SpinnerGap size={16} className="animate-spin" />
+                ) : (
+                  <ImageIcon size={16} weight="bold" />
+                )}
+                {coverRequested ? 'Pedida a la agencia (cancelar)' : 'Pedir portada a la agencia'}
+              </button>
+            )}
+            {coverRequested && (
+              <span className="text-xs text-muted-foreground">
+                La agencia la prepara aparte; cuando esté lista la verás aquí.
+              </span>
+            )}
             {coverUrl && (
               <a
                 href={downloadUrl(coverUrl, `portada-${clip.id}.jpg`)}

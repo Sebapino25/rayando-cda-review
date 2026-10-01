@@ -226,6 +226,18 @@ function App() {
     return portadaUrl
   }
 
+  // Marca (o desmarca) que el equipo pidió la portada a la agencia. La agencia la hace por su lado
+  // (El_Proyecto: docs/proceso-portadas-clip.md) y deja la imagen en portada_url.
+  async function handleCoverRequest(id, solicitar) {
+    const valor = solicitar ? new Date().toISOString() : null
+    const { error: updateError } = await supabase
+      .from('clips')
+      .update({ portada_agencia_solicitada_en: valor })
+      .eq('id', id)
+    if (updateError) throw updateError
+    setPendingClips((prev) => prev.map((c) => (c.id === id ? { ...c, portada_agencia_solicitada_en: valor } : c)))
+  }
+
   async function handleCoverRemove(id) {
     const clip =
       pendingClips.find((c) => c.id === id) ||
@@ -504,6 +516,7 @@ function App() {
               onReject={handleReject}
               onCoverUpload={handleCoverUpload}
               onCoverRemove={handleCoverRemove}
+              onCoverRequest={handleCoverRequest}
             />
           ))}
 
