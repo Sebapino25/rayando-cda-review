@@ -18,15 +18,24 @@ import shutil
 import textwrap
 from pathlib import Path
 
-import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 import config
 from ffmpeg_utils import ffprobe_duration, extract_frame
 
-_FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-_EYE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
+# OpenCV es opcional: cv2.pyd no está firmado y Smart App Control de Windows
+# puede bloquearlo ("DLL load failed ... Control de aplicaciones", 30/09/2026).
+# Si no carga, se puntúa solo por nitidez (numpy) y se omite la detección de
+# rostros, en vez de tumbar todo el pipeline (reprocesar_video, subtítulos...).
+try:
+    import cv2
+    _FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    _EYE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_eye.xml")
+except Exception as _exc:  # ImportError, o OSError/DLL bloqueada
+    cv2 = None
+    _FACE_CASCADE = _EYE_CASCADE = None
+    print(f"  AVISO: OpenCV no disponible ({type(_exc).__name__}); portadas sin detección de rostros.")
 
 _PUNCT_RE = re.compile(r"[¿?¡!.,:;\"'()]")
 _PALABRA_RE = re.compile(r"[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+")
@@ -36,17 +45,33 @@ _PALABRA_RE = re.compile(r"[A-Za-zÁÉÍÓÚÑÜáéíóúñü]+")
 # Selección de fotograma con criterio
 # ---------------------------------------------------------------------------
 
+def _laplacian_var(gray: np.ndarray) -> float:
+    """Varianza del Laplaciano (kernel 4-vecinos) sin OpenCV."""
+    g = gray.astype(np.float64)
+    if g.shape[0] < 3 or g.shape[1] < 3:
+        return 0.0
+    lap = g[:-2, 1:-1] + g[2:, 1:-1] + g[1:-1, :-2] + g[1:-1, 2:] - 4 * g[1:-1, 1:-1]
+    return float(lap.var())
+
+
 def _score_frame(img: Image.Image) -> dict:
     """Heurísticas simples: nitidez (varianza de Laplaciano) + bonus/penalización
     por rostro detectado con ojos abiertos (Haar cascades de OpenCV)."""
     arr = np.array(img.convert("RGB"))
-    gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
-    sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    if cv2 is not None:
+        gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+        sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    else:
+        gray = np.asarray(img.convert("L"))
+        sharpness = _laplacian_var(gray)
 
     # minNeighbors alto y minSize proporcional al ancho del frame para evitar
     # falsos positivos en texturas/fondos (más estricto que el default de OpenCV).
     min_size = max(60, int(gray.shape[1] * 0.045))
-    faces = _FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=8, minSize=(min_size, min_size))
+    if cv2 is not None:
+        faces = _FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=8, minSize=(min_size, min_size))
+    else:
+        faces = []
     has_face = len(faces) > 0
     eyes_open = 0
     face_bbox = None

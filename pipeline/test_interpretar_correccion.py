@@ -65,6 +65,28 @@ def test_confiado() -> None:
     assert resultado.timestamp_fin == 9.0, resultado.timestamp_fin
 
 
+def test_rango_actual_llega_al_modelo() -> None:
+    """Pedidos relativos ("15 segundos antes") dependen de que el modelo sepa
+    dónde empieza/termina el clip hoy: el rango debe ir en el mensaje."""
+    capturado = {}
+    respuesta = _fake_response({"confianza": True, "cambia_corte": True, "idx_inicio": 0, "idx_fin": 2, "titulo_nuevo": "", "motivo": "x"})
+
+    @contextmanager
+    def stream(**kwargs):
+        capturado.update(kwargs)
+        yield SimpleNamespace(get_final_message=lambda: respuesta)
+
+    fake_client = SimpleNamespace(messages=SimpleNamespace(stream=stream))
+    with patch.object(ic, "_client", lambda: fake_client):
+        ic.interpretar_correccion("que parta 15 segundos antes", SEGMENTS, inicio_actual=5.5, fin_actual=9.0)
+        con = capturado["messages"][0]["content"]
+        ic.interpretar_correccion("que parta 15 segundos antes", SEGMENTS)
+        sin = capturado["messages"][0]["content"]
+    assert "Rango actual del clip: 5.5s -> 9.0s" in con, con
+    assert "Rango actual" not in sin
+    assert "Rango actual del clip" in ic.SYSTEM_PROMPT
+
+
 def test_sin_confianza() -> None:
     payload = {"confianza": False, "idx_inicio": 0, "idx_fin": 0, "motivo": "No encuentro esa frase en la transcripción."}
     fake_client = _fake_client(payload)
@@ -143,6 +165,7 @@ def test_sin_corte_ni_titulo_es_sin_confianza() -> None:
 
 def main() -> None:
     test_confiado()
+    test_rango_actual_llega_al_modelo()
     test_sin_confianza()
     test_indices_invalidos_se_tratan_como_sin_confianza()
     test_truncado_por_max_tokens()

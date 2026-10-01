@@ -103,7 +103,10 @@ def decidir(row: dict) -> DecisionReproceso:
         )
 
     try:
-        interpretacion = interpretar_correccion(row.get("comentarios_video") or "", segments)
+        interpretacion = interpretar_correccion(
+            row.get("comentarios_video") or "", segments,
+            inicio_actual=row.get("timestamp_inicio"), fin_actual=row.get("timestamp_fin"),
+        )
     except InterpretacionError as e:
         return DecisionReproceso(
             carpeta=carpeta, nuevo_inicio=None, nuevo_fin=None,
@@ -129,7 +132,8 @@ def decidir(row: dict) -> DecisionReproceso:
 def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,semana,estado,comentarios_video,transcripcion_original,"
-        "titulo,youtube_titulo,youtube_descripcion,youtube_video_id,created_at"
+        "titulo,youtube_titulo,youtube_descripcion,youtube_video_id,created_at,"
+        "timestamp_inicio,timestamp_fin"
     )
     query = supabase.table(config.SUPABASE_TABLE).select(columnas).eq("estado", "correccion_video")
     if clip_id:

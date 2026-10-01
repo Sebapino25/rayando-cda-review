@@ -67,6 +67,16 @@ Te paso ese pedido y la transcripción completa del programa como una \
 lista numerada de segmentos (cada uno con su índice, tiempo de inicio/fin \
 en segundos, si abre y si cierra oración, y el texto).
 
+Si el mensaje incluye "Rango actual del clip", ese es el inicio y fin que \
+tiene hoy (en segundos de la misma transcripción). Usalo como ancla para \
+pedidos relativos ("empezá 15 segundos antes", "cortá 5 segundos más al \
+final"): calculá el tiempo objetivo sumando/restando al inicio o fin actual \
+y elegí el segmento cuyo inicio (o fin) quede más cerca de ese tiempo. Un \
+"aprox" o "más o menos" en el pedido autoriza esa aproximación al segmento \
+más cercano; no es motivo para confianza=false. Si el pedido cita una frase \
+en vez de ser relativo, ubicala en la transcripción y conservá el extremo \
+que el pedido no menciona (el segmento del inicio o del fin actual).
+
 Tu tarea: identificar el nuevo idx_inicio e idx_fin (índices de esa \
 lista, inclusive en ambos extremos) que corresponden al pedido. NUNCA \
 inventes un timestamp en segundos — siempre elegí índices reales de la \
@@ -145,7 +155,12 @@ def _limpiar_titulo(texto: str | None) -> str | None:
     return limpio or None
 
 
-def interpretar_correccion(comentarios_video: str, segments: list[dict]) -> InterpretacionCorreccion:
+def interpretar_correccion(
+    comentarios_video: str,
+    segments: list[dict],
+    inicio_actual: float | None = None,
+    fin_actual: float | None = None,
+) -> InterpretacionCorreccion:
     """Interpreta comentarios_video contra segments (data["segments"] del
     .json maestro de transcribir.py) y devuelve los nuevos timestamps, o
     confianza=False si no se puede determinar con seguridad. Lanza
@@ -156,8 +171,15 @@ def interpretar_correccion(comentarios_video: str, segments: list[dict]) -> Inte
         raise InterpretacionError("La transcripción no tiene segmentos")
 
     lista = _construir_lista_segmentos(segments)
+    rango = ""
+    if inicio_actual is not None and fin_actual is not None:
+        rango = (
+            f"Rango actual del clip: {float(inicio_actual):.1f}s -> {float(fin_actual):.1f}s "
+            f"(duración {float(fin_actual) - float(inicio_actual):.1f}s)\n\n"
+        )
     mensaje_usuario = (
         f"Pedido de corrección: {comentarios_video}\n\n"
+        f"{rango}"
         f"Transcripción completa del programa ({len(segments)} segmentos):\n\n{lista}"
     )
 
