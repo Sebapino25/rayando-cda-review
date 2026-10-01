@@ -1,0 +1,56 @@
+{
+  "nombre": "SPAreírse",
+  "base_dir": "C:\\Siempre pasa Algo",
+  "whisper_contexto": "SPAreírse, programa de reacción de Siempre Pasa Algo sobre el lado B del fútbol chileno.",
+  "diccionario": "spa/diccionario.json",
+  "prompts": {
+    "deteccion": "spa/prompt_deteccion.md",
+    "copys_contexto": "spa/contexto_copys.md"
+  },
+  "config": {
+    "LOGO_PATH": "logo_spa.png",
+    "LOGO_POSICION": "top-right",
+    "CIERRE_VERTICAL_FILES": [],
+    "CANDIDATOS_MIN_N": 4,
+    "CANDIDATOS_MAX_N": 7,
+    "CANDIDATOS_DURACION_MIN": 15.0,
+    "COPYS_HASHTAGS_BASE": [
+      "#SiemprePasaAlgo",
+      "#SPAreírse",
+      "#FútbolChileno",
+      "#LadoB"
+    ],
+    "YOUTUBE_TITULO_TEMPLATE": "SPAreírse - candidato {fecha} - clip {n}",
+    "SUPABASE_SCHEMA": "siempre_pasa_algo",
+    "PORTADA_MARCA_TEXTO": "SIEMPRE PASA ALGO",
+    "PORTADA_COLOR_DESTACADO": [
+      34,
+      208,
+      232
+    ],
+    "PORTADA_COLOR_FRANJA": [
+      7,
+      10,
+      19
+    ],
+    "PORTADA_MARCA_COLOR_FONDO": [
+      7,
+      10,
+      19
+    ],
+    "PORTADA_MARCA_COLOR_ACENTO": [
+      228,
+      50,
+      220
+    ],
+    "PORTADA_VS_BADGE_COLOR": [
+      228,
+      50,
+      220
+    ],
+    "AUTO_PUBLICAR_YOUTUBE": false,
+    "AUTO_PUBLICAR_INSTAGRAM": false,
+    "SUPABASE_PORTADAS_BUCKET": "portadas-spa",
+    "SUPABASE_CLIPS_VIDEO_BUCKET": "clips-video-spa"
+  }
+}

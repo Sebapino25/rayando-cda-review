@@ -290,12 +290,14 @@ def _logo_overlay_xy() -> tuple[str, str]:
     return posiciones[config.LOGO_POSICION]
 
 
-def _siguiente_cierre_vertical() -> Path:
+def _siguiente_cierre_vertical() -> Path | None:
     """Elige el próximo cierre institucional rotando en orden fijo (round-robin
     persistido en CIERRE_ROTACION_STATE_PATH), para que nunca se repita el
     mismo cierre dos veces seguidas aunque el pipeline se reinicie entre
     clips."""
     archivos = config.CIERRE_VERTICAL_FILES
+    if not archivos:
+        return None  # programa sin cierre institucional (ej. SPA por ahora)
     state_path = config.CIERRE_ROTACION_STATE_PATH
     idx = 0
     if state_path.exists():
@@ -357,7 +359,8 @@ def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | Non
 
     cierre_path = _siguiente_cierre_vertical()
     cierre_idx = next_input_idx
-    cmd += ["-i", str(cierre_path)]
+    if cierre_path is not None:
+        cmd += ["-i", str(cierre_path)]
 
     _aformat = "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo"
     if config.AUDIO_NORMALIZAR:
@@ -372,13 +375,20 @@ def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | Non
         )
     else:
         audio_clip = _aformat
-    filter_complex += (
-        f";[outv]fps=30,setsar=1,format=yuv420p[outvn]"
-        f";[0:a]{audio_clip}[outan]"
-        f";[{cierre_idx}:v]fps=30,scale={w}:{h},setsar=1,format=yuv420p[cierrev]"
-        f";[{cierre_idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[cierrea]"
-        f";[outvn][outan][cierrev][cierrea]concat=n=2:v=1:a=1[vfinal][afinal]"
-    )
+    if cierre_path is not None:
+        filter_complex += (
+            f";[outv]fps=30,setsar=1,format=yuv420p[outvn]"
+            f";[0:a]{audio_clip}[outan]"
+            f";[{cierre_idx}:v]fps=30,scale={w}:{h},setsar=1,format=yuv420p[cierrev]"
+            f";[{cierre_idx}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[cierrea]"
+            f";[outvn][outan][cierrev][cierrea]concat=n=2:v=1:a=1[vfinal][afinal]"
+        )
+    else:
+        # Sin cierre institucional: el clip sale tal cual, sin concat.
+        filter_complex += (
+            f";[outv]fps=30,setsar=1,format=yuv420p[vfinal]"
+            f";[0:a]{audio_clip}[afinal]"
+        )
 
     cmd += [
         "-filter_complex", filter_complex,

@@ -1,7 +1,38 @@
+import json
+import os
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent
-BASE_DIR = Path(r"C:\Users\sebap\OneDrive\Escritorio\RayandoelCDA")
+
+# --- Multi-programa -------------------------------------------------------
+# Un mismo pipeline sirve a varios programas. PROGRAMA=rayando (default) deja
+# todo EXACTAMENTE como estaba. PROGRAMA=spa (u otro) carga programas/<n>.json
+# y .env.<n> (que pisa las credenciales de .env), y aplica los overrides de
+# más abajo. Ver programas/README.md.
+PROGRAMA = os.environ.get("PROGRAMA", "rayando").strip().lower()
+PROGRAMAS_DIR = PROJECT_DIR / "programas"
+
+
+def _cargar_perfil(nombre: str) -> dict:
+    if nombre == "rayando":
+        return {}
+    ruta = PROGRAMAS_DIR / f"{nombre}.json"
+    if not ruta.exists():
+        raise RuntimeError(f"PROGRAMA='{nombre}' pero no existe {ruta}")
+    return json.loads(ruta.read_text(encoding="utf-8"))
+
+
+_PERFIL = _cargar_perfil(PROGRAMA)
+
+if PROGRAMA != "rayando":
+    # override=True: las credenciales propias del programa (canal de YouTube,
+    # cuentas de redes, schema) pisan las de .env. Las que no estén en
+    # .env.<programa> (ej. ANTHROPIC_API_KEY) siguen viniendo de .env.
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJECT_DIR / f".env.{PROGRAMA}", override=True)
+
+BASE_DIR = Path(_PERFIL.get("base_dir", r"C:\Users\sebap\OneDrive\Escritorio\RayandoelCDA"))
 
 RECORDINGS_DIR = BASE_DIR / "grabaciones"
 CLIPS_DIR = BASE_DIR / "clips"
@@ -232,3 +263,51 @@ CANDIDATOS_MIN_N = 5
 CANDIDATOS_MAX_N = 8
 CANDIDATOS_DURACION_MIN = 20.0
 # Duración máxima: mismo límite que REEL_MAX_SECONDS.
+
+# --- Identidad del programa (textos que antes estaban fijos en el código) ---
+PROGRAMA_NOMBRE = "Rayando el CDA"
+# Frase inicial del initial_prompt de Whisper (ver corregir_nombres.py)
+WHISPER_CONTEXTO = "Rayando el CDA, programa de Universidad de Chile."
+# Diccionario de nombres propios (relativo a PROJECT_DIR)
+DICCIONARIO_PATH = PROJECT_DIR / "diccionario.json"
+# Prompts propios del programa. None = se usan los de Rayando que viven en
+# detectar_momentos.py / copys_ia.py / interpretar_correccion.py.
+PROMPT_DETECCION = None  # admite {min_n} {max_n} {dur_min} {dur_max}
+CONTEXTO_COPYS = None
+PROMPT_CORRECCION_PROGRAMA = None  # nombre con el que interpretar_correccion nombra al programa
+
+
+def _leer_texto_programa(ruta_rel: str) -> str:
+    return (PROGRAMAS_DIR / ruta_rel).read_text(encoding="utf-8").strip()
+
+
+def _aplicar_perfil(perfil: dict) -> None:
+    """Pisa constantes de este módulo con las del perfil. Solo se aceptan
+    claves que ya existen acá (un typo en el JSON falla fuerte, no en silencio).
+    Rutas: si la constante original es Path, el valor del JSON se resuelve
+    relativo a BASE_DIR (salvo que sea absoluto). Listas -> tuplas si la
+    constante original es tupla."""
+    g = globals()
+    for clave, valor in perfil.get("config", {}).items():
+        if clave not in g or clave.startswith("_"):
+            raise RuntimeError(f"Perfil '{PROGRAMA}': clave de config desconocida '{clave}'")
+        actual = g[clave]
+        if isinstance(actual, Path) and isinstance(valor, str):
+            valor = Path(valor) if Path(valor).is_absolute() else BASE_DIR / valor
+        elif isinstance(actual, tuple) and isinstance(valor, list):
+            valor = tuple(valor)
+        g[clave] = valor
+    if "nombre" in perfil:
+        g["PROGRAMA_NOMBRE"] = perfil["nombre"]
+    if "whisper_contexto" in perfil:
+        g["WHISPER_CONTEXTO"] = perfil["whisper_contexto"]
+    if "diccionario" in perfil:
+        g["DICCIONARIO_PATH"] = PROGRAMAS_DIR / perfil["diccionario"]
+    prompts = perfil.get("prompts", {})
+    if "deteccion" in prompts:
+        g["PROMPT_DETECCION"] = _leer_texto_programa(prompts["deteccion"])
+    if "copys_contexto" in prompts:
+        g["CONTEXTO_COPYS"] = _leer_texto_programa(prompts["copys_contexto"])
+
+
+_aplicar_perfil(_PERFIL)

@@ -421,7 +421,7 @@ def procesar_fila(row: dict, apply: bool) -> bool:
             print(f"  FALLÓ: {e}")
             return False
 
-        titulo = row.get("titulo") or "Rayando el CDA"
+        titulo = row.get("titulo") or config.PROGRAMA_NOMBRE
         descripcion = f"{row.get('youtube_titulo') or ''}\n\n{row.get('youtube_descripcion') or ''}".strip()
         print(f'  Subiendo a YouTube como no listado: "{titulo}"...')
         try:

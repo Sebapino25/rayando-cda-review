@@ -36,6 +36,9 @@ CONTEXTO_PROGRAMA = (
     "cercano, chileno, directo — nada formal ni de comunicado de prensa."
 )
 
+if config.CONTEXTO_COPYS:
+    CONTEXTO_PROGRAMA = config.CONTEXTO_COPYS
+
 REGLA_EDICION = (
     "Regla de edición de la transcripción (aplica a las tres plataformas): "
     'sacá muletillas ("onda", "eh", repeticiones, tartamudeos de audio en '
@@ -60,7 +63,7 @@ REGLA_EDICION = (
     "adivinar si está bien o mal."
 )
 
-SYSTEM_PROMPT = f"""Sos redactor de copys para redes sociales de "Rayando el CDA".
+SYSTEM_PROMPT = f"""Sos redactor de copys para redes sociales de "{config.PROGRAMA_NOMBRE}".
 
 {CONTEXTO_PROGRAMA}
 

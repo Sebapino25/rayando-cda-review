@@ -1,0 +1,20 @@
+{
+  "_comentario": "Diccionario de nombres propios de SPAreírse (Siempre Pasa Algo). Mismo formato que diccionario.json de Rayando el CDA. Semilla del capítulo 1; ampliar cada semana con los nombres que Whisper escriba mal. Los terminos de una sola palabra además pasan por fuzzy matching, así que sumar solo nombres distintivos.",
+  "terminos": [
+    {"correcto": "SPAreírse", "tipo": "programa", "variantes": ["spa reírse", "spa reirse", "spareirse", "spa reírce", "espa reírse"]},
+    {"correcto": "Siempre Pasa Algo", "tipo": "medio", "variantes": ["siempre pasa algo", "siempre pasa algo"]},
+    {"correcto": "Haaland", "tipo": "persona", "variantes": ["jaaland", "haland", "aaland", "jaland", "haaland"]},
+    {"correcto": "Nico Castillo", "tipo": "persona", "variantes": ["nico castillo", "niko castillo"]},
+    {"correcto": "Alexis Sánchez", "tipo": "persona", "variantes": ["alexis sanchez"]},
+    {"correcto": "Mago Jiménez", "tipo": "persona", "variantes": ["mago jimenez", "mago gimenez", "mago jiménez"]},
+    {"correcto": "Cote López", "tipo": "persona", "variantes": ["cote lopez", "coté lópez", "kote lópez", "cote lópez"]},
+    {"correcto": "Marité Matus", "tipo": "persona", "variantes": ["marite matus", "marité matus"]},
+    {"correcto": "Sonia Isaza", "tipo": "persona", "variantes": ["sonia isasa", "sonia isaza"]},
+    {"correcto": "Lucas Cepeda", "tipo": "persona", "variantes": ["lucas sepeda", "lucas cepeda"]},
+    {"correcto": "Mono Sánchez", "tipo": "persona", "variantes": ["mono sanchez"]},
+    {"correcto": "Pinilla", "tipo": "persona", "variantes": []},
+    {"correcto": "Coquimbo Unido", "tipo": "equipo", "variantes": ["coquimbo unido"]},
+    {"correcto": "Santa Laura", "tipo": "estadio", "variantes": ["santa laura"]}
+  ],
+  "correcciones_especiales": []
+}

@@ -39,7 +39,7 @@ load_dotenv(config.PROJECT_DIR / ".env")
 MODEL = config.CANDIDATOS_MODEL
 
 SYSTEM_PROMPT = """Sos el/la encargado/a técnico/a de interpretar pedidos \
-de corrección para clips de "Rayando el CDA". El equipo editorial ya \
+de corrección para clips de "__PROGRAMA__". El equipo editorial ya \
 revisó un clip y pidió un cambio en texto libre. Este flujo sabe hacer \
 exactamente dos cosas, que pueden venir juntas en el mismo pedido:
 
@@ -197,7 +197,7 @@ def interpretar_correccion(
             model=MODEL,
             max_tokens=16000,
             thinking={"type": "adaptive"},
-            system=SYSTEM_PROMPT,
+            system=SYSTEM_PROMPT.replace("__PROGRAMA__", config.PROGRAMA_NOMBRE),
             output_config={"format": {"type": "json_schema", "schema": _SCHEMA}},
             messages=[{"role": "user", "content": mensaje_usuario}],
         ) as stream:

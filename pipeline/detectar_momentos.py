@@ -77,6 +77,16 @@ No elijas candidatos que se superpongan entre sí (rangos de índices \
 disjuntos). Priorizá variedad: no repitas el mismo tema/persona en todos \
 los candidatos si el programa da para más variedad."""
 
+if config.PROMPT_DETECCION:
+    # Prompt propio del programa (config.PROGRAMA != "rayando"). Los límites
+    # salen de config para que nunca se desfasen del filtro de duración.
+    SYSTEM_PROMPT = config.PROMPT_DETECCION.format(
+        min_n=config.CANDIDATOS_MIN_N,
+        max_n=config.CANDIDATOS_MAX_N,
+        dur_min=int(config.CANDIDATOS_DURACION_MIN),
+        dur_max=int(config.REEL_MAX_SECONDS),
+    )
+
 _SCHEMA = {
     "type": "object",
     "properties": {

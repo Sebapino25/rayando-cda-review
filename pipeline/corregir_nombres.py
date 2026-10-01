@@ -25,7 +25,9 @@ import re
 import sys
 from pathlib import Path
 
-DICCIONARIO_PATH = Path(__file__).parent / "diccionario.json"
+import config
+
+DICCIONARIO_PATH = config.DICCIONARIO_PATH
 
 STOPWORDS = {
     "la", "el", "los", "las", "de", "del", "que", "y", "a", "en", "un", "una",
@@ -180,7 +182,7 @@ def construir_initial_prompt(diccionario: dict | None = None) -> str:
     if diccionario is None:
         diccionario = cargar_diccionario()
     terminos = [t["correcto"] for t in diccionario.get("terminos", [])]
-    return "Rayando el CDA, programa de Universidad de Chile. " + ", ".join(terminos) + "."
+    return config.WHISPER_CONTEXTO + " " + ", ".join(terminos) + "."
 
 
 def corregir_archivo(path: Path, diccionario: dict | None = None) -> int:
