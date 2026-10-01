@@ -437,6 +437,27 @@ Get-Content pipeline\logs_auto\loop.log -Tail 10
 Get-Content pipeline\logs_auto\ritmo_auto.json
 ```
 
+### Operación: ventana semanal y fallos conocidos
+
+- **Fuera de la ventana no corre nada.** Si el equipo manda correcciones después
+  del miércoles ~11:00, se procesan recién el martes siguiente. Para
+  procesarlas ya: `Start-ScheduledTask -TaskName RayandoCDA_AutoProcesar`
+  (una pasada por ejecución; repetir si hay varias filas) y mirar
+  `logs_auto\correccion_video.log` / `correccion_subtitulos.log`.
+- **Pedido rechazado por la IA** ("La IA no tiene confianza..."): no se
+  reintenta hasta que cambie el texto del pedido. En la app hay que usar
+  **Deshacer** en el Historial, reescribir el pedido con una frase exacta (o
+  segundos relativos: "empezar 10 segundos antes") y mandarlo de nuevo. Para
+  reintentar sin cambiarlo, borrar su entrada en
+  `logs_auto\correccion_video_fallos.log`.
+- **`DLL load failed ... Control de aplicaciones bloqueó este archivo`**:
+  Smart App Control de Windows bloqueó un binario sin firma (pasó con
+  `cv2.pyd` el 30/09/2026). `portadas.py` ya no depende de OpenCV, pero si
+  otro paquete (rembg/onnxruntime, etc.) falla igual, revisar el registro
+  `Microsoft-Windows-CodeIntegrity/Operational` (eventos 3077/3033). No
+  apagar Smart App Control salvo decisión explícita: no se puede reactivar
+  sin reinstalar Windows.
+
 ## Diccionario de nombres propios y corrección automática
 
 `diccionario.json` contiene los términos correctos del universo del programa
@@ -611,6 +632,15 @@ python -c "from pathlib import Path; import cortar_clip, portadas; out=Path(r'C:
 
 (Esto regenera `copys.md` con el contenido curado en el override y las tres
 imágenes de portada; no toca `horizontal_original.mp4` ni `vertical.mp4`.)
+
+### Portadas hechas por la agencia (alternativa)
+
+Si el equipo prefiere no armar la portada a mano, la tarjeta del clip tiene el
+botón **"Pedir portada a la agencia"** (marca `portada_agencia_solicitada_en`).
+Las portadas "del tema" (fondo generado, titular grande, sin hablantes) las
+hace el proyecto `El_Proyecto` con `tools/audiovisual/portada_clip.py` y quedan
+en `portada_url`; nunca pisan una portada subida a mano. Detalle y comandos en
+`El_Proyecto\docs\proceso-portadas-clip.md`.
 
 ## Copys automáticos
 

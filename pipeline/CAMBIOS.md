@@ -1,3 +1,41 @@
+# Cambios aplicados — OpenCV opcional, pedidos de corte relativos y portadas por agencia (01/10)
+
+**Incidente del 30/09:** Smart App Control de Windows (modo activo) empezó a
+bloquear `Python312\Lib\site-packages\cv2\cv2.pyd` (sin firma digital) y
+`import cv2` fallaba con "Una directiva de Control de aplicaciones bloqueó
+este archivo". Como `portadas.py` lo importaba al cargar, caían
+`reprocesar_video.py` y `reprocesar_subtitulos.py` (las correcciones del
+programa del 28/09 quedaron sin procesar). Diagnóstico: eventos 3077/3033 en
+el registro `Microsoft-Windows-CodeIntegrity/Operational`. **No se apagó
+Smart App Control** (no se puede reactivar sin reinstalar Windows).
+
+- **`pipeline/portadas.py`** (commit `b7a5a5c`): OpenCV es opcional. Si no
+  carga, la nitidez se calcula con numpy (`_laplacian_var`) y se omite la
+  detección de rostros/ojos (el score queda solo por nitidez). Imprime un
+  aviso, no falla. Test: `test_portadas_sin_opencv.py`.
+- **Pedidos de corte relativos** (mismo commit): `interpretar_correccion`
+  nunca recibía el inicio/fin actual del clip, así que "empezá 15 segundos
+  antes" siempre daba `confianza=false`. Ahora `reprocesar_video.buscar_pendientes`
+  trae `timestamp_inicio/fin` y se los pasa ("Rango actual del clip") junto con
+  una instrucción en el prompt. Test nuevo en `test_interpretar_correccion.py`.
+- **Botón "Pedir portada a la agencia"** (commit `e5def12`): columna nueva
+  `rayando_cda.clips.portada_agencia_solicitada_en` (migración aplicada el
+  01/10, documentada en `supabase_migration_clips.sql`) + botón en
+  `ClipCard.jsx`. La agencia hace la portada en el proyecto `El_Proyecto`
+  (`tools/audiovisual/portada_clip.py`, ver `docs/proceso-portadas-clip.md`
+  allá) y deja la imagen en `portada_url`. No pisa portadas subidas a mano
+  (`/portadas/custom/`).
+
+**Operación:** la tarea `RayandoCDA_AutoProcesar` solo corre en su ventana
+semanal (martes → miércoles ~11:00). Correcciones hechas después no se
+procesan hasta el martes siguiente: se pueden forzar con
+`Start-ScheduledTask -TaskName RayandoCDA_AutoProcesar`. Si un pedido de
+corrección fue rechazado por la IA, no se reintenta hasta que cambie su
+texto; para forzarlo sin cambiarlo, borrar su entrada en
+`logs_auto\correccion_video_fallos.log`.
+
+---
+
 # Cambios aplicados — eliminar las notificaciones por mail del disparador automático (15/09)
 
 `auto_procesar.ps1` mandaba mails de aviso/error vía Resend, pero la cuenta
