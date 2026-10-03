@@ -33,6 +33,7 @@ import json
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
@@ -109,6 +110,16 @@ _SCHEMA = {
 }
 
 
+def _schema_con_puntaje() -> dict:
+    """Mismo esquema, con `puntaje` (1-10) obligatorio: se usa en la detección
+    por ventanas para ordenar candidatos de distintas partes del programa."""
+    sch = json.loads(json.dumps(_SCHEMA))
+    item = sch["properties"]["candidatos"]["items"]
+    item["properties"]["puntaje"] = {"type": "integer"}
+    item["required"] = ["idx_inicio", "idx_fin", "razon", "puntaje"]
+    return sch
+
+
 @dataclass
 class Candidato:
     idx_inicio: int
@@ -118,6 +129,7 @@ class Candidato:
     duracion_segundos: float
     razon: str
     transcripcion: str
+    puntaje: int | None = None  # solo en detección por ventanas (1-10)
 
 
 class DeteccionError(Exception):
@@ -137,10 +149,16 @@ def _termina_oracion(texto: str) -> bool:
     return bool(_FIN_ORACION_RE.search(texto.strip()))
 
 
-def _construir_lista_segmentos(segments: list[dict]) -> str:
+def _construir_lista_segmentos(segments: list[dict], desde: int = 0, hasta: int | None = None) -> str:
+    """Lista numerada de segmentos. Los índices son SIEMPRE los del programa
+    completo, aunque se pase solo un rango [desde, hasta) (detección por
+    ventanas)."""
+    hasta = len(segments) if hasta is None else hasta
     lineas = []
-    termina_anterior = True  # idx 0 siempre puede abrir oración
-    for i, seg in enumerate(segments):
+    # idx 0 siempre puede abrir oración; en una ventana, depende del anterior
+    termina_anterior = True if desde == 0 else _termina_oracion(segments[desde - 1]["text"])
+    for i in range(desde, hasta):
+        seg = segments[i]
         texto = seg["text"].strip()
         empieza = termina_anterior
         termina = _termina_oracion(texto)
@@ -153,26 +171,16 @@ def _construir_lista_segmentos(segments: list[dict]) -> str:
     return "\n".join(lineas)
 
 
-def detectar_candidatos(segments: list[dict]) -> list[Candidato]:
-    """Llama a la API de Anthropic para identificar entre
-    config.CANDIDATOS_MIN_N y config.CANDIDATOS_MAX_N candidatos a clip
-    sobre la transcripción completa (segments = data["segments"] del .json
-    maestro de transcribir.py). Lanza DeteccionError si falla la llamada o
-    la respuesta no es utilizable."""
-    if not segments:
-        raise DeteccionError("La transcripción no tiene segmentos")
-
-    lista = _construir_lista_segmentos(segments)
-    mensaje_usuario = f"Transcripción completa del programa ({len(segments)} segmentos):\n\n{lista}"
-
+def _llamar_modelo(system: str, mensaje_usuario: str, schema: dict) -> list[dict]:
+    """Una llamada a la API; devuelve la lista cruda de candidatos del modelo."""
     client = _client()
     try:
         with client.messages.stream(
             model=config.CANDIDATOS_MODEL,
             max_tokens=16000,
             thinking={"type": "adaptive"},
-            system=SYSTEM_PROMPT,
-            output_config={"format": {"type": "json_schema", "schema": _SCHEMA}},
+            system=system,
+            output_config={"format": {"type": "json_schema", "schema": schema}},
             messages=[{"role": "user", "content": mensaje_usuario}],
         ) as stream:
             response = stream.get_final_message()
@@ -184,20 +192,32 @@ def detectar_candidatos(segments: list[dict]) -> list[Candidato]:
 
     try:
         texto = next(b.text for b in response.content if b.type == "text")
-        crudos = json.loads(texto)["candidatos"]
+        return json.loads(texto)["candidatos"]
     except (StopIteration, json.JSONDecodeError, KeyError, TypeError) as e:
         raise DeteccionError(f"Respuesta de la API no tiene el formato esperado: {e}") from e
 
+
+def _validar_candidatos(
+    crudos: list[dict],
+    segments: list[dict],
+    rangos_aceptados: list[tuple[int, int]] | None = None,
+    i_min: int = 0,
+    i_max: int | None = None,
+) -> list[Candidato]:
+    """Valida los candidatos crudos del modelo (índices, solapamiento,
+    duración) y arma los Candidato con timestamps y transcripción reales.
+    i_min/i_max acotan los índices permitidos (ventana)."""
     n = len(segments)
+    i_max = n - 1 if i_max is None else i_max
+    rangos_aceptados = [] if rangos_aceptados is None else rangos_aceptados
     aceptados: list[Candidato] = []
-    rangos_aceptados: list[tuple[int, int]] = []
 
     for c in crudos:
         idx_inicio, idx_fin = c.get("idx_inicio"), c.get("idx_fin")
         if not isinstance(idx_inicio, int) or not isinstance(idx_fin, int):
             continue
-        if not (0 <= idx_inicio <= idx_fin < n):
-            continue  # índice inválido devuelto por el modelo, se descarta
+        if not (i_min <= idx_inicio <= idx_fin <= i_max):
+            continue  # índice inválido (o fuera de la ventana), se descarta
 
         solapa = any(not (idx_fin < a_ini or idx_inicio > a_fin) for a_ini, a_fin in rangos_aceptados)
         if solapa:
@@ -215,6 +235,7 @@ def detectar_candidatos(segments: list[dict]) -> list[Candidato]:
         transcripcion = " ".join(
             segments[i]["text"].strip() for i in range(idx_inicio, idx_fin + 1)
         )
+        puntaje = c.get("puntaje")
 
         aceptados.append(
             Candidato(
@@ -225,9 +246,146 @@ def detectar_candidatos(segments: list[dict]) -> list[Candidato]:
                 duracion_segundos=round(duracion, 2),
                 razon=c.get("razon", ""),
                 transcripcion=transcripcion,
+                puntaje=puntaje if isinstance(puntaje, int) else None,
             )
         )
         rangos_aceptados.append((idx_inicio, idx_fin))
+
+    return aceptados
+
+
+def _ventanas(segments: list[dict], ventana_seg: float, solape_seg: float) -> list[tuple[int, int]]:
+    """Parte el programa en ventanas de ~ventana_seg segundos, cada una con
+    solape_seg de más al final (para no cortar un momento justo en el borde).
+    Devuelve rangos de índice [i0, i1) sobre `segments`. Una cola muy corta
+    (menos de un tercio de ventana) se une a la ventana anterior."""
+    n = len(segments)
+    if n == 0 or not ventana_seg or ventana_seg <= 0:
+        return [(0, n)]
+    fin_total = segments[-1]["end"]
+    inicios: list[float] = []
+    t = 0.0
+    while t < fin_total:
+        inicios.append(t)
+        t += ventana_seg
+    if len(inicios) > 1 and fin_total - inicios[-1] < ventana_seg / 3:
+        inicios.pop()
+
+    def primer_indice(desde_seg: float) -> int:
+        for i, seg in enumerate(segments):
+            if seg["start"] >= desde_seg:
+                return i
+        return n
+
+    ventanas: list[tuple[int, int]] = []
+    for k, t0 in enumerate(inicios):
+        ultima = k == len(inicios) - 1
+        i0 = primer_indice(t0)
+        i1 = n if ultima else primer_indice(t0 + ventana_seg + solape_seg)
+        if i1 > i0:
+            ventanas.append((i0, i1))
+    return ventanas
+
+
+def _combinar_ventanas(por_ventana: list[list[Candidato]], pool_n: int) -> list[Candidato]:
+    """Junta los candidatos de todas las ventanas: ordena por puntaje (a igual
+    puntaje, el que aparece antes en el programa), descarta los que se
+    superponen con uno mejor ya elegido (típico del solape entre ventanas),
+    se queda con los pool_n mejores y los devuelve en orden cronológico."""
+    todos = [c for lista in por_ventana for c in lista]
+    todos.sort(key=lambda c: (-(c.puntaje or 0), c.timestamp_inicio))
+    elegidos: list[Candidato] = []
+    for c in todos:
+        if any(not (c.idx_fin < e.idx_inicio or c.idx_inicio > e.idx_fin) for e in elegidos):
+            continue
+        elegidos.append(c)
+        if len(elegidos) >= pool_n:
+            break
+    elegidos.sort(key=lambda c: c.timestamp_inicio)
+    return elegidos
+
+
+def _hhmm(segundos: float) -> str:
+    s = int(segundos)
+    return f"{s // 3600}:{(s % 3600) // 60:02d}"
+
+
+_NOTA_VENTANA = (
+    "\n\nNOTA: en esta llamada recibís solo una parte del programa. Los topes de "
+    "cantidad se aplican a esta parte; la selección final entre las partes se hace "
+    "después, según el puntaje que le des a cada candidato."
+)
+
+
+def _detectar_por_ventanas(segments: list[dict]) -> list[Candidato]:
+    """Detección por ventanas: una llamada por cada ~15 minutos de programa
+    (en paralelo), cada una con puntaje, y una selección final entre todas.
+    Evita que un modelo que lee una hora de transcripción de una vez pase por
+    alto tramos enteros. Solo con prompt propio del programa."""
+    ventanas = _ventanas(segments, config.DETECCION_VENTANA_SEG, config.DETECCION_VENTANA_SOLAPE_SEG)
+    por_ventana_max = max(1, int(config.DETECCION_POR_VENTANA_MAX))
+    pool_n = int(config.CANDIDATOS_POOL_N or config.CANDIDATOS_MAX_N)
+    system = (
+        config.PROMPT_DETECCION.format(
+            min_n=0,
+            max_n=por_ventana_max,
+            dur_min=int(config.CANDIDATOS_DURACION_MIN),
+            dur_max=int(config.REEL_MAX_SECONDS),
+        )
+        + _NOTA_VENTANA
+    )
+    schema = _schema_con_puntaje()
+    total = len(ventanas)
+
+    def tarea(k: int) -> list[Candidato]:
+        i0, i1 = ventanas[k]
+        lista = _construir_lista_segmentos(segments, i0, i1)
+        mensaje = (
+            f"Parte {k + 1} de {total} del programa "
+            f"(de {_hhmm(segments[i0]['start'])} a {_hhmm(segments[i1 - 1]['end'])}). "
+            "Los índices de la lista son los del programa completo: elegí índices solo de esta parte. "
+            f"Devolvé hasta {por_ventana_max} candidatos de esta parte; si no hay momentos realmente "
+            "buenos, devolvé menos o ninguno. Para cada candidato agregá además puntaje (entero de 1 a 10): "
+            "qué tan buen clip es, juzgado contra los mejores clips que esperarías de un programa de "
+            "reacción de humor. 9-10 imperdible, 7-8 muy bueno, 5-6 aceptable, 4 o menos flojo. Sé exigente "
+            "y consistente: el puntaje se usa para comparar candidatos de distintas partes del programa.\n\n"
+            f"Transcripción de esta parte ({i1 - i0} segmentos):\n\n{lista}"
+        )
+        crudos = _llamar_modelo(system, mensaje, schema)
+        return _validar_candidatos(crudos, segments, None, i0, i1 - 1)
+
+    with ThreadPoolExecutor(max_workers=total) as ex:
+        por_ventana = list(ex.map(tarea, range(total)))
+
+    elegidos = _combinar_ventanas(por_ventana, pool_n)
+    if not elegidos:
+        raise DeteccionError(
+            "La API no devolvió ningún candidato válido en ninguna parte del programa "
+            "(0 después de validar índices/duración/solapamiento)"
+        )
+    return elegidos
+
+
+def detectar_candidatos(segments: list[dict]) -> list[Candidato]:
+    """Llama a la API de Anthropic para identificar entre
+    config.CANDIDATOS_MIN_N y config.CANDIDATOS_MAX_N candidatos a clip
+    sobre la transcripción completa (segments = data["segments"] del .json
+    maestro de transcribir.py). Lanza DeteccionError si falla la llamada o
+    la respuesta no es utilizable.
+
+    Si el programa define config.DETECCION_VENTANA_SEG > 0 (y tiene prompt
+    propio), se usa la detección por ventanas (ver _detectar_por_ventanas)."""
+    if not segments:
+        raise DeteccionError("La transcripción no tiene segmentos")
+
+    if config.DETECCION_VENTANA_SEG and config.DETECCION_VENTANA_SEG > 0 and config.PROMPT_DETECCION:
+        return _detectar_por_ventanas(segments)
+
+    lista = _construir_lista_segmentos(segments)
+    mensaje_usuario = f"Transcripción completa del programa ({len(segments)} segmentos):\n\n{lista}"
+
+    crudos = _llamar_modelo(SYSTEM_PROMPT, mensaje_usuario, _SCHEMA)
+    aceptados = _validar_candidatos(crudos, segments)
 
     if not aceptados:
         raise DeteccionError(
@@ -270,6 +428,8 @@ def main():
             f"  Timestamps: {cortar_clip.format_hhmmss(c.timestamp_inicio)} -> "
             f"{cortar_clip.format_hhmmss(c.timestamp_fin)} ({c.duracion_segundos}s)"
         )
+        if c.puntaje is not None:
+            print(f"  Puntaje: {c.puntaje}/10")
         print(f"  Razón: {c.razon}")
         print(f"  Transcripción: {c.transcripcion}")
         print()

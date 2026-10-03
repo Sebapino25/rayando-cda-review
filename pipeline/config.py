@@ -263,6 +263,15 @@ CANDIDATOS_MIN_N = 5
 CANDIDATOS_MAX_N = 8
 CANDIDATOS_DURACION_MIN = 20.0
 # Duración máxima: mismo límite que REEL_MAX_SECONDS.
+# Detección por ventanas (ver detectar_momentos._detectar_por_ventanas).
+# 0 = una sola llamada con el programa completo (comportamiento de Rayando).
+# >0 = una llamada por cada N segundos de programa, con puntaje, y selección
+# final entre todas. Solo se usa si el programa tiene prompt propio.
+DETECCION_VENTANA_SEG = 0
+DETECCION_VENTANA_SOLAPE_SEG = 90  # segundos extra al final de cada ventana
+DETECCION_POR_VENTANA_MAX = 3  # candidatos máximos que se piden por ventana
+# Tope de candidatos tras juntar las ventanas. None = CANDIDATOS_MAX_N.
+CANDIDATOS_POOL_N = None
 
 # --- Identidad del programa (textos que antes estaban fijos en el código) ---
 PROGRAMA_NOMBRE = "Rayando el CDA"
