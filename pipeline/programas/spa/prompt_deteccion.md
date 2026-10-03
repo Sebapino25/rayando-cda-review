@@ -9,10 +9,14 @@ Identificá entre {min_n} y {max_n} candidatos a clip para redes sociales (nunca
 4. Humor sobre SPA mismo: bromas de los conductores sobre el medio, sus seguidores o la gente que los apaña.
 5. Frase citable o reacción fuerte: una línea que la gente querría repetir o comentar, o una sorpresa/indignación/ternura muy marcada.
 
+Referencia de gusto (revisiones reales de Samuel y Cristián sobre el primer programa; usala como guía de qué tipo de momento les sirve, no como lista cerrada):
+- Aprobaron el doble sentido futbolero aplicado a farándula (comparar a alguien con una jugadora que "se pone la 10 en varios equipos"), las ocurrencias con remate citable ("por 15 palos yo también me pongo a llorar a la tele, yo por palo y medio te baila"), probar o reaccionar a algo cotidiano con gracia (la dieta de Haaland), los compilados presentados y celebrados (los hueveos del Mono Sánchez) y las bromas sobre SPA mismo (los likes de Vidal, "gracias Max", "el sótano de la casa de Arturo Vidal").
+- Descartaron los tramos de agradecimientos o lectura de comentarios sin chiste, y pidieron mover el corte cuando terminaba antes del remate o de la talla siguiente.
+
 Cómo cortar bien:
 - Terminá el clip en el remate final, no en el primer chiste. Si después del chiste principal vienen una segunda talla, las tallas de los seguidores, una repetición del video o un efecto que sostiene el chiste (por ejemplo volver a escuchar el golpe), incluí todo eso hasta el último remate, aunque tengas que usar el largo máximo permitido. Es mejor que un clip dure un poco más y cierre bien a que se corte justo antes de la mejor parte.
 - Empezá justo antes de que los conductores empiecen a reaccionar, con el contexto mínimo para entender de qué hablan.
-- Si el chiste ES el video (un compilado, un blooper) y los conductores lo presentan y lo celebran, el clip puede incluir el video completo, aunque haya tramos largos sin voz de los conductores en la mitad, siempre que la presentación y la reacción estén dentro del clip.
+- Si el chiste ES el video (un compilado, un blooper) y los conductores lo presentan y lo celebran, el clip puede incluir el video completo, aunque haya tramos largos sin voz de los conductores en la mitad, siempre que la presentación y la reacción estén dentro del clip. No le bajes el puntaje a un momento así porque casi no haya texto hablado: juzgá la presentación y la reacción.
 - Para cada candidato elegí un rango contiguo de índices [idx_inicio, idx_fin] de la lista que te paso (inclusive en ambos extremos) — NUNCA inventes un timestamp en segundos. El clip debe durar entre {dur_min} y {dur_max} segundos (fin del segmento idx_fin menos inicio del segmento idx_inicio); lo ideal son 25 a 60 segundos. Preferí que idx_inicio sea un segmento con empieza_oracion=true e idx_fin uno con termina_oracion=true, para no cortar a mitad de una frase — si el mejor momento no calza exacto, elegí el índice más cercano que sí cumpla esto, no fuerces un corte a mitad de oración.
 - El clip tiene que funcionar solo: que se entienda de qué video o tema hablan sin ver el resto.
 
@@ -20,7 +24,7 @@ Cobertura: revisá la transcripción completa, de principio a fin, con la misma 
 
 Descartá: saludos, despedidas, agradecimientos y cierre del programa, transiciones entre bloques, conversación sobre cómo organizar el programa o qué video sigue, problemas técnicos, silencios sin contexto, menciones de marcas o auspicio, y tramos donde casi no hablan los conductores y nadie reacciona (solo suena un video sin remate).
 
-Riesgo: los conductores quieren decidir ellos si un clip pesado entra o no, así que no lo descartes por eso. Si un momento es bueno pero es hiriente, muy pesado, insinúa cosas sobre la vida privada de una persona real o afirma algo grave como si fuera un hecho (acusaciones sin respaldo, insultos directos, datos personales de terceros), incluilo igual y empezá la razón con "RIESGO:" seguido de qué es lo delicado, para que la revisión editorial lo vea y decida.
+Riesgo: los conductores quieren decidir ellos si un clip pesado entra o no, así que no lo descartes por eso. Marcá con "RIESGO:" al inicio de la razón (y explicá qué es lo delicado) solo cuando el momento insinúe cosas sobre la vida privada de una persona real, toque un tema de salud real, afirme algo grave como si fuera un hecho (acusaciones sin respaldo, datos personales de terceros) o sea una burla hiriente. Un chiste verde o un doble sentido liviano que no apunta a una persona concreta no necesita marca.
 
 Para cada candidato devolvé: idx_inicio, idx_fin y razon (por qué elegiste justo ese momento, en 1-2 frases, específico al contenido y diciendo a cuál de los criterios responde — nunca genérico, tipo "es un buen momento").
 
