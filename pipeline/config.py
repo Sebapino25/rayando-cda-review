@@ -108,6 +108,13 @@ SUBTITLE_MAX_WORDS_PER_CUE = 7
 # más grande/protagonista, con menos blur visible.
 VERTICAL_FOREGROUND_SCALE = 1.15
 
+# Formato del vertical. "blur" (Rayando): el video horizontal centrado sobre su
+# propio fondo desenfocado. "split" (SPAreírse): contenido arriba y el conductor
+# que habla abajo, armado desde la grabacion multipista de OBS (layout_split.py).
+# Con "split", si no se puede planificar un clip, ese clip cae a "blur".
+VERTICAL_LAYOUT = "blur"
+LAYOUT_SPLIT_JSON = None  # ruta al layout.json del programa (lo fija el perfil con la clave "layout")
+
 # --- Texto de titulo_portada en la franja superior de relleno (blur) del
 # vertical (ver build_vertical en cortar_clip.py). Se dibuja debajo del logo,
 # dentro del espacio libre que deja VERTICAL_FOREGROUND_SCALE arriba del
@@ -310,6 +317,8 @@ def _aplicar_perfil(perfil: dict) -> None:
         g["PROGRAMA_NOMBRE"] = perfil["nombre"]
     if "whisper_contexto" in perfil:
         g["WHISPER_CONTEXTO"] = perfil["whisper_contexto"]
+    if "layout" in perfil:
+        g["LAYOUT_SPLIT_JSON"] = PROGRAMAS_DIR / perfil["layout"]
     if "diccionario" in perfil:
         g["DICCIONARIO_PATH"] = PROGRAMAS_DIR / perfil["diccionario"]
     prompts = perfil.get("prompts", {})

@@ -320,9 +320,11 @@ def _ejecutar_recorte(carpeta: Path, video_path: Path, nuevo_inicio: float, nuev
     (vertical_path, transcripcion_texto)."""
     horizontal_path = carpeta / "horizontal_original.mp4"
     try:
-        _method, actual_start, _actual_end = cortar_clip.cut_horizontal(
+        _method, actual_start, actual_end = cortar_clip.cut_horizontal(
             video_path, nuevo_inicio, nuevo_fin, horizontal_path
         )
+        # Layout dividido (SPA): el plan viejo no calza con el rango nuevo.
+        cortar_clip.preparar_plan_layout(video_path, actual_start, actual_end, carpeta)
     except Exception as e:
         raise EjecutarError(f"Falló el recorte horizontal: {e}") from e
 

@@ -9,6 +9,7 @@ from pathlib import Path
 import config
 import copys_ia
 import corregir_nombres
+import layout_split
 import portadas
 import publicar
 
@@ -311,47 +312,109 @@ def _siguiente_cierre_vertical() -> Path | None:
     return config.CIERRES_DIR / archivos[idx]
 
 
-def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | None = None) -> None:
-    w, h = config.VERTICAL_WIDTH, config.VERTICAL_HEIGHT
-    fg_w = int(w * config.VERTICAL_FOREGROUND_SCALE)
-    logo_w = max(2, int(w * config.LOGO_ANCHO_RATIO) // 2 * 2)
-    x_expr, y_expr = _logo_overlay_xy()
-
-    src_w, src_h = ffprobe_dimensions(out_dir / "horizontal_original.mp4")
-    fg_h = _foreground_height(src_w, src_h, fg_w)
-    band_h = (h - fg_h) // 2
-
-    top_offset = 0
-    if config.LOGO_POSICION.startswith("top"):
-        _, logo_h = portadas.logo_footprint_px(w)
-        top_offset = config.LOGO_MARGEN_PX + logo_h + config.VIDEO_TITULO_LOGO_GAP_PX
-
-    titulo_png = None
-    if titulo_portada and band_h - top_offset >= config.VIDEO_TITULO_MIN_USABLE_PX:
-        titulo_png = out_dir / "titulo_video.png"
-        portadas.render_video_titulo_png(titulo_png, w, band_h, titulo_portada, top_offset)
-
-    filter_complex = (
-        f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
-        f"crop={w}:{h},gblur=sigma=20[bg];"
-        f"[0:v]scale={fg_w}:-2:force_original_aspect_ratio=decrease,crop={w}:ih[fg];"
-        f"[bg][fg]overlay=(W-w)/2:(H-h)/2[base];"
+def preparar_plan_layout(video_path: Path, inicio_real: float, fin_real: float, out_dir: Path) -> dict | None:
+    """Layout vertical dividido (VERTICAL_LAYOUT="split"): planifica el clip desde la
+    grabacion multipista y guarda layout.json junto al clip. Devuelve el plan, o None si
+    el programa no usa el layout dividido o no se pudo planificar (entonces build_vertical
+    usa el fondo desenfocado). inicio_real/fin_real = limites reales del corte (con margen),
+    los que devuelve cut_horizontal."""
+    plan_path = out_dir / layout_split.PLAN_NOMBRE
+    if config.VERTICAL_LAYOUT != "split" or not config.LAYOUT_SPLIT_JSON:
+        return None
+    plan_path.unlink(missing_ok=True)  # un plan viejo no sirve para un corte nuevo
+    layout = layout_split.cargar_layout(config.LAYOUT_SPLIT_JSON)
+    print("  Analizando escena, contenido y quien habla (layout dividido)...")
+    plan = layout_split.planificar(str(video_path), inicio_real, fin_real, layout)
+    if plan is None:
+        return None
+    layout_split.guardar_plan(out_dir, plan)
+    cambios = max(0, len(plan["segs"]) - 1)
+    print(
+        f"  Layout dividido: escena={plan['escena']}, contenido={'si' if plan['con_contenido'] else 'no'}, "
+        f"{cambios} cambio(s) de camara" + (" (OJO: el clip mezcla escenas)" if plan["mezcla_de_escenas"] else "")
     )
+    return plan
+
+
+def _plan_para_vertical(out_dir: Path) -> dict | None:
+    """Plan guardado (layout.json) si el programa usa layout dividido y calza con el
+    horizontal_original.mp4 actual (misma duracion +-0.3 s); si no, None -> blur."""
+    if config.VERTICAL_LAYOUT != "split" or not config.LAYOUT_SPLIT_JSON:
+        return None
+    plan = layout_split.cargar_plan(out_dir)
+    if plan is None:
+        print("  (sin layout.json: se usa el fondo desenfocado)")
+        return None
+    if abs(plan.get("duracion", 0) - ffprobe_duration(out_dir / "horizontal_original.mp4")) > 0.3:
+        print("  (layout.json no calza con el horizontal actual: se usa el fondo desenfocado)")
+        return None
+    return plan
+
+
+def _build_vertical_split(out_dir: Path, titulo_portada: str | None, plan: dict) -> tuple[str, list[str], int]:
+    """Frente de video del vertical dividido. Devuelve (filter_complex terminado en [withlogo],
+    cmd con las entradas -i, indice de la proxima entrada)."""
+    layout = layout_split.cargar_layout(config.LAYOUT_SPLIT_JSON)
     cmd = ["ffmpeg", "-y", "-i", "horizontal_original.mp4", "-i", str(config.LOGO_PATH)]
-    next_input_idx = 2
-    if titulo_png:
-        filter_complex += "[base][2:v]overlay=0:0[basetitle];"
+    siguiente = 2
+    titulo_png = None
+    banda = layout_split.alto_banda_titulo(plan, layout)
+    if titulo_portada and banda >= config.VIDEO_TITULO_MIN_USABLE_PX:
+        titulo_png = out_dir / "titulo_video.png"
+        portadas.render_video_titulo_png(titulo_png, layout_split.TITULO_W, banda, titulo_portada, 0)
         cmd += ["-i", str(titulo_png)]
-        base_label = "basetitle"
-        next_input_idx = 3
-    else:
-        base_label = "base"
+        siguiente = 3
+    fc = layout_split.filtro_split(plan, layout, titulo_png is not None, config.LOGO_OPACIDAD)
+    return fc, cmd, siguiente
 
-    logo_w_expr = f"scale={logo_w}:-2,format=rgba,colorchannelmixer=aa={config.LOGO_OPACIDAD}[logo]"
-    filter_complex += (
-        f"[1:v]{logo_w_expr};"
-        f"[{base_label}][logo]overlay={x_expr}:{y_expr}[withlogo]"
-    )
+
+def build_vertical(out_dir: Path, has_subtitles: bool, titulo_portada: str | None = None,
+                   plan: dict | None = None) -> None:
+    w, h = config.VERTICAL_WIDTH, config.VERTICAL_HEIGHT
+    if plan is None:
+        plan = _plan_para_vertical(out_dir)
+    if plan is not None:
+        filter_complex, cmd, next_input_idx = _build_vertical_split(out_dir, titulo_portada, plan)
+    else:
+        fg_w = int(w * config.VERTICAL_FOREGROUND_SCALE)
+        logo_w = max(2, int(w * config.LOGO_ANCHO_RATIO) // 2 * 2)
+        x_expr, y_expr = _logo_overlay_xy()
+
+        src_w, src_h = ffprobe_dimensions(out_dir / "horizontal_original.mp4")
+        fg_h = _foreground_height(src_w, src_h, fg_w)
+        band_h = (h - fg_h) // 2
+
+        top_offset = 0
+        if config.LOGO_POSICION.startswith("top"):
+            _, logo_h = portadas.logo_footprint_px(w)
+            top_offset = config.LOGO_MARGEN_PX + logo_h + config.VIDEO_TITULO_LOGO_GAP_PX
+
+        titulo_png = None
+        if titulo_portada and band_h - top_offset >= config.VIDEO_TITULO_MIN_USABLE_PX:
+            titulo_png = out_dir / "titulo_video.png"
+            portadas.render_video_titulo_png(titulo_png, w, band_h, titulo_portada, top_offset)
+
+        filter_complex = (
+            f"[0:v]scale={w}:{h}:force_original_aspect_ratio=increase,"
+            f"crop={w}:{h},gblur=sigma=20[bg];"
+            f"[0:v]scale={fg_w}:-2:force_original_aspect_ratio=decrease,crop={w}:ih[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2[base];"
+        )
+        cmd = ["ffmpeg", "-y", "-i", "horizontal_original.mp4", "-i", str(config.LOGO_PATH)]
+        next_input_idx = 2
+        if titulo_png:
+            filter_complex += "[base][2:v]overlay=0:0[basetitle];"
+            cmd += ["-i", str(titulo_png)]
+            base_label = "basetitle"
+            next_input_idx = 3
+        else:
+            base_label = "base"
+
+        logo_w_expr = f"scale={logo_w}:-2,format=rgba,colorchannelmixer=aa={config.LOGO_OPACIDAD}[logo]"
+        filter_complex += (
+            f"[1:v]{logo_w_expr};"
+            f"[{base_label}][logo]overlay={x_expr}:{y_expr}[withlogo]"
+        )
     if has_subtitles:
         filter_complex += ";[withlogo]subtitles=subtitulos.ass[outv]"
     else:
@@ -596,8 +659,10 @@ def cortar_y_publicar(
     overrides = _cargar_overrides(nombre)
     print(f"  Copys.md listo, titulo_portada: {copys.titulo_portada!r}")
 
+    plan_layout = preparar_plan_layout(video_path, actual_start, actual_end, out_dir)
+
     print("Generando versión vertical 9:16 con fondo desenfocado, titulo_portada, logo" + (" y subtítulos..." if has_subtitles else "..."))
-    build_vertical(out_dir, has_subtitles, copys.titulo_portada)
+    build_vertical(out_dir, has_subtitles, copys.titulo_portada, plan_layout)
     vertical_path = out_dir / "vertical.mp4"
     print(f"  Vertical listo: {vertical_path}")
 

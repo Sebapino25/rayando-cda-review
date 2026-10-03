@@ -55,6 +55,8 @@
     "DETECCION_VENTANA_SEG": 600,
     "DETECCION_VENTANA_SOLAPE_SEG": 90,
     "DETECCION_POR_VENTANA_MAX": 4,
-    "CANDIDATOS_POOL_N": 12
-  }
+    "CANDIDATOS_POOL_N": 12,
+    "VERTICAL_LAYOUT": "split"
+  },
+  "layout": "spa/layout.json"
 }

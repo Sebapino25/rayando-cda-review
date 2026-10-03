@@ -1,0 +1,118 @@
+{
+  "_nota": "Layout vertical dividido de SPAreírse (contenido arriba, conductor que habla abajo). Coordenadas sobre el lienzo 1920x1080 de OBS. Generado desde perfil_spa.json.",
+  "lienzo": [
+    1920,
+    1080
+  ],
+  "pistas": {
+    "conductor1": 2,
+    "conductor2": 3
+  },
+  "fondos": {
+    "reaccion_horizontal": "fondos/fondo_horizontal_1920x1080.png",
+    "reaccion_vertical": "fondos/fondo_vertical_1920x1080.png"
+  },
+  "umbral_contenido": 12.0,
+  "deteccion_de_escena": {
+    "region_marcador": {
+      "x": 0,
+      "y": 1056,
+      "w": 24,
+      "h": 24
+    },
+    "colores": {
+      "reaccion_horizontal": [
+        0,
+        90,
+        110
+      ],
+      "reaccion_vertical": [
+        110,
+        0,
+        100
+      ],
+      "sin_clip": [
+        7,
+        10,
+        19
+      ],
+      "conversacion": [
+        100,
+        100,
+        0
+      ]
+    }
+  },
+  "escenas": {
+    "reaccion_horizontal": {
+      "contenido_tipo": "16:9",
+      "regiones": {
+        "contenido": {
+          "x": 400,
+          "y": 60,
+          "w": 1120,
+          "h": 630
+        },
+        "conductor1": {
+          "x": 400,
+          "y": 716,
+          "w": 548,
+          "h": 308,
+          "pista_audio": 2
+        },
+        "conductor2": {
+          "x": 972,
+          "y": 716,
+          "w": 548,
+          "h": 308,
+          "pista_audio": 3
+        }
+      }
+    },
+    "reaccion_vertical": {
+      "contenido_tipo": "9:16",
+      "regiones": {
+        "contenido": {
+          "x": 690,
+          "y": 60,
+          "w": 540,
+          "h": 960
+        },
+        "conductor1": {
+          "x": 30,
+          "y": 360,
+          "w": 640,
+          "h": 360,
+          "pista_audio": 2
+        },
+        "conductor2": {
+          "x": 1250,
+          "y": 360,
+          "w": 640,
+          "h": 360,
+          "pista_audio": 3
+        }
+      }
+    },
+    "conversacion": {
+      "contenido_tipo": null,
+      "_nota": "Sin ventana de contenido: dos conductores grandes lado a lado. Se corta con el diseño 'sin contenido' (conductor 1 arriba, conductor 2 abajo).",
+      "regiones": {
+        "conductor1": {
+          "x": 45,
+          "y": 340,
+          "w": 900,
+          "h": 506,
+          "pista_audio": 2
+        },
+        "conductor2": {
+          "x": 975,
+          "y": 340,
+          "w": 900,
+          "h": 506,
+          "pista_audio": 3
+        }
+      }
+    }
+  }
+}
