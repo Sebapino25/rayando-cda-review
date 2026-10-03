@@ -600,6 +600,7 @@ def cortar_y_publicar(
     end: float,
     nombre: str,
     razon: str | None = None,
+    publicar_clip: bool = True,
 ) -> dict | None:
     """Corta el clip (horizontal + vertical con subtítulos/logo), genera
     copys/portadas, escribe metadata.json y publica (YouTube no listado +
@@ -688,6 +689,10 @@ def cortar_y_publicar(
 
     print(f"\nClip '{nombre}' generado en: {out_dir}")
 
+    if not publicar_clip:
+        print("\n--sin-publicar: no se sube nada a YouTube ni a Supabase.")
+        return {"sin_publicar": True, "out_dir": str(out_dir), "vertical": str(vertical_path)}
+
     print("\nPublicando a YouTube (no listado) y registrando en Supabase...")
     resultado = publicar.publicar_clip(
         out_dir=out_dir,
@@ -719,6 +724,11 @@ def main():
             "y en el campo 'razon' de Supabase; si no se pasa, queda NULL."
         ),
     )
+    parser.add_argument(
+        "--sin-publicar",
+        action="store_true",
+        help="Corta y arma todo (horizontal, vertical, copys, portadas) pero NO sube a YouTube ni Supabase. Para probar.",
+    )
     args = parser.parse_args()
 
     video_path = resolve_video(args.video)
@@ -727,9 +737,12 @@ def main():
     if end <= start:
         sys.exit("Error: el tiempo de fin debe ser mayor que el de inicio.")
 
-    resultado = cortar_y_publicar(video_path, start, end, args.nombre, razon=args.razon)
+    resultado = cortar_y_publicar(video_path, start, end, args.nombre, razon=args.razon,
+                                  publicar_clip=not args.sin_publicar)
 
-    if resultado:
+    if resultado and resultado.get("sin_publicar"):
+        print(f"\nListo (sin publicar). Revisa: {resultado['out_dir']}\\vertical.mp4")
+    elif resultado:
         print(
             "\n1 clip subido y listo para revisión de René:\n"
             f"  - {args.nombre}: YouTube {resultado['youtube_video_id']} "

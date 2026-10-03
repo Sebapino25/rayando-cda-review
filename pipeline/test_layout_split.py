@@ -197,3 +197,19 @@ def test_plan_desfasado_cae_a_blur(tmp_path, layout, fondos):
     p["duracion"] = 40.0
     ls.guardar_plan(out, p)
     assert cortar_clip._plan_para_vertical(out) is None
+
+
+def test_cortar_y_publicar_sin_publicar_no_sube(tmp_path, layout, fondos, monkeypatch):
+    import cortar_clip, publicar
+    mkv = tmp_path / "2026-09-30 21-32-08.mkv"
+    _mkv_sintetico(mkv, layout, fondos, "reaccion_horizontal", True)
+    _logo_falso(tmp_path)
+    monkeypatch.setattr(config, "CLIPS_DIR", tmp_path / "clips")
+    monkeypatch.setattr(config, "TRANSCRIPTS_DIR", tmp_path / "tr")
+    monkeypatch.setattr(config, "CLIP_PAD_SECONDS", 0.0)
+    llamadas = []
+    monkeypatch.setattr(publicar, "publicar_clip", lambda **k: llamadas.append(k))
+    res = cortar_clip.cortar_y_publicar(mkv, 0.5, 5.5, "prueba", publicar_clip=False)
+    assert res["sin_publicar"] and not llamadas
+    out = Path(res["out_dir"])
+    assert (out / "vertical.mp4").exists() and (out / "layout.json").exists()
