@@ -102,3 +102,18 @@ def test_sin_ventanas_usa_una_sola_llamada(monkeypatch):
     monkeypatch.setattr(d, "_llamar_modelo", falso)
     out = d.detectar_candidatos(segs)
     assert len(n) == 1 and len(out) == 1 and out[0].puntaje is None
+
+
+def test_validar_registra_descartes():
+    segs = _segmentos(400)
+    crudos = [
+        {"idx_inicio": 5, "idx_fin": 6, "razon": "20 s, válido", "puntaje": 5},
+        {"idx_inicio": 20, "idx_fin": 20, "razon": "10 s", "puntaje": 5},  # fuera de rango de duración
+        {"idx_inicio": 999, "idx_fin": 1000, "razon": "índice inválido", "puntaje": 5},
+    ]
+    descartes = []
+    ok = d._validar_candidatos(crudos, segs, None, 0, 399, descartes)
+    motivos = [m for _, m in descartes]
+    assert any("duración" in m for m in motivos) and any("inválido" in m for m in motivos)
+    assert all(c.get("razon") for c, _ in descartes)
+    assert len(ok) == 1

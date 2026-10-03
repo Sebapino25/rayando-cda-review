@@ -203,30 +203,40 @@ def _validar_candidatos(
     rangos_aceptados: list[tuple[int, int]] | None = None,
     i_min: int = 0,
     i_max: int | None = None,
+    descartes: list | None = None,
 ) -> list[Candidato]:
     """Valida los candidatos crudos del modelo (índices, solapamiento,
     duración) y arma los Candidato con timestamps y transcripción reales.
-    i_min/i_max acotan los índices permitidos (ventana)."""
+    i_min/i_max acotan los índices permitidos (ventana). Si se pasa `descartes`,
+    ahí se anota (candidato_crudo, motivo) de cada uno que se descarta."""
     n = len(segments)
     i_max = n - 1 if i_max is None else i_max
     rangos_aceptados = [] if rangos_aceptados is None else rangos_aceptados
     aceptados: list[Candidato] = []
 
+    def _descartar(c: dict, motivo: str) -> None:
+        if descartes is not None:
+            descartes.append((c, motivo))
+
     for c in crudos:
         idx_inicio, idx_fin = c.get("idx_inicio"), c.get("idx_fin")
         if not isinstance(idx_inicio, int) or not isinstance(idx_fin, int):
+            _descartar(c, "índices no son enteros")
             continue
         if not (i_min <= idx_inicio <= idx_fin <= i_max):
+            _descartar(c, "índice inválido o fuera de la ventana")
             continue  # índice inválido (o fuera de la ventana), se descarta
 
         solapa = any(not (idx_fin < a_ini or idx_inicio > a_fin) for a_ini, a_fin in rangos_aceptados)
         if solapa:
+            _descartar(c, "se superpone con otro candidato de la misma ventana")
             continue  # candidato superpuesto con uno ya aceptado, se descarta
 
         ts_inicio = segments[idx_inicio]["start"]
         ts_fin = segments[idx_fin]["end"]
         duracion = ts_fin - ts_inicio
         if not (config.CANDIDATOS_DURACION_MIN <= duracion <= config.REEL_MAX_SECONDS):
+            _descartar(c, f"duración {duracion:.0f}s fuera de rango")
             continue  # fuera del rango de duración pedido, se descarta
 
         # La transcripción se arma acá a partir de los segmentos reales, no
@@ -317,6 +327,28 @@ _NOTA_VENTANA = (
 )
 
 
+def _fmt_ts(segundos: float) -> str:
+    s = int(segundos)
+    return f"{s // 3600:02d}:{(s % 3600) // 60:02d}:{s % 60:02d}"
+
+
+def _imprimir_detalle(segments, ventanas, resultados, elegidos) -> None:
+    """Diagnóstico (DETECCION_DEBUG=1 o --detalle): qué propuso el modelo en
+    cada ventana, qué se descartó y por qué, y qué quedó fuera del pool."""
+    ids_elegidos = {(c.idx_inicio, c.idx_fin) for c in elegidos}
+    print("\n===== DETALLE POR VENTANA =====")
+    for k, ((i0, i1), (validos, crudos, descartes)) in enumerate(zip(ventanas, resultados), start=1):
+        print(f"\nVentana {k}: {_fmt_ts(segments[i0]['start'])} -> {_fmt_ts(segments[i1 - 1]['end'])} "
+              f"({len(crudos)} propuestos por el modelo)")
+        for c in validos:
+            estado = "ELEGIDO" if (c.idx_inicio, c.idx_fin) in ids_elegidos else "fuera del pool (puntaje bajo o repetido en otra ventana)"
+            print(f"  [{c.puntaje}/10] {_fmt_ts(c.timestamp_inicio)} -> {_fmt_ts(c.timestamp_fin)} "
+                  f"({c.duracion_segundos}s) {estado}: {c.razon[:110]}")
+        for c, motivo in descartes:
+            print(f"  [{c.get('puntaje')}/10] DESCARTADO ({motivo}): {str(c.get('razon', ''))[:110]}")
+    print("\n===== FIN DETALLE =====\n")
+
+
 def _detectar_por_ventanas(segments: list[dict]) -> list[Candidato]:
     """Detección por ventanas: una llamada por cada ~15 minutos de programa
     (en paralelo), cada una con puntaje, y una selección final entre todas.
@@ -352,12 +384,17 @@ def _detectar_por_ventanas(segments: list[dict]) -> list[Candidato]:
             f"Transcripción de esta parte ({i1 - i0} segmentos):\n\n{lista}"
         )
         crudos = _llamar_modelo(system, mensaje, schema)
-        return _validar_candidatos(crudos, segments, None, i0, i1 - 1)
+        descartes: list = []
+        validos = _validar_candidatos(crudos, segments, None, i0, i1 - 1, descartes)
+        return validos, crudos, descartes
 
     with ThreadPoolExecutor(max_workers=total) as ex:
-        por_ventana = list(ex.map(tarea, range(total)))
+        resultados = list(ex.map(tarea, range(total)))
 
+    por_ventana = [r[0] for r in resultados]
     elegidos = _combinar_ventanas(por_ventana, pool_n)
+    if os.environ.get("DETECCION_DEBUG"):
+        _imprimir_detalle(segments, ventanas, resultados, elegidos)
     if not elegidos:
         raise DeteccionError(
             "La API no devolvió ningún candidato válido en ninguna parte del programa "
@@ -403,7 +440,14 @@ def main():
         )
     )
     parser.add_argument("video", help="Nombre en 'grabaciones' o ruta absoluta del video")
+    parser.add_argument(
+        "--detalle",
+        action="store_true",
+        help="Diagnóstico de la detección por ventanas: muestra lo propuesto/descartado en cada ventana",
+    )
     args = parser.parse_args()
+    if args.detalle:
+        os.environ["DETECCION_DEBUG"] = "1"
 
     import cortar_clip  # reusa resolve_video / load_master_segments / format_hhmmss
 
