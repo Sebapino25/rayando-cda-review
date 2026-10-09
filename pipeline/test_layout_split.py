@@ -271,6 +271,43 @@ def test_rehacer_vertical_sin_subir(tmp_path, layout, fondos, monkeypatch):
     ls.guardar_plan(out, ls.planificar(str(mkv), 0, 6, layout, fondos))
     import cortar_clip
     cortar_clip.build_clip_ass([(0.5, 2.0, "prueba de subtitulo")], out / "subtitulos.ass")
-    assert rehacer_vertical.rehacer(out, subir=False) is True
+    assert rehacer_vertical.rehacer(out, subir=False, replanificar=False) is True
     assert (out / "vertical.mp4").exists()
     assert "Default" in (out / "subtitulos.ass").read_text(encoding="utf-8")
+
+
+def _con_zocalo(frame, layout):
+    f = frame.copy()
+    r, b = layout["zocalo"]["region"], layout["zocalo"]["barra"]
+    f[r["y"]:r["y"] + r["h"], r["x"]:r["x"] + r["w"]] = (8, 15, 48)
+    f[b["y"] - 8:b["y"] + b["h"] + 8, b["x"] - 1:b["x"] + b["w"] + 1] = layout["zocalo"]["color_barra"]
+    return f
+
+
+def test_zocalo_detectado_por_tramos_y_renderizado(tmp_path, layout, fondos):
+    a = tmp_path / "a.png"
+    b = tmp_path / "b.png"
+    base = _frame(layout, fondos, "reaccion_vertical", True)
+    Image.fromarray(_con_zocalo(base, layout)).save(a)
+    Image.fromarray(base).save(b)
+    mkv = tmp_path / "z.mkv"
+    subprocess.run(["ffmpeg", "-y", "-v", "error",
+                    "-loop", "1", "-framerate", "10", "-t", "3", "-i", str(a),
+                    "-loop", "1", "-framerate", "10", "-t", "3", "-i", str(b),
+                    "-f", "lavfi", "-t", "6", "-i", "sine=f=330",
+                    "-f", "lavfi", "-t", "6", "-i", "sine=f=220:d=3,apad=whole_dur=6",
+                    "-f", "lavfi", "-t", "6", "-i", "anullsrc=r=44100:cl=mono,atrim=0:3[s];sine=f=440:d=3[t];[s][t]concat=n=2:v=0:a=1",
+                    "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+                    "-map", "[v]", "-map", "2:a", "-map", "3:a", "-map", "4:a",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(mkv)], check=True)
+    plan = ls.planificar(str(mkv), 0, 6, layout, fondos)
+    assert len(plan["zocalo"]) == 1
+    z0, z1 = plan["zocalo"][0]
+    assert z0 == 0 and 2.5 <= z1 <= 3.5
+    fc = ls.filtro_split(plan, layout, False)
+    assert "[zoc]" in fc and "[1:v]" not in fc  # sin logo propio cuando hay contenido
+    _render_y_medir(tmp_path, mkv, plan, layout)
+
+
+def test_tramos_presentes_descarta_parpadeos():
+    assert ls.tramos_presentes([True, False, True, True, True, True, False], 0.25, 2.0) == [(0.5, 1.5)]

@@ -123,5 +123,28 @@
     "_nota": "En el formato dividido los subtítulos van justo bajo la línea celeste (arriba de la cámara), no sobre la cara. alineacion ASS: 8 = arriba al centro; margen_v = px desde arriba del 1080x1920.",
     "alineacion": 8,
     "margen_v": 985
-  }
+  },
+  "zocalo": {
+    "_nota": "Zócalo de noticias de la mesa SPA (título + bajada con barra amarilla a la izquierda). Medido en el capítulo 2 (08/10/2026, 11:45). Se detecta por la barra amarilla y en el vertical se pone entero, achicado al ancho del clip.",
+    "region": {
+      "x": 274,
+      "y": 876,
+      "w": 1394,
+      "h": 186
+    },
+    "barra": {
+      "x": 277,
+      "y": 888,
+      "w": 8,
+      "h": 160
+    },
+    "color_barra": [
+      253,
+      200,
+      39
+    ],
+    "tolerancia": 45
+  },
+  "logo_sobre_contenido": false,
+  "_nota_logo": "logo_sobre_contenido=false: cuando hay contenido no se agrega el logo de SPA, porque el video de la mesa ya trae su marca de agua (si no, sale dos veces)."
 }
