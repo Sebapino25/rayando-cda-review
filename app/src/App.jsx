@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { ClockCounterClockwise, ListChecks, ArrowsClockwise, SpinnerGap, Question, CheckCircle, Archive } from '@phosphor-icons/react'
 import { supabase } from './lib/supabaseClient'
+import { PROGRAMA } from './lib/programa'
 import { ORDER_COLUMN, RESERVA_DIAS } from './lib/constants'
 import { getReviewerName, setReviewerName } from './lib/reviewer'
 import ReviewerGate from './components/ReviewerGate'
@@ -189,12 +190,12 @@ function App() {
 
     const clip = pendingClips.find((c) => c.id === id)
     if (clip?.video_url) {
-      const marker = '/object/public/clips-video/'
+      const marker = `/object/public/${PROGRAMA.bucketVideo}/`
       const idx = clip.video_url.indexOf(marker)
       if (idx !== -1) {
         const path = clip.video_url.slice(idx + marker.length)
         try {
-          await supabase.storage.from('clips-video').remove([path])
+          await supabase.storage.from(PROGRAMA.bucketVideo).remove([path])
         } catch {
           // Best-effort, igual que el borrado de portadas: si falla, queda
           // un archivo huérfano ocasional en vez de bloquear el rechazo.
@@ -209,11 +210,11 @@ function App() {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
     const path = `custom/${id}-${Date.now()}.${ext}`
     const { error: uploadError } = await supabase.storage
-      .from('portadas')
+      .from(PROGRAMA.bucketPortadas)
       .upload(path, file, { contentType: file.type || 'image/jpeg' })
     if (uploadError) throw uploadError
 
-    const { data } = supabase.storage.from('portadas').getPublicUrl(path)
+    const { data } = supabase.storage.from(PROGRAMA.bucketPortadas).getPublicUrl(path)
     const portadaUrl = data.publicUrl
 
     const { error: updateError } = await supabase
@@ -252,7 +253,7 @@ function App() {
     if (updateError) throw updateError
 
     if (currentUrl) {
-      const marker = '/object/public/portadas/'
+      const marker = `/object/public/${PROGRAMA.bucketPortadas}/`
       const idx = currentUrl.indexOf(marker)
       if (idx !== -1) {
         const path = currentUrl.slice(idx + marker.length)
@@ -260,7 +261,7 @@ function App() {
         // (mismo criterio que ya se usa con videos huérfanos de YouTube) — lo
         // que importa es que portada_url quede en null.
         try {
-          await supabase.storage.from('portadas').remove([path])
+          await supabase.storage.from(PROGRAMA.bucketPortadas).remove([path])
         } catch {
           // no-op
         }
@@ -316,12 +317,12 @@ function App() {
       publishedClips.find((c) => c.id === id)
 
     if (clip?.video_url) {
-      const marker = '/object/public/clips-video/'
+      const marker = `/object/public/${PROGRAMA.bucketVideo}/`
       const idx = clip.video_url.indexOf(marker)
       if (idx !== -1) {
         const path = clip.video_url.slice(idx + marker.length)
         try {
-          await supabase.storage.from('clips-video').remove([path])
+          await supabase.storage.from(PROGRAMA.bucketVideo).remove([path])
         } catch {
           // Best-effort, igual que el borrado de video al rechazar/publicar:
           // un archivo huérfano ocasional no debe bloquear el borrado de la fila.
@@ -330,12 +331,12 @@ function App() {
     }
 
     if (clip?.portada_url) {
-      const marker = '/object/public/portadas/'
+      const marker = `/object/public/${PROGRAMA.bucketPortadas}/`
       const idx = clip.portada_url.indexOf(marker)
       if (idx !== -1) {
         const path = clip.portada_url.slice(idx + marker.length)
         try {
-          await supabase.storage.from('portadas').remove([path])
+          await supabase.storage.from(PROGRAMA.bucketPortadas).remove([path])
         } catch {
           // no-op, mismo criterio que arriba
         }
@@ -360,14 +361,16 @@ function App() {
         <div className="max-w-2xl mx-auto w-full px-4 pt-4 pb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <img
-              src={`${import.meta.env.BASE_URL}logo.png`}
+              src={`${import.meta.env.BASE_URL}${PROGRAMA.logo}`}
               alt=""
               className="w-9 h-9 shrink-0 rounded-xl object-cover"
+              style={PROGRAMA.fondoLogo ? { background: PROGRAMA.fondoLogo, objectFit: 'contain' } : undefined}
             />
             <div className="min-w-0">
-              <h1 className="text-[15px] font-bold leading-tight truncate">Rayando el CDA</h1>
+              <h1 className="text-[15px] font-bold leading-tight truncate">{PROGRAMA.nombre}</h1>
               <p className="text-xs text-white/70 leading-tight">Cola de revisión</p>
             </div>
+            {PROGRAMA.guia && (
             <a
               href={`${import.meta.env.BASE_URL}guia.html`}
               target="_blank"
@@ -377,6 +380,7 @@ function App() {
             >
               <Question size={16} weight="bold" />
             </a>
+            )}
           </div>
           <button
             type="button"

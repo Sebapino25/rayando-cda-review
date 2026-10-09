@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { CheckCircle, Wrench, XCircle, NoteBlank, ArrowSquareOut, ArrowUUpLeft, SpinnerGap, CaretDown, DownloadSimple, Trash, Info } from '@phosphor-icons/react'
 import { downloadUrl } from '../lib/downloadUrl'
+import { PROGRAMA } from '../lib/programa'
+import ReproductorClip from './ReproductorClip'
 import TikTokPublishPanel from './TikTokPublishPanel'
 import TikTokStatusBadge from './TikTokStatusBadge'
 
@@ -122,7 +124,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
     <article className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
       <details open={expanded} onToggle={(e) => setExpanded(e.target.open)}>
         <summary className="flex gap-3 p-4 cursor-pointer select-none list-none">
-          {!clip.publicado && (
+          {!clip.publicado && clip.youtube_video_id && (
             <a
               href={`https://www.youtube.com/watch?v=${clip.youtube_video_id}`}
               target="_blank"
@@ -179,15 +181,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
 
         <div className="border-t border-border">
           {!clip.publicado && (
-            <div className="aspect-video bg-black">
-              <iframe
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${clip.youtube_video_id}`}
-                title={clip.youtube_titulo || 'Clip'}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+            <ReproductorClip clip={clip} />
           )}
           <div className="p-4 flex flex-col gap-3.5">
             {clip.portada_url && (
@@ -269,10 +263,10 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             className="self-start flex items-center gap-1.5 text-sm font-semibold text-muted-foreground"
           >
             <DownloadSimple size={15} weight="bold" />
-            Descargar clip (para subir a TikTok a mano)
+            {PROGRAMA.puedePublicar ? 'Descargar clip (para subir a TikTok a mano)' : 'Descargar clip'}
           </a>
         )}
-        {clip.estado === 'aprobado' && !clip.publicado && !publishOpen && (
+        {PROGRAMA.puedePublicar && clip.estado === 'aprobado' && !clip.publicado && !publishOpen && (
           <button
             type="button"
             onClick={() => setPublishOpen(true)}
@@ -284,7 +278,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             Publicar en redes
           </button>
         )}
-        {clip.estado === 'aprobado' && !clip.publicado && publishOpen && (
+        {PROGRAMA.puedePublicar && clip.estado === 'aprobado' && !clip.publicado && publishOpen && (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3.5 flex flex-col gap-3">
             <p className="text-sm font-semibold text-foreground">Publicar en redes</p>
             <div className="text-[13px] text-muted-foreground leading-snug flex flex-col gap-0.5">

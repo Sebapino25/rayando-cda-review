@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PROGRAMA } from '../lib/programa'
 
 export default function ReviewerGate({ onSubmit }) {
   const [name, setName] = useState('')
@@ -18,11 +19,12 @@ export default function ReviewerGate({ onSubmit }) {
       >
         <div className="flex flex-col items-center text-center mb-6">
           <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
-            alt="Rayando el CDA"
+            src={`${import.meta.env.BASE_URL}${PROGRAMA.logo}`}
+            alt={PROGRAMA.nombre}
             className="w-16 h-16 rounded-2xl object-cover mb-4"
+            style={PROGRAMA.fondoLogo ? { background: PROGRAMA.fondoLogo, objectFit: 'contain' } : undefined}
           />
-          <h1 className="text-xl font-bold text-foreground">Rayando el CDA</h1>
+          <h1 className="text-xl font-bold text-foreground">{PROGRAMA.nombre}</h1>
           <p className="text-sm text-muted-foreground mt-1">Cola de revisión de clips</p>
         </div>
 
