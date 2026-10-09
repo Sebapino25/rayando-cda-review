@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import ReproductorClip from './ReproductorClip'
 import {
   CaretDown,
   Check,
@@ -186,15 +187,7 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
 
   return (
     <article className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden">
-      <div className="aspect-video bg-black">
-        <iframe
-          className="w-full h-full"
-          src={`https://www.youtube.com/embed/${clip.youtube_video_id}`}
-          title={clip.youtube_titulo || 'Clip'}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      </div>
+      <ReproductorClip clip={clip} />
 
       <div className="p-4 sm:p-5 flex flex-col gap-4">
         <div className="flex items-center gap-3">
