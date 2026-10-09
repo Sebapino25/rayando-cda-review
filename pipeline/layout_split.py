@@ -283,6 +283,31 @@ def filtro_split(plan: dict, layout: dict, con_titulo: bool, logo_opacidad: floa
     return ";".join(g)
 
 
+# ------------------------------------------------------------------ subtitulos
+def ajustar_subtitulos(ass_path: Path, layout: dict) -> bool:
+    """Mueve los subtitulos del layout clasico (abajo, sobre la cara del conductor en el
+    formato dividido) a la posicion de layout.json["subtitulos"]. Reescribe solo la linea
+    'Style: Default' (alineacion y MarginV). Devuelve True si cambio algo."""
+    conf = layout.get("subtitulos")
+    ruta = Path(ass_path)
+    if not conf or not ruta.exists():
+        return False
+    lineas = ruta.read_text(encoding="utf-8").split("\n")
+    cambio = False
+    for i, linea in enumerate(lineas):
+        if linea.startswith("Style: Default,"):
+            campos = linea[len("Style: "):].split(",")
+            # Format: ..., Alignment(18), MarginL(19), MarginR(20), MarginV(21), Encoding(22)
+            campos[18] = str(conf["alineacion"])
+            campos[21] = str(conf["margen_v"])
+            nueva = "Style: " + ",".join(campos)
+            cambio = nueva != linea
+            lineas[i] = nueva
+    if cambio:
+        ruta.write_text("\n".join(lineas), encoding="utf-8")
+    return cambio
+
+
 # ------------------------------------------------------------------ diagnostico (CLI)
 def _main() -> None:
     import argparse

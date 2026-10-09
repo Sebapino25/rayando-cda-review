@@ -355,6 +355,7 @@ def _build_vertical_split(out_dir: Path, titulo_portada: str | None, plan: dict)
     """Frente de video del vertical dividido. Devuelve (filter_complex terminado en [withlogo],
     cmd con las entradas -i, indice de la proxima entrada)."""
     layout = layout_split.cargar_layout(config.LAYOUT_SPLIT_JSON)
+    layout_split.ajustar_subtitulos(out_dir / "subtitulos.ass", layout)
     cmd = ["ffmpeg", "-y", "-i", "horizontal_original.mp4", "-i", str(config.LOGO_PATH)]
     siguiente = 2
     titulo_png = None

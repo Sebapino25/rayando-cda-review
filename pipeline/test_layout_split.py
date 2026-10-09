@@ -245,3 +245,32 @@ def test_spa_usa_sus_propios_overrides(monkeypatch):
     assert config.CLIP_OVERRIDES_PATH.parent.name == "spa"
     # los ajustes de Rayando (ej. candidato-09 con imagen de fondo) no aplican a SPA
     assert cortar_clip._cargar_overrides("candidato-09") == {}
+
+
+def test_subtitulos_suben_a_la_linea_divisoria(tmp_path, layout):
+    import cortar_clip
+    ass = tmp_path / "subtitulos.ass"
+    cortar_clip.build_clip_ass([(0.0, 1.0, "hola")], ass)
+    assert ls.ajustar_subtitulos(ass, layout) is True
+    estilo = [l for l in ass.read_text(encoding="utf-8").splitlines() if l.startswith("Style: Default,")][0]
+    campos = estilo[len("Style: "):].split(",")
+    assert campos[18] == "8" and campos[21] == "985"
+    assert ls.ajustar_subtitulos(ass, layout) is False  # idempotente
+
+
+def test_rehacer_vertical_sin_subir(tmp_path, layout, fondos, monkeypatch):
+    import rehacer_vertical
+    mkv = tmp_path / "g.mkv"
+    _mkv_sintetico(mkv, layout, fondos, "reaccion_vertical", True)
+    _logo_falso(tmp_path)
+    monkeypatch.setattr(config, "CLIPS_DIR", tmp_path / "clips")
+    out = tmp_path / "clips" / "2026-10-08" / "candidato-01"
+    out.mkdir(parents=True)
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(mkv), "-map", "0:v:0", "-map", "0:a:0",
+                    "-c:v", "libx264", "-c:a", "aac", str(out / "horizontal_original.mp4")], check=True)
+    ls.guardar_plan(out, ls.planificar(str(mkv), 0, 6, layout, fondos))
+    import cortar_clip
+    cortar_clip.build_clip_ass([(0.5, 2.0, "prueba de subtitulo")], out / "subtitulos.ass")
+    assert rehacer_vertical.rehacer(out, subir=False) is True
+    assert (out / "vertical.mp4").exists()
+    assert "Default" in (out / "subtitulos.ass").read_text(encoding="utf-8")
