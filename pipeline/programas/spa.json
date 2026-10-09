@@ -59,5 +59,6 @@
     "VERTICAL_LAYOUT": "split",
     "SUBIR_YOUTUBE": false
   },
-  "layout": "spa/layout.json"
+  "layout": "spa/layout.json",
+  "clip_overrides": "spa/clip_overrides.json"
 }

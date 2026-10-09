@@ -479,7 +479,7 @@ def titulo_portada_de_copys(carpeta: Path) -> str | None:
 
 
 def _cargar_overrides(nombre_clip: str) -> dict:
-    path = Path(__file__).parent / "clip_overrides.json"
+    path = Path(config.CLIP_OVERRIDES_PATH)
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))

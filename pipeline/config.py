@@ -112,6 +112,11 @@ VERTICAL_FOREGROUND_SCALE = 1.15
 # propio fondo desenfocado. "split" (SPAreírse): contenido arriba y el conductor
 # que habla abajo, armado desde la grabacion multipista de OBS (layout_split.py).
 # Con "split", si no se puede planificar un clip, ese clip cae a "blur".
+# Ajustes manuales por nombre de clip (título, frame de portada, imagen de
+# fondo...). Cada programa tiene su propio archivo: los nombres "candidato-NN"
+# se repiten entre programas y un ajuste de Rayando no debe caer en un clip de SPA.
+CLIP_OVERRIDES_PATH = PROJECT_DIR / "clip_overrides.json"
+
 VERTICAL_LAYOUT = "blur"
 LAYOUT_SPLIT_JSON = None  # ruta al layout.json del programa (lo fija el perfil con la clave "layout")
 
@@ -321,6 +326,8 @@ def _aplicar_perfil(perfil: dict) -> None:
         g["PROGRAMA_NOMBRE"] = perfil["nombre"]
     if "whisper_contexto" in perfil:
         g["WHISPER_CONTEXTO"] = perfil["whisper_contexto"]
+    if "clip_overrides" in perfil:
+        g["CLIP_OVERRIDES_PATH"] = PROGRAMAS_DIR / perfil["clip_overrides"]
     if "layout" in perfil:
         g["LAYOUT_SPLIT_JSON"] = PROGRAMAS_DIR / perfil["layout"]
     if "diccionario" in perfil:

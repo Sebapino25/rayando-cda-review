@@ -313,7 +313,8 @@ def _main() -> None:
         print(f"  {t:6.1f}s  {e:20s} {'' if d is None else d}")
     print("Quien habla (s relativos al inicio):")
     for s0, s1, h in plan["segs"]:
-        print(f"  {s0:6.2f} - {s1:6.2f}  conductor {h}")
+        nombre = layout.get("nombres", {}).get(f"conductor{h}", f"conductor {h}")
+        print(f"  {s0:6.2f} - {s1:6.2f}  {nombre}")
     if a.frame:
         logo = str(config.LOGO_PATH)
         fc = filtro_split(plan, layout, False, config.LOGO_OPACIDAD).replace("[withlogo]", "[v]")

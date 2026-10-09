@@ -114,5 +114,9 @@
         }
       }
     }
+  },
+  "nombres": {
+    "conductor1": "Samuel",
+    "conductor2": "Cristián"
   }
 }

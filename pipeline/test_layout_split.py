@@ -237,3 +237,11 @@ def test_publicar_clip_sin_youtube_registra_en_supabase(tmp_path, monkeypatch):
     r = publicar.publicar_clip(out, "candidato-01", "2026-10-08", out / "vertical.mp4", copys, "razon", "texto", 1.0, 20.0)
     assert r == {"youtube_video_id": None, "youtube_url": None, "supabase_id": 42}
     assert payloads[0]["youtube_video_id"] is None and payloads[0]["video_url"] == "https://x/video.mp4"
+
+
+def test_spa_usa_sus_propios_overrides(monkeypatch):
+    import cortar_clip
+    assert config.CLIP_OVERRIDES_PATH.name == "clip_overrides.json"
+    assert config.CLIP_OVERRIDES_PATH.parent.name == "spa"
+    # los ajustes de Rayando (ej. candidato-09 con imagen de fondo) no aplican a SPA
+    assert cortar_clip._cargar_overrides("candidato-09") == {}
