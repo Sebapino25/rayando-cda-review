@@ -208,7 +208,8 @@ def main():
         f"(de {len(a_procesar)} candidatos procesados):"
     )
     for nombre, r in subidos:
-        print(f"  - {nombre}: YouTube {r['youtube_video_id']} ({r['youtube_url']}) — Supabase id {r['supabase_id']}")
+        yt = f"YouTube {r['youtube_video_id']} ({r['youtube_url']})" if r.get("youtube_video_id") else "sin YouTube"
+        print(f"  - {nombre}: {yt} — Supabase id {r['supabase_id']}")
 
     if fallidos:
         print(

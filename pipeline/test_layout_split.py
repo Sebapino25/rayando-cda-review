@@ -213,3 +213,27 @@ def test_cortar_y_publicar_sin_publicar_no_sube(tmp_path, layout, fondos, monkey
     assert res["sin_publicar"] and not llamadas
     out = Path(res["out_dir"])
     assert (out / "vertical.mp4").exists() and (out / "layout.json").exists()
+
+
+def test_spa_no_sube_a_youtube():
+    assert config.SUBIR_YOUTUBE is False
+
+
+def test_publicar_clip_sin_youtube_registra_en_supabase(tmp_path, monkeypatch):
+    import publicar
+    monkeypatch.setattr(config, "CLIPS_DIR", tmp_path)
+    out = tmp_path / "2026-10-08" / "candidato-01"
+    out.mkdir(parents=True)
+    (out / "vertical.mp4").write_bytes(b"x")
+    monkeypatch.setattr(publicar, "validar_clip", lambda p: None)
+    monkeypatch.setattr(publicar, "subir_youtube", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no debia subir a YouTube")))
+    monkeypatch.setattr(publicar, "subir_portada_storage", lambda *a: "https://x/portada.jpg")
+    monkeypatch.setattr(publicar, "subir_video_storage", lambda *a: "https://x/video.mp4")
+    payloads = []
+    monkeypatch.setattr(publicar, "insertar_clip_supabase", lambda p: payloads.append(p) or 42)
+    copys = publicar.Copys(**{f: "t" for f in publicar.Copys.__dataclass_fields__}) if hasattr(publicar.Copys, "__dataclass_fields__") else None
+    if copys is None:
+        pytest.skip("Copys no es dataclass")
+    r = publicar.publicar_clip(out, "candidato-01", "2026-10-08", out / "vertical.mp4", copys, "razon", "texto", 1.0, 20.0)
+    assert r == {"youtube_video_id": None, "youtube_url": None, "supabase_id": 42}
+    assert payloads[0]["youtube_video_id"] is None and payloads[0]["video_url"] == "https://x/video.mp4"

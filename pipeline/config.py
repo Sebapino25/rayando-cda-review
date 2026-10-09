@@ -227,6 +227,10 @@ YOUTUBE_CATEGORY_ID = "17"  # Sports
 YOUTUBE_PRIVACY_STATUS = "unlisted"
 YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube"]
 
+# Subir cada candidato a YouTube como no listado para revisarlo. False = el
+# video se revisa desde Supabase Storage (video_url) y youtube_video_id queda
+# NULL (SPA, mientras no esté conectado su canal de YouTube).
+SUBIR_YOUTUBE = True
 SUPABASE_SCHEMA = "rayando_cda"
 SUPABASE_TABLE = "clips"
 SUPABASE_PORTADAS_BUCKET = "portadas"

@@ -333,11 +333,15 @@ def publicar_clip(
     n_clip = numero_clip(program_date, nombre_clip)
     titulo = titulo_generico(program_date, n_clip)
 
-    print(f"  Subiendo a YouTube como no listado: \"{titulo}\"...")
-    descripcion_yt = f"{copys.youtube_titulo}\n\n{copys.youtube_descripcion}"
-    video_id = subir_youtube(video_path, titulo, descripcion=descripcion_yt)
-    youtube_url = f"https://youtu.be/{video_id}"
-    print(f"  Subido: {youtube_url}")
+    if config.SUBIR_YOUTUBE:
+        print(f"  Subiendo a YouTube como no listado: \"{titulo}\"...")
+        descripcion_yt = f"{copys.youtube_titulo}\n\n{copys.youtube_descripcion}"
+        video_id = subir_youtube(video_path, titulo, descripcion=descripcion_yt)
+        youtube_url = f"https://youtu.be/{video_id}"
+        print(f"  Subido: {youtube_url}")
+    else:
+        video_id, youtube_url = None, None
+        print("  (SUBIR_YOUTUBE=False: no se sube a YouTube; se revisa desde Supabase Storage)")
 
     print("  Subiendo portada generada a Supabase Storage...")
     portada_storage_path = f"{program_date}/{nombre_clip}.jpg"
