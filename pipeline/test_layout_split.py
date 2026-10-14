@@ -311,3 +311,21 @@ def test_zocalo_detectado_por_tramos_y_renderizado(tmp_path, layout, fondos):
 
 def test_tramos_presentes_descarta_parpadeos():
     assert ls.tramos_presentes([True, False, True, True, True, True, False], 0.25, 2.0) == [(0.5, 1.5)]
+
+
+def test_corregir_subtitulos_alinea_y_conserva_tiempos():
+    import corregir_subtitulos as cs
+    cues = [(0.0, 2.0, "este video ya traía"), (2.0, 4.0, "comentarios encima la gente"), (4.0, 6.0, "se burlaba del retrato ablado")]
+    nuevos, sim = cs.alinear(cues, "Este video ya traía comentarios encima, la gente se burlaba ahí del retrato hablado boliviano")
+    assert sim > 0.6
+    assert nuevos[0][0] == 0.0 and nuevos[-1][1] == 6.0
+    texto = " ".join(t for _, _, t in nuevos)
+    assert "hablado boliviano" in texto and "ahí" in texto
+    # cada palabra corregida cae en la línea de su palabra original
+    assert any(a == 4.0 and "burlaba" in t for a, _, t in nuevos)
+
+
+def test_corregir_subtitulos_rechaza_texto_de_otro_clip():
+    import corregir_subtitulos as cs
+    _, sim = cs.alinear([(0.0, 2.0, "hola qué tal cómo estamos")], "el perro Morocho ahora es funcionario municipal")
+    assert sim < cs.SIMILITUD_MINIMA

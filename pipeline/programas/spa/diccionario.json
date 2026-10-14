@@ -1,20 +1,286 @@
 {
   "_comentario": "Diccionario de nombres propios de SPAreírse (Siempre Pasa Algo). Mismo formato que diccionario.json de Rayando el CDA. Semilla del capítulo 1; ampliar cada semana con los nombres que Whisper escriba mal. Los terminos de una sola palabra además pasan por fuzzy matching, así que sumar solo nombres distintivos.",
   "terminos": [
-    {"correcto": "SPAreírse", "tipo": "programa", "variantes": ["spa reírse", "spa reirse", "spareirse", "spa reírce", "espa reírse"]},
-    {"correcto": "Siempre Pasa Algo", "tipo": "medio", "variantes": ["siempre pasa algo", "siempre pasa algo"]},
-    {"correcto": "Haaland", "tipo": "persona", "variantes": ["jaaland", "haland", "aaland", "jaland", "haaland"]},
-    {"correcto": "Nico Castillo", "tipo": "persona", "variantes": ["nico castillo", "niko castillo"]},
-    {"correcto": "Alexis Sánchez", "tipo": "persona", "variantes": ["alexis sanchez"]},
-    {"correcto": "Mago Jiménez", "tipo": "persona", "variantes": ["mago jimenez", "mago gimenez", "mago jiménez"]},
-    {"correcto": "Cote López", "tipo": "persona", "variantes": ["cote lopez", "coté lópez", "kote lópez", "cote lópez"]},
-    {"correcto": "Marité Matus", "tipo": "persona", "variantes": ["marite matus", "marité matus"]},
-    {"correcto": "Sonia Isaza", "tipo": "persona", "variantes": ["sonia isasa", "sonia isaza"]},
-    {"correcto": "Lucas Cepeda", "tipo": "persona", "variantes": ["lucas sepeda", "lucas cepeda"]},
-    {"correcto": "Mono Sánchez", "tipo": "persona", "variantes": ["mono sanchez"]},
-    {"correcto": "Pinilla", "tipo": "persona", "variantes": []},
-    {"correcto": "Coquimbo Unido", "tipo": "equipo", "variantes": ["coquimbo unido"]},
-    {"correcto": "Santa Laura", "tipo": "estadio", "variantes": ["santa laura"]}
+    {
+      "correcto": "SPAreírse",
+      "tipo": "programa",
+      "variantes": [
+        "spa reírse",
+        "spa reirse",
+        "spareirse",
+        "spa reírce",
+        "espa reírse"
+      ]
+    },
+    {
+      "correcto": "Siempre Pasa Algo",
+      "tipo": "medio",
+      "variantes": [
+        "siempre pasa algo",
+        "siempre pasa algo"
+      ]
+    },
+    {
+      "correcto": "Haaland",
+      "tipo": "persona",
+      "variantes": [
+        "jaaland",
+        "haland",
+        "aaland",
+        "jaland",
+        "haaland"
+      ]
+    },
+    {
+      "correcto": "Nico Castillo",
+      "tipo": "persona",
+      "variantes": [
+        "nico castillo",
+        "niko castillo"
+      ]
+    },
+    {
+      "correcto": "Alexis Sánchez",
+      "tipo": "persona",
+      "variantes": [
+        "alexis sanchez"
+      ]
+    },
+    {
+      "correcto": "Mago Jiménez",
+      "tipo": "persona",
+      "variantes": [
+        "mago jimenez",
+        "mago gimenez",
+        "mago jiménez"
+      ]
+    },
+    {
+      "correcto": "Cote López",
+      "tipo": "persona",
+      "variantes": [
+        "cote lopez",
+        "coté lópez",
+        "kote lópez",
+        "cote lópez"
+      ]
+    },
+    {
+      "correcto": "Marité Matus",
+      "tipo": "persona",
+      "variantes": [
+        "marite matus",
+        "marité matus"
+      ]
+    },
+    {
+      "correcto": "Sonia Isaza",
+      "tipo": "persona",
+      "variantes": [
+        "sonia isasa",
+        "sonia isaza"
+      ]
+    },
+    {
+      "correcto": "Lucas Cepeda",
+      "tipo": "persona",
+      "variantes": [
+        "lucas sepeda",
+        "lucas cepeda"
+      ]
+    },
+    {
+      "correcto": "Mono Sánchez",
+      "tipo": "persona",
+      "variantes": [
+        "mono sanchez"
+      ]
+    },
+    {
+      "correcto": "Pinilla",
+      "tipo": "persona",
+      "variantes": []
+    },
+    {
+      "correcto": "Coquimbo Unido",
+      "tipo": "equipo",
+      "variantes": [
+        "coquimbo unido"
+      ]
+    },
+    {
+      "correcto": "Santa Laura",
+      "tipo": "estadio",
+      "variantes": [
+        "santa laura"
+      ]
+    },
+    {
+      "correcto": "Asta-Buruaga",
+      "tipo": "persona",
+      "variantes": [
+        "asta buruaga",
+        "astaburuaga",
+        "estauruaga",
+        "estaburuaga"
+      ]
+    },
+    {
+      "correcto": "Nico Córdova",
+      "tipo": "persona",
+      "variantes": [
+        "nico cordoba",
+        "nico cordova",
+        "nico córdoba"
+      ]
+    },
+    {
+      "correcto": "Franco Jiménez",
+      "tipo": "persona",
+      "variantes": [
+        "franco giménez",
+        "franco jimenez"
+      ]
+    },
+    {
+      "correcto": "Piero Maza",
+      "tipo": "persona",
+      "variantes": [
+        "piero masa",
+        "piero mazza",
+        "pierro maza"
+      ]
+    },
+    {
+      "correcto": "Diego Oyarzún",
+      "tipo": "persona",
+      "variantes": [
+        "diego iarzun",
+        "diego iarzún",
+        "diego oyarzin",
+        "diego oyarzun",
+        "diego oyarzín"
+      ]
+    },
+    {
+      "correcto": "Guarello",
+      "tipo": "persona",
+      "variantes": [
+        "guarelo",
+        "guarrello"
+      ]
+    },
+    {
+      "correcto": "Chupalla Fuentes",
+      "tipo": "persona",
+      "variantes": [
+        "chupalla fuente",
+        "chupaya fuentes"
+      ]
+    },
+    {
+      "correcto": "Barticciotto",
+      "tipo": "persona",
+      "variantes": [
+        "barticciato",
+        "barticciotto",
+        "barticioto",
+        "barticiotto"
+      ]
+    },
+    {
+      "correcto": "Mago Valdivia",
+      "tipo": "persona",
+      "variantes": [
+        "mago baldivia"
+      ]
+    },
+    {
+      "correcto": "Eduardo Vargas",
+      "tipo": "persona",
+      "variantes": [
+        "eduardo bargas"
+      ]
+    },
+    {
+      "correcto": "Solabarrieta",
+      "tipo": "persona",
+      "variantes": [
+        "solavarrieta",
+        "sola barrieta",
+        "solabarrieta"
+      ]
+    },
+    {
+      "correcto": "Desbordes",
+      "tipo": "persona",
+      "variantes": [
+        "des bordes",
+        "desborde"
+      ]
+    },
+    {
+      "correcto": "Claudio Orrego",
+      "tipo": "persona",
+      "variantes": [
+        "claudio orego"
+      ]
+    },
+    {
+      "correcto": "Johnny Herrera",
+      "tipo": "persona",
+      "variantes": [
+        "jhonny herrera",
+        "johny herrera",
+        "yoni herrera"
+      ]
+    },
+    {
+      "correcto": "Anuel",
+      "tipo": "persona",
+      "variantes": [
+        "a nuel",
+        "anuel aa"
+      ]
+    },
+    {
+      "correcto": "La Pucará",
+      "tipo": "lugar",
+      "variantes": [
+        "la pucara",
+        "la pukará"
+      ]
+    },
+    {
+      "correcto": "Juan Pinto Durán",
+      "tipo": "lugar",
+      "variantes": [
+        "juan pinto duran"
+      ]
+    },
+    {
+      "correcto": "Copa Centenario",
+      "tipo": "torneo",
+      "variantes": [
+        "copa centenaria"
+      ]
+    },
+    {
+      "correcto": "GOPE",
+      "tipo": "institución",
+      "variantes": [
+        "el gope",
+        "gope"
+      ]
+    },
+    {
+      "correcto": "Nick Carter",
+      "tipo": "persona",
+      "variantes": [
+        "nick cárter",
+        "nik carter"
+      ]
+    }
   ],
   "correcciones_especiales": []
 }
