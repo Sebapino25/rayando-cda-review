@@ -191,7 +191,8 @@ def _fit_title(
         font = ImageFont.truetype(font_path, size)
         avg_char_w = font.getlength("OA") / 2 or 1
         wrap_width = max(3, int(max_width / avg_char_w * 1.12))
-        lines = textwrap.wrap(titulo, width=wrap_width) or [titulo]
+        # sin partir palabras: si una palabra larga no cabe, se baja el tamaño de letra
+        lines = textwrap.wrap(titulo, width=wrap_width, break_long_words=False, break_on_hyphens=False) or [titulo]
         widths = [draw.textlength(line, font=font) for line in lines]
         cabe_ancho = not widths or max(widths) <= max_width
         cabe_lineas = len(lines) <= max_lines
@@ -201,7 +202,7 @@ def _fit_title(
         size -= 6
     font = ImageFont.truetype(font_path, min_size)
     avg_char_w = font.getlength("OA") / 2 or 1
-    lines = textwrap.wrap(titulo, width=max(3, int(max_width / avg_char_w))) or [titulo]
+    lines = textwrap.wrap(titulo, width=max(3, int(max_width / avg_char_w)), break_long_words=False, break_on_hyphens=False) or [titulo]
     return font, lines
 
 

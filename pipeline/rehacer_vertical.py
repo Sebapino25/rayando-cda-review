@@ -25,7 +25,7 @@ import cortar_clip
 import publicar
 
 
-def rehacer(carpeta: Path, subir: bool, replanificar: bool = True) -> bool:
+def rehacer(carpeta: Path, subir: bool, replanificar: bool = True, portadas_tambien: bool = False) -> bool:
     nombre = carpeta.name
     if not (carpeta / "horizontal_original.mp4").exists():
         print(f"  {nombre}: sin horizontal_original.mp4, se omite.")
@@ -46,6 +46,10 @@ def rehacer(carpeta: Path, subir: bool, replanificar: bool = True) -> bool:
     cortar_clip.build_vertical(carpeta, tiene_subs, titulo)
     vertical = carpeta / "vertical.mp4"
     publicar.validar_clip(vertical)
+    if portadas_tambien and titulo:
+        import portadas
+        print(f"  {nombre}: rearmando portadas...")
+        portadas.build_portadas(carpeta, carpeta / "horizontal_original.mp4", titulo, cortar_clip._cargar_overrides(nombre))
     if not subir:
         return True
 
@@ -61,7 +65,11 @@ def rehacer(carpeta: Path, subir: bool, replanificar: bool = True) -> bool:
         print(f"  {nombre}: OJO, se esperaba 1 fila en Supabase con ese video y hay {len(filas)}. Video subido, fila sin tocar.")
         return False
     nueva_url = f"{url.split('?')[0]}?v={int(time.time())}"
-    sb.table(config.SUPABASE_TABLE).update({"video_url": nueva_url}).eq("id", filas[0]["id"]).execute()
+    cambios = {"video_url": nueva_url}
+    if portadas_tambien and (carpeta / "portada_vertical.jpg").exists():
+        purl = publicar.subir_portada_storage(carpeta / "portada_vertical.jpg", f"{fecha}/{nombre}.jpg")
+        cambios["portada_url"] = f"{purl.split('?')[0]}?v={int(time.time())}"
+    sb.table(config.SUPABASE_TABLE).update(cambios).eq("id", filas[0]["id"]).execute()
     print(f"  {nombre}: listo ({nueva_url})")
     return True
 
@@ -71,6 +79,7 @@ def main() -> None:
     ap.add_argument("fecha", help="carpeta de la fecha del programa dentro de clips (ej. 2026-10-08)")
     ap.add_argument("clips", nargs="*", help="nombres de carpeta (default: todos los candidato-*)")
     ap.add_argument("--sin-subir", action="store_true", help="solo rehace los archivos locales")
+    ap.add_argument("--portadas", action="store_true", help="también rehace las portadas y reemplaza la portada en la app")
     ap.add_argument("--sin-replanificar", action="store_true",
                     help="usa el layout.json guardado del clip en vez de volver a mirar la grabación")
     a = ap.parse_args()
@@ -82,7 +91,7 @@ def main() -> None:
     ok = 0
     for n in nombres:
         try:
-            ok += rehacer(fecha_dir / n, subir=not a.sin_subir, replanificar=not a.sin_replanificar)
+            ok += rehacer(fecha_dir / n, subir=not a.sin_subir, replanificar=not a.sin_replanificar, portadas_tambien=a.portadas)
         except Exception as e:  # sigue con el resto
             print(f"  {n}: ERROR {e}")
     print(f"\n{ok} de {len(nombres)} verticales rehechos{'' if a.sin_subir else ' y subidos'}.")

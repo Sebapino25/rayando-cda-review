@@ -329,3 +329,12 @@ def test_corregir_subtitulos_rechaza_texto_de_otro_clip():
     import corregir_subtitulos as cs
     _, sim = cs.alinear([(0.0, 2.0, "hola qué tal cómo estamos")], "el perro Morocho ahora es funcionario municipal")
     assert sim < cs.SIMILITUD_MINIMA
+
+
+def test_titulo_de_portada_no_parte_palabras():
+    from PIL import ImageDraw
+    import portadas
+    d = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+    font, lineas = portadas._fit_title(d, "¿SORTEO CONDICIONADO?", config.PORTADA_FONT_PATH, 420, 3, 160, 40)
+    assert all(l in ("¿SORTEO", "CONDICIONADO?", "¿SORTEO CONDICIONADO?") for l in lineas), lineas
+    assert max(d.textlength(l, font=font) for l in lineas) <= 420 or font.size == 40
