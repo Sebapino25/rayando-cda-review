@@ -4,7 +4,8 @@ Los revisores escriben en la app el texto correcto del clip completo. Este scrip
 alinea palabra por palabra con los subtítulos actuales (subtitulos.srt), conserva los
 tiempos de cada línea, rehace el vertical y lo reemplaza en Supabase Storage. También
 deja transcripcion = transcripcion_original = texto corregido en la fila, para que la
-app no bloquee "Aprobar".
+app no bloquee "Aprobar", y borra el comentario ya aplicado (si no, la app lo
+sigue mostrando como "Pendiente de procesar").
 
 Uso (PROGRAMA=spa):
     python corregir_subtitulos.py 2026-10-08 correcciones.json             # aplica y sube
@@ -115,7 +116,7 @@ def corregir(carpeta: Path, texto: str, subir: bool, solo_revisar: bool) -> bool
                  .like("video_url", f"%/{ruta}%").execute().data)
         if len(filas) == 1:
             sb.table(config.SUPABASE_TABLE).update(
-                {"transcripcion": texto, "transcripcion_original": texto}).eq("id", filas[0]["id"]).execute()
+                {"transcripcion": texto, "transcripcion_original": texto, "comentarios_video": None}).eq("id", filas[0]["id"]).execute()
         else:
             print(f"  {nombre}: OJO, no encontré una sola fila en Supabase ({len(filas)}); video subido, texto sin actualizar.")
     return True

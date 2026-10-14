@@ -276,11 +276,13 @@ def test_rehacer_vertical_sin_subir(tmp_path, layout, fondos, monkeypatch):
     assert "Default" in (out / "subtitulos.ass").read_text(encoding="utf-8")
 
 
-def _con_zocalo(frame, layout):
+def _con_zocalo(frame, layout, top=None):
+    """Zocalo sintetico. top = borde de arriba (None = el de una linea medido en el capitulo 2)."""
     f = frame.copy()
     r, b = layout["zocalo"]["region"], layout["zocalo"]["barra"]
-    f[r["y"]:r["y"] + r["h"], r["x"]:r["x"] + r["w"]] = (8, 15, 48)
-    f[b["y"] - 8:b["y"] + b["h"] + 8, b["x"] - 1:b["x"] + b["w"] + 1] = layout["zocalo"]["color_barra"]
+    y = r["y"] if top is None else top
+    f[y:r["y"] + r["h"], r["x"]:r["x"] + r["w"]] = (8, 15, 48)
+    f[y + 3:r["y"] + r["h"] - 3, b["x"] - 1:b["x"] + b["w"] + 1] = layout["zocalo"]["color_barra"]
     return f
 
 
@@ -338,3 +340,27 @@ def test_titulo_de_portada_no_parte_palabras():
     font, lineas = portadas._fit_title(d, "¿SORTEO CONDICIONADO?", config.PORTADA_FONT_PATH, 420, 3, 160, 40)
     assert all(l in ("¿SORTEO", "CONDICIONADO?", "¿SORTEO CONDICIONADO?") for l in lineas), lineas
     assert max(d.textlength(l, font=font) for l in lineas) <= 420 or font.size == 40
+
+
+def test_zocalo_de_dos_lineas_mide_el_borde_de_arriba_y_tapa_el_recorte(tmp_path, layout, fondos):
+    a = tmp_path / "a.png"
+    Image.fromarray(_con_zocalo(_frame(layout, fondos, "reaccion_vertical", True), layout, top=820)).save(a)
+    mkv = tmp_path / "z2.mkv"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "10", "-t", "4", "-i", str(a),
+                    "-f", "lavfi", "-t", "4", "-i", "sine=f=330", "-f", "lavfi", "-t", "4", "-i", "sine=f=220",
+                    "-f", "lavfi", "-t", "4", "-i", "sine=f=440:d=1,apad=whole_dur=4",
+                    "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:a",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(mkv)], check=True)
+    plan = ls.planificar(str(mkv), 0, 4, layout, fondos)
+    assert plan["zocalo"] and abs(plan["zocalo_y"] - 820) <= 4
+    fc = ls.filtro_split(plan, layout, False)
+    assert "drawbox=x=0:y=" in fc and ":t=fill:enable=" in fc  # tapa del pedazo cortado
+    r = ls._region_zocalo(plan, layout)
+    assert r["y"] <= 822 and r["y"] + r["h"] >= 1058
+    _render_y_medir(tmp_path, mkv, plan, layout)
+
+
+def test_zocalo_de_una_linea_no_cambia(layout, fondos):
+    plan = {"zocalo_y": None}
+    r = ls._region_zocalo(plan, layout)
+    assert r == {**layout["zocalo"]["region"], "h": r["h"]} and r["y"] == layout["zocalo"]["region"]["y"]

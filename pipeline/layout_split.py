@@ -126,23 +126,38 @@ def clasificar(frames, layout: dict, fondos: dict) -> dict | None:
 
 
 def detectar_zocalo(mkv: str, t0: float, dur: float, layout: dict, paso: float = 0.25):
-    """Tramos [(a, b)] (s relativos a t0) en que el zocalo de noticias esta en pantalla.
-    Mira solo la barra amarilla (recorte chico, 4 cuadros por segundo). [] si el layout no tiene zocalo."""
+    """Tramos [(a, b)] (s relativos a t0) en que el zocalo de noticias esta en pantalla, y el borde
+    de arriba del zocalo (y en el lienzo). El zocalo crece hacia arriba cuando el titulo usa dos
+    lineas, asi que se mide la barra amarilla completa (columna chica, 4 cuadros por segundo).
+    Devuelve ([], None) si el layout no tiene zocalo."""
     z = layout.get("zocalo")
     if not z:
-        return []
-    b = z["barra"]
+        return [], None
+    b, r = z["barra"], z["region"]
+    abajo = r["y"] + r["h"]
+    y0 = int(z.get("y_busqueda", r["y"]))
+    alto = abajo - y0
     cmd = ["ffmpeg", "-v", "error", "-ss", f"{t0:.3f}", "-t", f"{dur:.3f}", "-i", str(mkv), "-map", "0:v:0",
-           "-vf", f"fps={1 / paso},crop={b['w']}:{b['h']}:{b['x']}:{b['y']}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+           "-vf", f"fps={1 / paso},crop={b['w']}:{alto}:{b['x']}:{y0}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
     datos = subprocess.run(cmd, capture_output=True, check=True).stdout
-    tam = b["w"] * b["h"] * 3
+    tam = b["w"] * alto * 3
     color = np.array(z["color_barra"], dtype=float)
     tol = float(z.get("tolerancia", 45))
-    presente = []
+    ref_ini = b["y"] - y0  # tramo de la barra que siempre existe (zocalo de una linea)
+    ref_fin = ref_ini + b["h"]
+    presente, topes = [], []
     for i in range(len(datos) // tam):
-        px = np.frombuffer(datos[i * tam:(i + 1) * tam], dtype=np.uint8).reshape(-1, 3).astype(float).mean(0)
-        presente.append(float(np.linalg.norm(px - color)) < tol)
-    return tramos_presentes(presente, paso, dur)
+        cuadro = np.frombuffer(datos[i * tam:(i + 1) * tam], dtype=np.uint8).reshape(alto, b["w"], 3).astype(float)
+        filas = np.linalg.norm(cuadro.mean(1) - color, axis=1) < tol  # fila amarilla si/no
+        hay = float(np.linalg.norm(cuadro[ref_ini:ref_fin].reshape(-1, 3).mean(0) - color)) < tol
+        presente.append(hay)
+        if hay:
+            k = ref_ini
+            while k > 0 and filas[k - 1]:
+                k -= 1
+            topes.append(y0 + k)
+    tope = (min(topes) - 3) if topes else None  # la caja parte ~3 px sobre la barra
+    return tramos_presentes(presente, paso, dur), tope
 
 
 def tramos_presentes(presente: list[bool], paso: float, dur: float, min_seg: float = 0.75):
@@ -238,7 +253,7 @@ def planificar(mkv: str, t0: float, t1: float, layout: dict, fondos: dict | None
         p1 = cargar_pista(mkv, pistas["conductor1"], t0, dur)
         p2 = cargar_pista(mkv, pistas["conductor2"], t0, dur)
         segs = quien_habla(p1, p2)
-        zocalo = detectar_zocalo(mkv, t0, dur, layout)
+        zocalo, zocalo_y = detectar_zocalo(mkv, t0, dur, layout)
         if not segs:
             segs = [(0.0, round(dur, 3), 1)]
         # el ultimo segmento llega hasta el final real del clip
@@ -249,7 +264,7 @@ def planificar(mkv: str, t0: float, t1: float, layout: dict, fondos: dict | None
         return None
     return {"version": 1, "escena": esc, "con_contenido": info["con_contenido"],
             "mezcla_de_escenas": info["mezcla_de_escenas"], "duracion": round(dur, 3),
-            "segs": [list(s) for s in segs], "zocalo": [list(z) for z in zocalo], "muestras": info["muestras"]}
+            "segs": [list(s) for s in segs], "zocalo": [list(z) for z in zocalo], "zocalo_y": zocalo_y, "muestras": info["muestras"]}
 
 
 # ------------------------------------------------------------------ 3. filtro ffmpeg
@@ -262,9 +277,19 @@ def _enable_tramos(tramos) -> str:
     return "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in tramos) or "0"
 
 
-def _alto_zocalo(layout: dict) -> int:
-    r = layout["zocalo"]["region"]
-    return int(OUT_W * r["h"] / r["w"]) // 2 * 2
+def _region_zocalo(plan: dict, layout: dict) -> dict:
+    """Region del zocalo en el lienzo: borde de abajo fijo, borde de arriba medido en el clip."""
+    r = dict(layout["zocalo"]["region"])
+    abajo = r["y"] + r["h"]
+    y = plan.get("zocalo_y")
+    if isinstance(y, (int, float)) and 0 < y < r["y"]:
+        r["y"] = int(y) // 2 * 2
+    r["h"] = (abajo - r["y"]) // 2 * 2
+    return r
+
+
+def _alto_zocalo(region: dict) -> int:
+    return int(OUT_W * region["h"] / region["w"]) // 2 * 2
 
 
 def _recorte_cam(cam: dict) -> str:
@@ -310,10 +335,19 @@ def filtro_split(plan: dict, layout: dict, con_titulo: bool, logo_opacidad: floa
         ]
         ultimo = "st"
         if hay_zocalo:  # zocalo entero, al pie del contenido (donde estaba en el programa)
-            r = layout["zocalo"]["region"]
-            zh = _alto_zocalo(layout)
+            r = _region_zocalo(plan, layout)
+            zh = _alto_zocalo(r)
+            en = _enable_tramos(zoc)
+            # el pedazo del zocalo que venia dentro del contenido (a tamano real y cortado a los lados)
+            # se tapa con el color de fondo del zocalo, para que no asome sobre el zocalo achicado
+            esc = min(OUT_W / c["w"], MITAD / c["h"])
+            tapa = int((MITAD - c["h"] * esc) / 2 + (r["y"] - c["y"]) * esc)
+            if 0 <= tapa < MITAD - 5 - zh:
+                fondo = "0x%02X%02X%02X" % tuple(layout["zocalo"].get("color_fondo", [8, 15, 48]))
+                g.append(f"[{ultimo}]drawbox=x=0:y={tapa}:w={OUT_W}:h={MITAD - 5 - tapa}:color={fondo}:t=fill:enable='{en}'[stf]")
+                ultimo = "stf"
             g.append(f"[s5]crop={r['w']}:{r['h']}:{r['x']}:{r['y']},scale={OUT_W}:{zh},setsar=1[zoc]")
-            g.append(f"[{ultimo}][zoc]overlay=0:{MITAD - 5 - zh}:enable='{_enable_tramos(zoc)}'[stz]")
+            g.append(f"[{ultimo}][zoc]overlay=0:{MITAD - 5 - zh}:enable='{en}'[stz]")
             ultimo = "stz"
         if con_titulo:
             g.append(f"[{ultimo}][2:v]overlay={TITULO_X}:0[stt]")
@@ -337,8 +371,8 @@ def filtro_split(plan: dict, layout: dict, con_titulo: bool, logo_opacidad: floa
             "[st][lg]overlay=(W-w)/2:(H-h)/2[stl]",
         ]
         if hay_zocalo:  # sin contenido: el zocalo va al pie (el logo queda en la union de las camaras)
-            r = layout["zocalo"]["region"]
-            zh = _alto_zocalo(layout)
+            r = _region_zocalo(plan, layout)
+            zh = _alto_zocalo(r)
             g.append(f"[s5]crop={r['w']}:{r['h']}:{r['x']}:{r['y']},scale={OUT_W}:{zh},setsar=1[zoc]")
             g.append(f"[stl][zoc]overlay=0:{OUT_H - zh - 260}:enable='{_enable_tramos(zoc)}'[withlogo]")
         else:
@@ -400,7 +434,8 @@ def _main() -> None:
     for t, e, d in plan["muestras"]:
         print(f"  {t:6.1f}s  {e:20s} {'' if d is None else d}")
     zoc = plan.get("zocalo") or []
-    print("Zocalo en pantalla: " + (", ".join(f"{a:.1f}-{b:.1f}s" for a, b in zoc) if zoc else "no"))
+    print("Zocalo en pantalla: " + (", ".join(f"{a:.1f}-{b:.1f}s" for a, b in zoc) if zoc else "no")
+          + (f" (borde de arriba en y={plan.get('zocalo_y')})" if zoc else ""))
     print("Quien habla (s relativos al inicio):")
     for s0, s1, h in plan["segs"]:
         nombre = layout.get("nombres", {}).get(f"conductor{h}", f"conductor {h}")
