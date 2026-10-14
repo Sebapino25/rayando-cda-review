@@ -143,7 +143,7 @@ def detectar_zocalo(mkv: str, t0: float, dur: float, layout: dict, paso: float =
     tam = b["w"] * alto * 3
     color = np.array(z["color_barra"], dtype=float)
     tol = float(z.get("tolerancia", 45))
-    ref_ini = b["y"] - y0  # tramo de la barra que siempre existe (zocalo de una linea)
+    ref_ini = b["y"] - y0  # tramo de la barra que siempre existe (el de abajo, esta en todos los zocalos)
     ref_fin = ref_ini + b["h"]
     presente, topes = [], []
     for i in range(len(datos) // tam):
@@ -282,7 +282,7 @@ def _region_zocalo(plan: dict, layout: dict) -> dict:
     r = dict(layout["zocalo"]["region"])
     abajo = r["y"] + r["h"]
     y = plan.get("zocalo_y")
-    if isinstance(y, (int, float)) and 0 < y < r["y"]:
+    if isinstance(y, (int, float)) and 0 < y < abajo - 40:  # mas alto (dos lineas) o mas bajo (una linea corta)
         r["y"] = int(y) // 2 * 2
     r["h"] = (abajo - r["y"]) // 2 * 2
     return r

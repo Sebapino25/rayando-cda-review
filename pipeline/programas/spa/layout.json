@@ -125,7 +125,7 @@
     "margen_v": 985
   },
   "zocalo": {
-    "_nota": "Zócalo de noticias de la mesa SPA (título + bajada con barra amarilla a la izquierda). El borde de abajo es fijo; el alto crece hacia arriba cuando el título ocupa dos líneas, así que el borde de arriba se mide en cada clip por la barra amarilla. En el vertical se pone entero, achicado al ancho del clip.",
+    "_nota": "Zócalo de noticias de la mesa SPA (título + bajada con barra amarilla a la izquierda). El borde de abajo es fijo; el alto cambia según cuántas líneas usen el título y la bajada (en el capítulo 2 la barra partía en y=822, 838, 880 o 922 y siempre terminaba en 1057), así que el borde de arriba se mide en cada clip por la barra amarilla. La barra de referencia es solo el tramo que está en todos los casos (el de abajo). En el vertical se pone entero, achicado al ancho del clip.",
     "region": {
       "x": 274,
       "y": 876,
@@ -134,9 +134,9 @@
     },
     "barra": {
       "x": 277,
-      "y": 888,
+      "y": 930,
       "w": 8,
-      "h": 160
+      "h": 118
     },
     "color_barra": [
       253,

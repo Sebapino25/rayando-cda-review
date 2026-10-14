@@ -364,3 +364,19 @@ def test_zocalo_de_una_linea_no_cambia(layout, fondos):
     plan = {"zocalo_y": None}
     r = ls._region_zocalo(plan, layout)
     assert r == {**layout["zocalo"]["region"], "h": r["h"]} and r["y"] == layout["zocalo"]["region"]["y"]
+
+
+def test_zocalo_mas_bajo_que_el_de_referencia_se_detecta(tmp_path, layout, fondos):
+    # capitulo 2, clips 11 y 12: titulo y bajada de una linea, la barra parte en y=922
+    a = tmp_path / "a.png"
+    Image.fromarray(_con_zocalo(_frame(layout, fondos, "reaccion_vertical", True), layout, top=918)).save(a)
+    mkv = tmp_path / "z3.mkv"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-framerate", "10", "-t", "4", "-i", str(a),
+                    "-f", "lavfi", "-t", "4", "-i", "sine=f=330", "-f", "lavfi", "-t", "4", "-i", "sine=f=220",
+                    "-f", "lavfi", "-t", "4", "-i", "sine=f=440:d=1,apad=whole_dur=4",
+                    "-map", "0:v", "-map", "1:a", "-map", "2:a", "-map", "3:a",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(mkv)], check=True)
+    plan = ls.planificar(str(mkv), 0, 4, layout, fondos)
+    assert plan["zocalo"] and abs(plan["zocalo_y"] - 918) <= 4
+    r = ls._region_zocalo(plan, layout)
+    assert r["y"] > layout["zocalo"]["region"]["y"] and r["y"] + r["h"] >= 1058
