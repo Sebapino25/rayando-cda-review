@@ -287,6 +287,22 @@ function App() {
     loadPending()
   }
 
+  // Programas sin "Publicar en redes" (SPA): los revisores suben el clip a mano y lo marcan acá,
+  // para que salga de "Por publicar"/"Antiguas" y quede en "Publicados".
+  async function handleMarcarPublicado(id, publicado) {
+    const payload = publicado
+      ? { publicado: true, publicado_en: new Date().toISOString() }
+      : { publicado: false, publicado_en: null }
+    const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
+    if (updateError) throw updateError
+    if (publicado) {
+      setHistoryClips((prev) => prev.filter((c) => c.id !== id))
+      setReservaClips((prev) => prev.filter((c) => c.id !== id))
+    } else {
+      setPublishedClips((prev) => prev.filter((c) => c.id !== id))
+    }
+  }
+
   async function handlePublicar(id, { pin, tiktok }) {
     const { data, error: invokeError } = await supabase.functions.invoke('publicar-clip', {
       body: { clip_id: id, pin, tiktok: tiktok ?? null },
@@ -541,6 +557,7 @@ function App() {
               onUndo={handleUndo}
               onCoverRemove={handleCoverRemove}
               onPublicar={handlePublicar}
+              onMarcarPublicado={handleMarcarPublicado}
               onDelete={handleDelete}
             />
           ))}
@@ -551,7 +568,10 @@ function App() {
             <p className="text-sm text-muted-foreground mt-1">
               Cuando entra un programa nuevo, los clips aprobados que quedaron
               sin publicar de la semana anterior caen acá — comodín para cuando
-              falte contenido. Se guardan hasta {RESERVA_DIAS} días.
+              falte contenido.{' '}
+              {PROGRAMA.limpiezaAutomatica
+                ? `Se guardan hasta ${RESERVA_DIAS} días.`
+                : 'Se guardan hasta que alguien los marque como publicados.'}
             </p>
           </div>
         )}
@@ -564,6 +584,7 @@ function App() {
               onUndo={handleUndo}
               onCoverRemove={handleCoverRemove}
               onPublicar={handlePublicar}
+              onMarcarPublicado={handleMarcarPublicado}
               onDelete={handleDelete}
             />
           ))}
@@ -585,6 +606,7 @@ function App() {
               onUndo={handleUndo}
               onCoverRemove={handleCoverRemove}
               onPublicar={handlePublicar}
+              onMarcarPublicado={handleMarcarPublicado}
               onDelete={handleDelete}
             />
           ))}

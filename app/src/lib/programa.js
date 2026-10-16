@@ -12,6 +12,7 @@ const PROGRAMAS = {
     bucketVideo: 'clips-video',
     bucketPortadas: 'portadas',
     puedePublicar: true, // botón "Publicar en redes" (YouTube + Instagram + TikTok)
+    limpiezaAutomatica: true, // limpiar_clips.py borra la reserva a los RESERVA_DIAS
     guia: true,
   },
   spa: {
@@ -23,6 +24,7 @@ const PROGRAMAS = {
     bucketVideo: 'clips-video-spa',
     bucketPortadas: 'portadas-spa',
     puedePublicar: false, // por ahora: se aprueba acá y se descarga el clip para subirlo a mano
+    limpiezaAutomatica: false, // la reserva (Antiguas) se guarda hasta que se publique
     guia: false,
   },
 }

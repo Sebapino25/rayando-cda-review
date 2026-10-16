@@ -40,7 +40,7 @@ function ReadOnlyField({ label, value }) {
   )
 }
 
-export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, onDelete }) {
+export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, onMarcarPublicado, onDelete }) {
   const stateMeta = STATE_META[clip.estado] ?? STATE_META.rechazado
   const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
   // Misma señal que ClipCard: si transcripcion todavía no coincide con
@@ -59,6 +59,21 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
   const [pin, setPin] = useState('')
   const [tiktokPayload, setTiktokPayload] = useState(null)
   const [tiktokValido, setTiktokValido] = useState(true)
+  const [marcando, setMarcando] = useState(false)
+  const [confirmarMarca, setConfirmarMarca] = useState(false)
+
+  async function marcarPublicado(valor) {
+    if (!onMarcarPublicado) return
+    setMarcando(true)
+    setErrorMsg('')
+    try {
+      await onMarcarPublicado(clip.id, valor)
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo guardar. Prueba de nuevo.')
+      setMarcando(false)
+      setConfirmarMarca(false)
+    }
+  }
 
   async function handleUndo() {
     const confirmed = window.confirm('¿Seguro que quieres deshacer esta revisión?')
@@ -329,6 +344,43 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             </div>
           </div>
         )}
+        {!PROGRAMA.puedePublicar && clip.estado === 'aprobado' && !clip.publicado && !confirmarMarca && (
+          <button
+            type="button"
+            onClick={() => setConfirmarMarca(true)}
+            disabled={marcando}
+            className="self-start flex items-center gap-1.5 text-sm font-semibold text-primary disabled:opacity-40 cursor-pointer"
+          >
+            <CheckCircle size={15} weight="bold" />
+            Ya lo publiqué
+          </button>
+        )}
+        {!PROGRAMA.puedePublicar && clip.estado === 'aprobado' && !clip.publicado && confirmarMarca && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3.5 flex flex-col gap-3">
+            <p className="text-sm text-foreground">
+              ¿Ya lo subiste a redes? Pasa a <span className="font-semibold">Publicados</span> y deja de aparecer como material disponible.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmarMarca(false)}
+                disabled={marcando}
+                className="h-11 rounded-xl border-2 border-border text-foreground font-semibold text-sm disabled:opacity-40 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => marcarPublicado(true)}
+                disabled={marcando}
+                className="h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer"
+              >
+                {marcando ? <SpinnerGap size={16} className="animate-spin" /> : <CheckCircle size={16} weight="bold" />}
+                Sí, ya está
+              </button>
+            </div>
+          </div>
+        )}
         {clip.publicado && (
           <div className="flex flex-col items-start gap-1">
             <span className="flex items-center gap-1.5 text-sm font-semibold text-accent">
@@ -336,6 +388,17 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
               Publicado
             </span>
             {clip.tiktok_publish_id && <TikTokStatusBadge publishId={clip.tiktok_publish_id} />}
+            {!PROGRAMA.puedePublicar && (
+              <button
+                type="button"
+                onClick={() => marcarPublicado(false)}
+                disabled={marcando}
+                className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground disabled:opacity-40 cursor-pointer"
+              >
+                {marcando ? <SpinnerGap size={15} className="animate-spin" /> : <ArrowUUpLeft size={15} weight="bold" />}
+                No lo publiqué (deshacer)
+              </button>
+            )}
           </div>
         )}
         {!clip.publicado && (
