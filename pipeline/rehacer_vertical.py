@@ -8,6 +8,7 @@ Uso (PROGRAMA=spa):
     python rehacer_vertical.py 2026-10-08                 # todos los clips de esa fecha
     python rehacer_vertical.py 2026-10-08 candidato-03 candidato-07
     python rehacer_vertical.py 2026-10-08 --sin-subir     # solo rehace los archivos locales
+    python rehacer_vertical.py 2026-10-15 candidato-02 --titulo "¿Vidal DT de la Roja?"  # cambia el título
 
 Por defecto vuelve a mirar la grabación original (metadata.json -> video_fuente) para
 recalcular escena, quién habla y zócalo con el layout.json actual.
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -25,11 +27,26 @@ import cortar_clip
 import publicar
 
 
-def rehacer(carpeta: Path, subir: bool, replanificar: bool = True, portadas_tambien: bool = False) -> bool:
+def cambiar_titulo_copys(carpeta: Path, titulo: str) -> None:
+    """Reemplaza las líneas **Portada:** y **Título:** de copys.md por el título nuevo."""
+    copys = carpeta / "copys.md"
+    texto = copys.read_text(encoding="utf-8") if copys.exists() else ""
+    for etiqueta in ("Portada", "Título"):
+        patron = re.compile(rf"^\*\*{etiqueta}:\*\*.*$", re.M)
+        linea = f"**{etiqueta}:** {titulo}"
+        texto = patron.sub(lambda _m: linea, texto) if patron.search(texto) else texto.rstrip("\n") + f"\n{linea}\n"
+    copys.write_text(texto, encoding="utf-8")
+
+
+def rehacer(carpeta: Path, subir: bool, replanificar: bool = True, portadas_tambien: bool = False,
+            titulo_nuevo: str | None = None) -> bool:
     nombre = carpeta.name
     if not (carpeta / "horizontal_original.mp4").exists():
         print(f"  {nombre}: sin horizontal_original.mp4, se omite.")
         return False
+    if titulo_nuevo:
+        cambiar_titulo_copys(carpeta, titulo_nuevo)
+        portadas_tambien = True
     if replanificar and config.VERTICAL_LAYOUT == "split":
         # vuelve a mirar la grabación (escena, quién habla, zócalo) con el layout.json actual
         meta = json.loads((carpeta / "metadata.json").read_text(encoding="utf-8"))
@@ -69,6 +86,8 @@ def rehacer(carpeta: Path, subir: bool, replanificar: bool = True, portadas_tamb
     if portadas_tambien and (carpeta / "portada_vertical.jpg").exists():
         purl = publicar.subir_portada_storage(carpeta / "portada_vertical.jpg", f"{fecha}/{nombre}.jpg")
         cambios["portada_url"] = f"{purl.split('?')[0]}?v={int(time.time())}"
+    if titulo_nuevo:
+        cambios["youtube_titulo"] = titulo_nuevo
     sb.table(config.SUPABASE_TABLE).update(cambios).eq("id", filas[0]["id"]).execute()
     print(f"  {nombre}: listo ({nueva_url})")
     return True
@@ -80,6 +99,7 @@ def main() -> None:
     ap.add_argument("clips", nargs="*", help="nombres de carpeta (default: todos los candidato-*)")
     ap.add_argument("--sin-subir", action="store_true", help="solo rehace los archivos locales")
     ap.add_argument("--portadas", action="store_true", help="también rehace las portadas y reemplaza la portada en la app")
+    ap.add_argument("--titulo", help="cambia el título (portada, título del video y youtube_titulo en la app); usar con un solo clip")
     ap.add_argument("--sin-replanificar", action="store_true",
                     help="usa el layout.json guardado del clip en vez de volver a mirar la grabación")
     a = ap.parse_args()
@@ -88,10 +108,13 @@ def main() -> None:
     if not fecha_dir.is_dir():
         sys.exit(f"No existe {fecha_dir}")
     nombres = a.clips or sorted(p.name for p in fecha_dir.iterdir() if p.is_dir() and p.name.startswith("candidato-"))
+    if a.titulo and len(nombres) != 1:
+        sys.exit("--titulo se usa con un solo clip (ej. candidato-02)")
     ok = 0
     for n in nombres:
         try:
-            ok += rehacer(fecha_dir / n, subir=not a.sin_subir, replanificar=not a.sin_replanificar, portadas_tambien=a.portadas)
+            ok += rehacer(fecha_dir / n, subir=not a.sin_subir, replanificar=not a.sin_replanificar, portadas_tambien=a.portadas,
+                           titulo_nuevo=a.titulo)
         except Exception as e:  # sigue con el resto
             print(f"  {n}: ERROR {e}")
     print(f"\n{ok} de {len(nombres)} verticales rehechos{'' if a.sin_subir else ' y subidos'}.")

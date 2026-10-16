@@ -280,6 +280,91 @@
         "nick cárter",
         "nik carter"
       ]
+    },
+    {
+      "correcto": "Lamine Yamal",
+      "tipo": "jugador",
+      "variantes": [
+        "la minyamal",
+        "minyamal",
+        "lamin yamal",
+        "la mine yamal",
+        "lamín yamal"
+      ]
+    },
+    {
+      "correcto": "Matías Fernández",
+      "tipo": "jugador",
+      "variantes": [
+        "matias fernandez"
+      ]
+    },
+    {
+      "correcto": "Claudio Borghi",
+      "tipo": "entrenador",
+      "variantes": [
+        "claudio gorgi",
+        "claudio borgi",
+        "gorgi"
+      ]
+    },
+    {
+      "correcto": "Aníbal Mosa",
+      "tipo": "dirigente",
+      "variantes": [
+        "aníbal musa",
+        "anibal musa",
+        "aníbal muso",
+        "anibal mosa"
+      ]
+    },
+    {
+      "correcto": "Benja Vicuña",
+      "tipo": "persona",
+      "variantes": [
+        "venja mi cuña",
+        "benja mi cuña",
+        "venja vicuña"
+      ]
+    },
+    {
+      "correcto": "Chelo Díaz",
+      "tipo": "jugador",
+      "variantes": [
+        "chelo diaz"
+      ]
+    },
+    {
+      "correcto": "Maureira",
+      "tipo": "jugador",
+      "variantes": [
+        "maureyra"
+      ]
+    },
+    {
+      "correcto": "Gonzalo Fouillioux",
+      "tipo": "persona",
+      "variantes": [
+        "gonzalito fuyú",
+        "gonzalo fuyú",
+        "fuyú",
+        "fuillú"
+      ]
+    },
+    {
+      "correcto": "Jumanji",
+      "tipo": "otro",
+      "variantes": [
+        "yumanji",
+        "jumangi"
+      ]
+    },
+    {
+      "correcto": "Ester Villagra",
+      "tipo": "persona",
+      "variantes": [
+        "esther villagra"
+      ]
     }
   ],
   "correcciones_especiales": []

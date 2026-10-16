@@ -380,3 +380,34 @@ def test_zocalo_mas_bajo_que_el_de_referencia_se_detecta(tmp_path, layout, fondo
     assert plan["zocalo"] and abs(plan["zocalo_y"] - 918) <= 4
     r = ls._region_zocalo(plan, layout)
     assert r["y"] > layout["zocalo"]["region"]["y"] and r["y"] + r["h"] >= 1058
+
+
+def test_recortar_clip_mueve_el_inicio_sin_subir(tmp_path, layout, fondos, monkeypatch):
+    import json as _json
+    import cortar_clip
+    import recortar_clip
+    mkv = tmp_path / "2026-10-15 22-05-38.mkv"
+    _mkv_sintetico(mkv, layout, fondos, "reaccion_vertical", True, dur=12)
+    _logo_falso(tmp_path)
+    monkeypatch.setattr(config, "CLIPS_DIR", tmp_path / "clips")
+    monkeypatch.setattr(config, "TRANSCRIPTS_DIR", tmp_path / "tr")
+    out = tmp_path / "clips" / "2026-10-15" / "candidato-05"
+    out.mkdir(parents=True)
+    (out / "metadata.json").write_text(_json.dumps({"video_fuente": str(mkv), "timestamp_inicio": "00:00:00.500",
+                                                    "timestamp_fin": "00:00:11"}), encoding="utf-8")
+    (out / "copys.md").write_text("**Portada:** Prueba\n", encoding="utf-8")
+    assert recortar_clip.recortar(out, 2.0, 0.0, subir=False) is True
+    meta = _json.loads((out / "metadata.json").read_text(encoding="utf-8"))
+    assert meta["timestamp_inicio"] == "00:00:02.500"
+    dur = cortar_clip.ffprobe_duration(out / "horizontal_original.mp4")
+    assert abs(dur - (8.5 + 2 * config.CLIP_PAD_SECONDS)) < 0.5
+    assert (out / "vertical.mp4").exists() and (out / "layout.json").exists()
+
+
+def test_cambiar_titulo_copys_reemplaza_portada_y_titulo(tmp_path):
+    import rehacer_vertical
+    (tmp_path / "copys.md").write_text("**Portada:** Viejo\n\n**Título:** Viejo largo\n", encoding="utf-8")
+    rehacer_vertical.cambiar_titulo_copys(tmp_path, "¿Vidal DT de la Roja?")
+    texto = (tmp_path / "copys.md").read_text(encoding="utf-8")
+    assert "**Portada:** ¿Vidal DT de la Roja?" in texto and "**Título:** ¿Vidal DT de la Roja?" in texto
+    assert "Viejo" not in texto
