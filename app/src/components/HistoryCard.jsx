@@ -42,7 +42,11 @@ function ReadOnlyField({ label, value }) {
 
 export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, onMarcarPublicado, onDelete }) {
   const stateMeta = STATE_META[clip.estado] ?? STATE_META.rechazado
-  const hasPendingComment = Boolean(clip.comentarios_video && clip.comentarios_video.trim())
+  // Solo mientras el pedido sigue en cola: reprocesar_video.py lo aplica y
+  // devuelve el clip a 'pendiente', así que en cualquier otro estado el
+  // texto es un pedido ya procesado.
+  const hasPendingComment =
+    clip.estado === 'correccion_video' && Boolean(clip.comentarios_video && clip.comentarios_video.trim())
   // Misma señal que ClipCard: si transcripcion todavía no coincide con
   // transcripcion_original, reprocesar_subtitulos.py (disparado cada 5 min
   // por auto_procesar.ps1) todavía no quemó la corrección sobre el video —

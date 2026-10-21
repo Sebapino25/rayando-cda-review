@@ -450,6 +450,8 @@ def procesar_fila(row: dict, apply: bool) -> bool:
             "estado": "pendiente",
             "revisado_por": None,
             "revisado_en": None,
+            # Pedido ya aplicado: si queda, la app lo sigue mostrando como pendiente.
+            "comentarios_video": None,
         }
         if cambia_corte:
             campos.update({
