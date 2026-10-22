@@ -1,7 +1,9 @@
 # PLAN-CAPSULAS — Cápsulas horizontales por temática + orden por capítulo
 
-**Proyecto:** La Herramienta Rayando el CDA · Repo `Sebapino25/rayando-cda-review` · Local `C:\Users\sebap\rayando-cda`
-**Rama:** `feature/capsulas` (la Fase 1 se mergea a `main` antes del lunes 26/10)
+**Proyecto:** La Herramienta Rayando el CDA · Repo `Sebapino25/rayando-cda-review` · Producción `C:\Users\sebap\rayando-cda` (main) · Desarrollo `C:\Users\sebap\rayando-cda-dev` (worktree)
+**Rama:** `feature/capsulas` (Fase 1 mergeada a `main` el 22/10/2026)
+
+> **Regla dura:** Producción = C:\Users\sebap\rayando-cda en main (lo usa el Task Scheduler). Desarrollo = C:\Users\sebap\rayando-cda-dev. Nunca cambiar de rama ni desarrollar en la carpeta de producción. Cada fase se trabaja en dev y llega a producción solo por merge a main + `git pull --ff-only` en la carpeta de producción.
 **Fecha del plan:** 22/10/2026
 
 ## Objetivo

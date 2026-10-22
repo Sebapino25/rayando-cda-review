@@ -19,3 +19,12 @@
 - Ajuste en test_reprocesar_video_rollback.py: los dobles de `publicar` ahora incluyen `descripcion_con_capitulo`.
 - Nuevo `CLAUDE.md` en la raíz.
 - Pendiente: merge a main + deploy de `publicar-clip` antes del lunes 26/10 23:00. Los 3 clips del cap. 80 ya públicos no tienen el hashtag en YouTube (opcional: `corregir_capitulo.py 2026-10-19 80`).
+
+## 22/10/2026 — Fase 1 a producción + separación producción/desarrollo
+- `test_instagram_publish.py` NO se corrió en main: no es prueba unitaria (publica un post real en @rayandoelcda si hay credenciales). Es idéntico en main y en la rama, no importa nada de lo cambiado, y falla en ambas por falta de `INSTAGRAM_BUSINESS_ACCOUNT_ID` en `.env`. La corrida de la sesión anterior dejó en Storage `portadas/prueba/test_instagram_publish_1792696667.jpg` (sin borrar, a la espera de Seba).
+- Merge `feature/capsulas` -> `main` (9f70e9f) y push. Deploy de GitHub Pages OK (run 39840343767).
+- Edge Function `publicar-clip` desplegada con `npx supabase functions deploy publicar-clip --project-ref qfxfwfcdgqcbmdspjvtk --use-api`; arranca bien (POST sin PIN -> 400 esperado).
+- `corregir_capitulo.py 2026-10-19 80`: plan mostrado (4 clips, 3 públicos + 1 no listado; solo agrega "Del capítulo 80…" + `#RECDA80`), a la espera de confirmación.
+- Producción `C:\Users\sebap\rayando-cda` queda en `main`. La tarea `RayandoCDA_AutoProcesar` ejecuta `C:\Users\sebap\rayando-cda\pipeline\auto_procesar.ps1`, que fija `$PipelineDir` a esa misma carpeta.
+- Desarrollo: worktree `C:\Users\sebap\rayando-cda-dev` en `feature/capsulas` (fast-forward a main). Copiados: `app/.env`, `pipeline/.env`, `pipeline/youtube_token.json` (`YOUTUBE_TOKEN_FILE` es relativo). No copiados: logs, backups viejos del token, `supabase/.temp`, `deno.lock`. `npm ci` hecho en dev. Grabaciones/clips siguen en OneDrive (compartidos).
+- Regla dura producción/desarrollo agregada a CLAUDE.md y PLAN-CAPSULAS.md.
