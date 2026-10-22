@@ -28,3 +28,8 @@
 - Producción `C:\Users\sebap\rayando-cda` queda en `main`. La tarea `RayandoCDA_AutoProcesar` ejecuta `C:\Users\sebap\rayando-cda\pipeline\auto_procesar.ps1`, que fija `$PipelineDir` a esa misma carpeta.
 - Desarrollo: worktree `C:\Users\sebap\rayando-cda-dev` en `feature/capsulas` (fast-forward a main). Copiados: `app/.env`, `pipeline/.env`, `pipeline/youtube_token.json` (`YOUTUBE_TOKEN_FILE` es relativo). No copiados: logs, backups viejos del token, `supabase/.temp`, `deno.lock`. `npm ci` hecho en dev. Grabaciones/clips siguen en OneDrive (compartidos).
 - Regla dura producción/desarrollo agregada a CLAUDE.md y PLAN-CAPSULAS.md.
+
+## 22/10/2026 — Cierre cap. 80 + candado a la prueba en vivo de Instagram
+- `corregir_capitulo.py 2026-10-19 80` corrido con confirmación de Seba: 4 videos con "Del capítulo 80 de Rayando el CDA" + `#RECDA80` (una sola vez cada uno); privacidad y categoría sin cambios.
+- Borrada de Storage `portadas/prueba/test_instagram_publish_1792696667.jpg` (la dejó mi corrida anterior). Queda `test_instagram_publish_1790185986.jpg` (23/09, anterior, no se tocó).
+- `test_instagram_publish.py` solo corre con `RUN_LIVE_TESTS=1`; sin eso termina con exit 0 sin tocar Storage ni Instagram. CLAUDE.md actualizado.

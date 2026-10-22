@@ -14,7 +14,7 @@ Pipeline que corta los shorts del programa de los lunes, los sube a YouTube (no 
 - Capítulo: `pipeline/capitulos.py` (lunes = MAX+1, martes antes de 06:00 = lunes anterior). La línea "Del capítulo N…" y `#RECDA<N>` los pone el código (`publicar.descripcion_con_capitulo` y `publicar-clip/capitulo.ts`), nunca la IA.
 
 ## Comandos
-- Pruebas Python: `cd pipeline; python test_<nombre>.py` (cada test es un script; `test_instagram_publish.py` necesita credenciales reales).
+- Pruebas Python: `cd pipeline; python test_<nombre>.py` (cada test es un script). `test_instagram_publish.py` es una prueba EN VIVO (publica en @rayandoelcda): sin `RUN_LIVE_TESTS=1` se omite; nunca activarla sin pedido de Seba.
 - Pruebas Deno: `cd supabase/functions; deno test publicar-clip/`
 - App: `cd app; npm run build; npx oxlint src`
 - Dry-run del pipeline (no corta ni sube nada): `python procesar_programa.py "<mkv>" --dry-run`
