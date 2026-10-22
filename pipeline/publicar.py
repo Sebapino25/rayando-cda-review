@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -293,6 +294,30 @@ def numero_clip(program_date: str, nombre_clip: str) -> int:
     return hermanos.index(nombre_clip) + 1
 
 
+def _patron_capitulo(plantilla: str) -> str:
+    return re.escape(plantilla).replace(re.escape("{n}"), r"\d+")
+
+
+_LINEA_CAPITULO_RE = re.compile(rf"^[ \t]*{_patron_capitulo(config.CAPITULO_LINEA_YOUTUBE)}[ \t]*$", re.MULTILINE)
+_HASHTAG_CAPITULO_RE = re.compile(rf"[ \t]*{_patron_capitulo(config.CAPITULO_HASHTAG)}\b")
+
+
+def descripcion_con_capitulo(descripcion: str, capitulo: int | None) -> str:
+    """Agrega (de forma determinista, no vía IA) la línea "Del capítulo N de
+    Rayando el CDA" y, al final, el hashtag #RECDA<N>. Si el clip no tiene
+    capítulo, devuelve la descripción tal cual. Es idempotente: antes de
+    agregar, quita una línea/hashtag de capítulo previo (así
+    corregir_capitulo.py puede reemplazar el 80 por el 81 sin duplicar).
+    Misma lógica que supabase/functions/publicar-clip/capitulo.ts."""
+    if capitulo is None:
+        return descripcion
+    limpia = _HASHTAG_CAPITULO_RE.sub("", _LINEA_CAPITULO_RE.sub("", descripcion or ""))
+    limpia = re.sub(r"\n{3,}", "\n\n", limpia).strip()
+    linea = config.CAPITULO_LINEA_YOUTUBE.format(n=capitulo)
+    hashtag = config.CAPITULO_HASHTAG.format(n=capitulo)
+    return f"{limpia}\n\n{linea}\n{hashtag}" if limpia else f"{linea}\n{hashtag}"
+
+
 def titulo_generico(program_date: str, n_clip: int) -> str:
     return config.YOUTUBE_TITULO_TEMPLATE.format(fecha=program_date, n=n_clip)
 
@@ -314,6 +339,7 @@ def publicar_clip(
     transcripcion: str,
     timestamp_inicio: float,
     timestamp_fin: float,
+    capitulo: int | None = None,
 ) -> dict | None:
     """Valida, sube el vertical final a YouTube y registra en Supabase.
     Devuelve {"youtube_video_id", "youtube_url", "supabase_id"}, o None si la
@@ -334,7 +360,9 @@ def publicar_clip(
     titulo = titulo_generico(program_date, n_clip)
 
     print(f"  Subiendo a YouTube como no listado: \"{titulo}\"...")
-    descripcion_yt = f"{copys.youtube_titulo}\n\n{copys.youtube_descripcion}"
+    descripcion_yt = descripcion_con_capitulo(
+        f"{copys.youtube_titulo}\n\n{copys.youtube_descripcion}", capitulo
+    )
     video_id = subir_youtube(video_path, titulo, descripcion=descripcion_yt)
     youtube_url = f"https://youtu.be/{video_id}"
     print(f"  Subido: {youtube_url}")
@@ -366,6 +394,7 @@ def publicar_clip(
         "timestamp_inicio": timestamp_inicio,
         "timestamp_fin": timestamp_fin,
         "semana": program_date,
+        "capitulo": capitulo,
         "estado": "pendiente",
         "portada_url": portada_url,
         "video_url": video_url,
@@ -377,6 +406,7 @@ def publicar_clip(
     resumen = (
         f"Clip: {nombre_clip}\n"
         f"Fecha del programa (semana): {program_date}\n"
+        f"Capítulo: {capitulo if capitulo is not None else '(sin capítulo)'}\n"
         f"YouTube video ID: {video_id}\n"
         f"YouTube URL: {youtube_url}\n"
         f"Supabase id: {supabase_id}\n"

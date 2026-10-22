@@ -7,6 +7,8 @@ import { getReviewerName, setReviewerName } from './lib/reviewer'
 import ReviewerGate from './components/ReviewerGate'
 import ClipCard from './components/ClipCard'
 import HistoryCard from './components/HistoryCard'
+import CapituloFiltro from './components/CapituloFiltro'
+import { TODOS, filtrarPorCapitulo } from './lib/capitulo'
 
 const FECHA_SEMANA = /^\d{4}-\d{2}-\d{2}$/
 
@@ -35,6 +37,7 @@ const EDITABLE_FIELDS = [
 function App() {
   const [reviewer, setReviewer] = useState(() => getReviewerName())
   const [tab, setTab] = useState('pendientes')
+  const [capituloFiltro, setCapituloFiltro] = useState(TODOS)
   const [pendingClips, setPendingClips] = useState([])
   const [historyClips, setHistoryClips] = useState([])
   const [reservaClips, setReservaClips] = useState([])
@@ -128,6 +131,7 @@ function App() {
 
   useEffect(() => {
     if (!reviewer) return
+    setCapituloFiltro(TODOS)
     if (tab === 'pendientes') loadPending()
     else if (tab === 'historial') loadHistory()
     else if (tab === 'reserva') loadReserva()
@@ -371,6 +375,9 @@ function App() {
     return <ReviewerGate onSubmit={handleReviewerSubmit} />
   }
 
+  // Pendientes no lleva filtro: ya muestra solo el programa vigente.
+  const clipsConFiltro = { historial: historyClips, reserva: reservaClips, publicados: publishedClips }[tab]
+
   return (
     <div className="min-h-dvh flex flex-col">
       <header className="pt-safe sticky top-0 z-20 bg-primary text-primary-foreground shadow-md">
@@ -518,6 +525,10 @@ function App() {
           </div>
         )}
 
+        {!loading && !error && clipsConFiltro && (
+          <CapituloFiltro clips={clipsConFiltro} value={capituloFiltro} onChange={setCapituloFiltro} />
+        )}
+
         {!loading && !error && tab === 'pendientes' && pendingClips.length === 0 && (
           <div className="text-center py-16">
             <p className="text-base font-semibold text-foreground">No hay clips pendientes</p>
@@ -550,7 +561,7 @@ function App() {
         )}
 
         {!loading && !error && tab === 'historial' &&
-          historyClips.map((clip) => (
+          filtrarPorCapitulo(historyClips, capituloFiltro).map((clip) => (
             <HistoryCard
               key={clip.id}
               clip={clip}
@@ -577,7 +588,7 @@ function App() {
         )}
 
         {!loading && !error && tab === 'reserva' &&
-          reservaClips.map((clip) => (
+          filtrarPorCapitulo(reservaClips, capituloFiltro).map((clip) => (
             <HistoryCard
               key={clip.id}
               clip={clip}
@@ -599,7 +610,7 @@ function App() {
         )}
 
         {!loading && !error && tab === 'publicados' &&
-          publishedClips.map((clip) => (
+          filtrarPorCapitulo(publishedClips, capituloFiltro).map((clip) => (
             <HistoryCard
               key={clip.id}
               clip={clip}

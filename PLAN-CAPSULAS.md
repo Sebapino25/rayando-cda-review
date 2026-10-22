@@ -25,11 +25,13 @@
 - **Invitado:** la IA propone el nombre a partir de la transcripción y el diccionario de nombres propios. Quien revisa lo confirma en la app antes de publicar.
 - **Ejemplos de títulos:** tabla en Supabase, editable desde la app. Cada título elegido o ajustado queda guardado como ejemplo para el prompt.
 - **Capítulo:**
-  - Solo cuentan los programas de los lunes. La grabación de un lunes desde las 20:00 (o de la madrugada del martes) recibe el número del último capítulo + 1.
+  - Solo cuentan los programas de los lunes. La primera grabación de un lunes (o de la madrugada del martes, antes de las 06:00) recibe el número del último capítulo + 1. No hay hora mínima el lunes: un ensayo de la tarde crea el capítulo y el programa de la noche lo reusa (misma fecha).
   - Varios archivos de la misma noche comparten el capítulo. Reprocesar no suma.
-  - Un programa extraordinario (por ejemplo, un miércoles) se marca a mano en la config o con un parámetro. Sin esa marca, no recibe número.
-  - El número es editable en la app.
-  - En YouTube: hashtag `#RECDA81` al final, más la línea "Del capítulo 81 de Rayando el CDA" en la descripción. No se crean listas de reproducción por capítulo.
+  - La fecha del programa sale del nombre del mkv (inicio de grabación). Si empezó un martes antes de las 06:00, cuenta como el lunes anterior.
+  - Los capítulos viven en la tabla `rayando_cda.capitulos` (numero único, fecha única, tipo `normal`/`extraordinario`); `clips.capitulo` guarda el número.
+  - Un programa extraordinario (por ejemplo, un miércoles) se marca con `--extraordinario` (crea MAX+1) o `--capitulo N` (fuerza uno existente). Sin esa marca, no recibe número.
+  - El número **no** es editable en la app (solo se muestra y se filtra). Se corrige con `pipeline/corregir_capitulo.py <clip_id|fecha> <N>`, que actualiza Supabase y la descripción en YouTube, previa confirmación.
+  - En YouTube: la línea "Del capítulo 81 de Rayando el CDA" y el hashtag `#RECDA81` al final de la descripción. Los pone el código de forma determinista (no la IA), también al pasar a público. No se crean listas de reproducción por capítulo.
 - **Config por programa:** el código nuevo no escribe "Rayando" a fuego. Schema, rutas, duraciones, reglas de título y hashtag salen de un archivo de configuración por programa. SPA queda **fuera de alcance** de este plan.
 - La unificación de carpetas audiovisuales va **después** de este plan. No mover rutas durante este trabajo.
 
@@ -58,12 +60,14 @@ No se crea una herramienta ni un repo aparte. Las cápsulas son otro formato del
 
 ### Fase 1 — Capítulo en todos los videos ⏰ antes del lunes 26/10
 **Modelo:** Opus · **Sesión:** /clear antes
-- Columna `capitulo` (int, nullable) en `rayando_cda.clips`, mediante migración.
-- Lógica de asignación según las reglas de arriba, con el número inicial 80 como último capítulo registrado y el parámetro para extraordinarios.
-- `copys_ia.py`: agregar el hashtag `#RECDAN` (ej. `#RECDA81`) y la línea "Del capítulo N de Rayando el CDA" a la descripción de YouTube (y a los copys de Instagram y TikTok si aplica).
-- App: filtro y agrupación por capítulo, y campo editable del capítulo.
-- **Fuera de alcance:** cualquier cosa de cápsulas.
+- Migración aditiva (`pipeline/supabase_migration_capitulos.sql`): tabla `rayando_cda.capitulos` + columna `capitulo` (int, nullable) en `clips`. Semilla: cap. 80 = 19/10/2026, y sus clips con `capitulo=80`; el resto queda en null.
+- `pipeline/capitulos.py`: lógica de asignación (reglas de arriba) con pruebas de fechas en `test_capitulos.py`. `procesar_programa.py` suma `--extraordinario`, `--capitulo N` y `--dry-run`.
+- Descripción de YouTube: `publicar.descripcion_con_capitulo` agrega la línea y el hashtag por código (no en `copys_ia.py`, no vía IA). La Edge Function `publicar-clip` (`capitulo.ts`), `publicar_automatico.py` y los re-subidas (`reprocesar_video.py`, `reprocesar_subtitulos.py`) los conservan al reescribir la descripción. Instagram y TikTok: fuera de alcance.
+- `pipeline/corregir_capitulo.py`: comando de corrección (Supabase + YouTube `videos.update`), con confirmación.
+- App: "Cap. N" en cada clip y filtro por capítulo en Por publicar, Antiguas y Publicados. No editable. Pendientes no cambia.
+- **Fuera de alcance:** cualquier cosa de cápsulas, columna `formato`, config por programa.
 - **Listo cuando:** procesar una grabación de prueba con fecha de lunes asigna 81. Reprocesarla sigue en 81. La descripción muestra el hashtag. La app filtra por capítulo. Los shorts siguen saliendo igual que antes.
+- **Para producción:** merge a `main` (despliega la app) + deploy de la Edge Function `publicar-clip`, ambos antes del lunes 26/10 23:00. La migración ya está aplicada.
 
 ### Fase 2 — Config por programa + corte horizontal desde JSON manual
 **Modelo:** Opus · **Sesión:** /clear antes
@@ -105,7 +109,7 @@ No se crea una herramienta ni un repo aparte. Las cápsulas son otro formato del
 
 ## Riesgos
 - **Romper los shorts:** todo en rama; cada fase verifica que los shorts sigan iguales.
-- **Capítulo mal asignado** (ensayos de lunes, cortes de OBS): reglas de arriba + campo editable.
+- **Capítulo mal asignado** (ensayos de lunes, cortes de OBS): reglas de arriba + `corregir_capitulo.py`.
 - **Cuota de YouTube:** en principio de sobra (100 subidas al día desde dic. 2025). Se confirma en la Fase 0.
 - **Portada por API:** requiere el canal verificado. Se confirma en la Fase 0.
 - **Títulos que prometen de más:** respaldo obligatorio + revisión humana.

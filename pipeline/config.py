@@ -191,7 +191,14 @@ YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube"]
 
 SUPABASE_SCHEMA = "rayando_cda"
 SUPABASE_TABLE = "clips"
+SUPABASE_CAPITULOS_TABLE = "capitulos"
 SUPABASE_PORTADAS_BUCKET = "portadas"
+
+# --- Capítulo en la descripción de YouTube (ver capitulos.py y
+# publicar.descripcion_con_capitulo). Lo pone el código, no la IA: si el
+# clip no tiene capítulo, no se agrega nada. {n} = número de capítulo.
+CAPITULO_LINEA_YOUTUBE = "Del capítulo {n} de Rayando el CDA"
+CAPITULO_HASHTAG = "#RECDA{n}"
 SUPABASE_CLIPS_VIDEO_BUCKET = "clips-video"
 
 # --- Limpieza automática de la cola de clips (ver limpiar_clips.py) ---
