@@ -187,7 +187,7 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,estado,publicado,semana,youtube_video_id,titulo,youtube_titulo,"
         "youtube_descripcion,copy_instagram,portada_url,instagram_media_id,"
-        "transcripcion_original,video_url"
+        "transcripcion_original,video_url,capitulo"
     )
     query = supabase.table(config.SUPABASE_TABLE).select(columnas)
     if clip_id:
@@ -215,7 +215,9 @@ def procesar_fila(row: dict, apply: bool) -> None:
     if config.AUTO_PUBLICAR_YOUTUBE:
         video_id = row.get("youtube_video_id")
         titulo = row.get("youtube_titulo") or row.get("titulo") or ""
-        descripcion = row.get("youtube_descripcion") or ""
+        # Al pasar a público la descripción se reescribe con la de la app:
+        # hay que volver a poner la línea y el hashtag del capítulo.
+        descripcion = publicar.descripcion_con_capitulo(row.get("youtube_descripcion") or "", row.get("capitulo"))
         if not apply:
             print(f"  [dry-run] YouTube: pasaría {video_id} a público con título \"{titulo}\".")
             exitos["youtube"] = True

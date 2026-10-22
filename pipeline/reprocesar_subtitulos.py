@@ -77,7 +77,7 @@ def redistribuir_texto(
 def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,youtube_video_id,titulo,youtube_titulo,youtube_descripcion,"
-        "semana,estado,publicado,transcripcion,transcripcion_original"
+        "semana,estado,publicado,transcripcion,transcripcion_original,capitulo"
     )
     query = supabase.table(config.SUPABASE_TABLE).select(columnas)
     if clip_id:
@@ -211,7 +211,10 @@ def procesar_fila(row: dict, apply: bool) -> bool:
         return False
 
     titulo = row.get("titulo") or "Rayando el CDA"
-    descripcion = f"{row.get('youtube_titulo') or ''}\n\n{row.get('youtube_descripcion') or ''}".strip()
+    descripcion = publicar.descripcion_con_capitulo(
+        f"{row.get('youtube_titulo') or ''}\n\n{row.get('youtube_descripcion') or ''}".strip(),
+        row.get("capitulo"),
+    )
     print(f'  Subiendo a YouTube como no listado: "{titulo}"...')
     nuevo_video_id = publicar.subir_youtube(vertical_path, titulo, descripcion=descripcion)
     nueva_url = f"https://youtu.be/{nuevo_video_id}"

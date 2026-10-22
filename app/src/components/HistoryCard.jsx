@@ -5,6 +5,7 @@ import { PROGRAMA } from '../lib/programa'
 import ReproductorClip from './ReproductorClip'
 import TikTokPublishPanel from './TikTokPublishPanel'
 import TikTokStatusBadge from './TikTokStatusBadge'
+import CapituloBadge from './CapituloBadge'
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -177,12 +178,15 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
           )}
 
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
-            <span
-              className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${stateMeta.className}`}
-            >
-              <stateMeta.Icon size={14} weight="fill" />
-              {stateMeta.label}
-            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span
+                className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${stateMeta.className}`}
+              >
+                <stateMeta.Icon size={14} weight="fill" />
+                {stateMeta.label}
+              </span>
+              <CapituloBadge capitulo={clip.capitulo} />
+            </div>
             <p className="text-[15px] font-semibold text-foreground truncate">
               {clip.youtube_titulo || 'Sin título'}
             </p>

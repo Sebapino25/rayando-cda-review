@@ -28,6 +28,13 @@ una corrida nueva nunca sobrescribe candidatos de una corrida anterior.
 
 Uso:
     python procesar_programa.py "2026-07-06 23-13-36.mkv"
+    python procesar_programa.py "2026-10-28 22-50-00.mkv" --extraordinario
+    python procesar_programa.py "2026-10-19 22-53-58.mkv" --dry-run
+
+Capítulo: cada clip queda con el capítulo del programa (ver capitulos.py
+para las reglas; --extraordinario y --capitulo N para los casos fuera de
+lunes). --dry-run no corta ni sube nada: muestra el capítulo y la
+descripción final de YouTube.
 
 Requiere que la grabación ya esté transcrita (transcribir.py) y las
 mismas variables de entorno que detectar_momentos.py/publicar.py/
@@ -44,9 +51,11 @@ import re
 import sys
 from pathlib import Path
 
+import capitulos
 import config
 import cortar_clip
 import detectar_momentos
+import publicar
 
 _CANDIDATO_RE = re.compile(r"^candidato-(\d+)$")
 
@@ -110,6 +119,44 @@ def _cargar_candidatos_fijos(path: Path) -> list[tuple[str, float, float, float,
     return candidatos
 
 
+def _copys_de_carpeta(carpeta: Path) -> tuple[str, str] | None:
+    """(título, descripción) de YouTube desde el copys.md de un clip ya
+    cortado. Solo se usa para la vista previa del --dry-run."""
+    copys_path = carpeta / "copys.md"
+    if not copys_path.exists():
+        return None
+    texto = copys_path.read_text(encoding="utf-8")
+    titulo = re.search(r"\*\*Título:\*\*\s*(.+)", texto)
+    descripcion = re.search(r"\*\*Descripción:\*\*\s*(.+)", texto)
+    if not titulo or not descripcion:
+        return None
+    return titulo.group(1).strip(), descripcion.group(1).strip()
+
+
+def _mostrar_dry_run(fecha_dir: Path, a_procesar: list, capitulo: int | None) -> None:
+    """--dry-run: no corta, no llama a la IA, no sube a YouTube ni escribe
+    clips. Muestra el capítulo y cómo quedaría la descripción de YouTube,
+    usando los copys de los clips ya cortados de esa fecha (si hay)."""
+    print(f"\n[dry-run] capitulo={capitulo}")
+    if a_procesar:
+        print(f"[dry-run] Se cortarían y subirían {len(a_procesar)} candidatos nuevos:")
+        for nombre, inicio, fin, _, _ in a_procesar:
+            print(f"  - {nombre} ({cortar_clip.format_hhmmss(inicio)} -> {cortar_clip.format_hhmmss(fin)})")
+    else:
+        print("[dry-run] No quedan candidatos nuevos (todos se solapan con clips ya cortados).")
+
+    ejemplos = [
+        (p.name, c) for p in sorted(fecha_dir.glob("candidato-*")) if (c := _copys_de_carpeta(p))
+    ] if fecha_dir.exists() else []
+    if not ejemplos:
+        ejemplos = [("(ejemplo)", ("<título de YouTube de la IA>", "<descripción de YouTube de la IA>"))]
+    print("\n[dry-run] Descripción final de YouTube (con los copys ya generados en esta fecha):")
+    for nombre, (titulo, descripcion) in ejemplos:
+        final = publicar.descripcion_con_capitulo(f"{titulo}\n\n{descripcion}", capitulo)
+        print(f"\n  {nombre}:")
+        print("\n".join(f"    | {linea}" for linea in final.splitlines()))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=(
@@ -119,6 +166,22 @@ def main():
         )
     )
     parser.add_argument("video", help="Nombre en 'grabaciones' o ruta absoluta del video")
+    grupo_capitulo = parser.add_mutually_exclusive_group()
+    grupo_capitulo.add_argument(
+        "--extraordinario", action="store_true",
+        help="Programa fuera de lunes que sí lleva número: crea MAX(capítulo)+1 como 'extraordinario'.",
+    )
+    grupo_capitulo.add_argument(
+        "--capitulo", type=int, default=None,
+        help="Fuerza un número de capítulo que ya existe en rayando_cda.capitulos.",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help=(
+            "No corta, no llama a la IA, no sube a YouTube ni escribe en Supabase: "
+            "muestra el capítulo y la descripción final que quedaría."
+        ),
+    )
     args = parser.parse_args()
 
     video_path = cortar_clip.resolve_video(args.video)
@@ -126,7 +189,29 @@ def main():
     fecha_dir = config.CLIPS_DIR / program_date
     rangos_existentes = _rangos_ya_cortados(fecha_dir)
 
+    try:
+        capitulo = capitulos.asignar_capitulo(
+            video_path,
+            extraordinario=args.extraordinario,
+            capitulo_forzado=args.capitulo,
+            dry_run=args.dry_run,
+        )
+    except capitulos.CapituloError as e:
+        sys.exit(f"Error asignando capítulo: {e}")
+    except Exception as e:  # noqa: BLE001 - el capítulo no debe frenar los shorts
+        # Error de red/Supabase (ya con reintentos): los shorts salen igual,
+        # sin capítulo. Se corrige después con corregir_capitulo.py.
+        print(
+            f"ADVERTENCIA: no se pudo asignar el capítulo ({type(e).__name__}: {e}). "
+            "Los clips salen sin capítulo; corregir después con corregir_capitulo.py <fecha> <N>."
+        )
+        capitulo = None
+
     candidatos_fijos_path = _ruta_candidatos_fijos(fecha_dir, program_date)
+    if args.dry_run and not candidatos_fijos_path.exists():
+        print("[dry-run] No hay lista de candidatos confirmada: se detectarían en vivo (no se llama a la IA en dry-run).")
+        _mostrar_dry_run(fecha_dir, [], capitulo)
+        return
     if candidatos_fijos_path.exists():
         print(f"Usando lista de candidatos ya confirmada: {candidatos_fijos_path}")
         items = _cargar_candidatos_fijos(candidatos_fijos_path)
@@ -175,6 +260,10 @@ def main():
             for i, c in enumerate(candidatos_nuevos)
         ]
 
+    if args.dry_run:
+        _mostrar_dry_run(fecha_dir, a_procesar, capitulo)
+        return
+
     if not a_procesar:
         sys.exit("No quedan candidatos nuevos después de descartar los que ya se cortaron antes.")
 
@@ -190,7 +279,9 @@ def main():
             f"Razón: {razon}\n{'=' * 70}"
         )
         try:
-            resultado = cortar_clip.cortar_y_publicar(video_path, inicio, fin, nombre, razon=razon)
+            resultado = cortar_clip.cortar_y_publicar(
+                video_path, inicio, fin, nombre, razon=razon, capitulo=capitulo
+            )
         except Exception as e:
             print(f"  ERROR procesando {nombre}: {e}")
             fallidos.append(nombre)
