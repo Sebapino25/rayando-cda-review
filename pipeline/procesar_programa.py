@@ -41,6 +41,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -216,6 +217,14 @@ def main():
             f"\n{len(fallidos)} candidatos no se subieron ({', '.join(fallidos)}): "
             f"fallaron la validación técnica o hubo un error. Revisa la consola arriba "
             f"y {config.PUBLICAR_ERROR_LOG}."
+        )
+
+    if subidos and config.MANTENER_CAPITULOS:
+        print(f"\nLimpiando la cola: quedan solo los {config.MANTENER_CAPITULOS} capítulos más recientes...")
+        subprocess.run(
+            [sys.executable, str(Path(__file__).with_name("limpiar_clips.py")),
+             "--apply", "--mantener-capitulos", str(config.MANTENER_CAPITULOS)],
+            check=False,
         )
 
 

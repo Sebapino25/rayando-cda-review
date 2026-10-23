@@ -255,6 +255,11 @@ SUPABASE_CLIPS_VIDEO_BUCKET = "clips-video"
 # NO toca: publicados ni 'correccion_video' (trabajo en curso).
 DIAS_RESERVA_ANTIGUAS = 30
 
+# Si no es None, al terminar de subir un capítulo procesar_programa.py borra de la
+# cola (fila + video + portada) todo lo que no sea de los N capítulos más recientes.
+# SPA lo usa (2); Rayando sigue con la limpieza por estado de auto_procesar.ps1.
+MANTENER_CAPITULOS = None
+
 # --- Publicación final automática (ver publicar_automatico.py) ---
 # Ambos en False por defecto: nada se publica solo. Se prenden a mano cuando
 # el flujo esté validado y el equipo quiera activarlo.

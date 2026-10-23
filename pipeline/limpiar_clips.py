@@ -20,6 +20,9 @@ Uso:
     python limpiar_clips.py --apply            # borra de verdad
     python limpiar_clips.py --apply --dias-reserva 45
     python limpiar_clips.py --apply --clip-id <uuid>   # uno puntual (sin filtros)
+    python limpiar_clips.py --apply --mantener-capitulos 2   # deja solo los 2 últimos
+        # capítulos (`semana` distintas), sea cual sea el estado. Para SPA, donde los
+        # aprobados se descargan a mano y no hay "Antiguas".
 
 Códigos de salida (para auto_procesar.ps1, mismo esquema que reprocesar_video.py):
     0  nada que limpiar (o dry-run)
@@ -74,6 +77,19 @@ def clips_a_limpiar(
             if fecha < corte_reserva:
                 fuera.append(fila)
     return fuera
+
+
+def clips_fuera_de_ultimos(filas: list[dict], mantener: int) -> list[dict]:
+    """Filas cuyo `semana` no está entre los `mantener` capítulos más recientes.
+    Función pura. Ignora `semana` inválida y no toca correccion_video."""
+    fechas = sorted({f for f in (_parse_date(x.get("semana")) for x in filas) if f}, reverse=True)
+    vigentes = set(fechas[:mantener])
+    return [
+        f for f in filas
+        if f.get("estado") != "correccion_video"
+        and (d := _parse_date(f.get("semana"))) is not None
+        and d not in vigentes
+    ]
 
 
 def _storage_path(url: str | None, bucket: str) -> str | None:
@@ -131,6 +147,9 @@ def main() -> int:
     parser.add_argument("--dias-reserva", type=int, default=config.DIAS_RESERVA_ANTIGUAS,
                         help=f"Días de vida de un aprobado sin publicar, contados desde su "
                              f"`semana` (default {config.DIAS_RESERVA_ANTIGUAS})")
+    parser.add_argument("--mantener-capitulos", type=int,
+                        help="Dejar solo los N capítulos más recientes (por `semana`) y borrar el resto, "
+                             "sin mirar estado ni publicado")
     parser.add_argument("--clip-id", help="Limpiar solo este clip (ignora todos los filtros)")
     args = parser.parse_args()
 
@@ -146,6 +165,15 @@ def main() -> int:
                 or []
             )
             objetivo = filas
+        elif args.mantener_capitulos:
+            filas = (
+                sb.table(config.SUPABASE_TABLE)
+                .select("id, estado, publicado, semana, youtube_video_id, video_url, portada_url, youtube_titulo")
+                .execute()
+                .data
+                or []
+            )
+            objetivo = clips_fuera_de_ultimos(filas, args.mantener_capitulos)
         else:
             vigente = _programa_vigente(sb)
             filas = (
