@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 import config
 import correlacionar_clip
+import publicar
 import reprocesar_video as rv
 
 TEXTO_VIEJO = "hola que tal como andan"
@@ -158,6 +159,7 @@ def test_rollback_si_falla_youtube(tmp: Path) -> None:
 
     publicar_falso = type(
         "P", (), {
+            "descripcion_con_capitulo": staticmethod(publicar.descripcion_con_capitulo),
             "subir_youtube": staticmethod(lambda *a, **k: (_ for _ in ()).throw(RuntimeError("cuota de YouTube agotada"))),
         },
     )
@@ -180,6 +182,8 @@ def test_exito_no_restaura_y_deja_el_respaldo(tmp: Path) -> None:
     llamadas = {}
 
     class _PublicarOk:
+        descripcion_con_capitulo = staticmethod(publicar.descripcion_con_capitulo)
+
         @staticmethod
         def subir_youtube(*a, **k):
             return "NUEVO456"
@@ -208,6 +212,7 @@ def test_exito_no_restaura_y_deja_el_respaldo(tmp: Path) -> None:
 
 class _PublicarOk:
     llamadas: dict = {}
+    descripcion_con_capitulo = staticmethod(publicar.descripcion_con_capitulo)
 
     @staticmethod
     def validar_clip(*a, **k):

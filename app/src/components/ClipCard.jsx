@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import ReproductorClip from './ReproductorClip'
+import CapituloBadge from './CapituloBadge'
 import {
   CaretDown,
   Check,
@@ -190,6 +191,7 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
       <ReproductorClip clip={clip} />
 
       <div className="p-4 sm:p-5 flex flex-col gap-4">
+        <CapituloBadge capitulo={clip.capitulo} />
         <div className="flex items-center gap-3">
           <div className="shrink-0 w-16 aspect-[9/16] rounded-lg overflow-hidden bg-muted border border-border flex items-center justify-center">
             {coverUrl ? (

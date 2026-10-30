@@ -7,6 +7,8 @@ import { getReviewerName, setReviewerName } from './lib/reviewer'
 import ReviewerGate from './components/ReviewerGate'
 import ClipCard from './components/ClipCard'
 import HistoryCard from './components/HistoryCard'
+import CapituloFiltro from './components/CapituloFiltro'
+import { TODOS, filtrarPorCapitulo } from './lib/capitulo'
 
 const FECHA_SEMANA = /^\d{4}-\d{2}-\d{2}$/
 
@@ -35,6 +37,7 @@ const EDITABLE_FIELDS = [
 function App() {
   const [reviewer, setReviewer] = useState(() => getReviewerName())
   const [tab, setTab] = useState('pendientes')
+  const [capituloFiltro, setCapituloFiltro] = useState(TODOS)
   const [pendingClips, setPendingClips] = useState([])
   const [historyClips, setHistoryClips] = useState([])
   const [reservaClips, setReservaClips] = useState([])
@@ -128,6 +131,7 @@ function App() {
 
   useEffect(() => {
     if (!reviewer) return
+    setCapituloFiltro(TODOS)
     if (tab === 'pendientes') loadPending()
     else if (tab === 'historial') loadHistory()
     else if (tab === 'reserva') loadReserva()
@@ -287,6 +291,22 @@ function App() {
     loadPending()
   }
 
+  // Programas sin "Publicar en redes" (SPA): los revisores suben el clip a mano y lo marcan acá,
+  // para que salga de "Por publicar"/"Antiguas" y quede en "Publicados".
+  async function handleMarcarPublicado(id, publicado) {
+    const payload = publicado
+      ? { publicado: true, publicado_en: new Date().toISOString() }
+      : { publicado: false, publicado_en: null }
+    const { error: updateError } = await supabase.from('clips').update(payload).eq('id', id)
+    if (updateError) throw updateError
+    if (publicado) {
+      setHistoryClips((prev) => prev.filter((c) => c.id !== id))
+      setReservaClips((prev) => prev.filter((c) => c.id !== id))
+    } else {
+      setPublishedClips((prev) => prev.filter((c) => c.id !== id))
+    }
+  }
+
   async function handlePublicar(id, { pin, tiktok }) {
     const { data, error: invokeError } = await supabase.functions.invoke('publicar-clip', {
       body: { clip_id: id, pin, tiktok: tiktok ?? null },
@@ -354,6 +374,9 @@ function App() {
   if (!reviewer) {
     return <ReviewerGate onSubmit={handleReviewerSubmit} />
   }
+
+  // Pendientes no lleva filtro: ya muestra solo el programa vigente.
+  const clipsConFiltro = { historial: historyClips, reserva: reservaClips, publicados: publishedClips }[tab]
 
   return (
     <div className="min-h-dvh flex flex-col">
@@ -502,6 +525,10 @@ function App() {
           </div>
         )}
 
+        {!loading && !error && clipsConFiltro && (
+          <CapituloFiltro clips={clipsConFiltro} value={capituloFiltro} onChange={setCapituloFiltro} />
+        )}
+
         {!loading && !error && tab === 'pendientes' && pendingClips.length === 0 && (
           <div className="text-center py-16">
             <p className="text-base font-semibold text-foreground">No hay clips pendientes</p>
@@ -534,13 +561,14 @@ function App() {
         )}
 
         {!loading && !error && tab === 'historial' &&
-          historyClips.map((clip) => (
+          filtrarPorCapitulo(historyClips, capituloFiltro).map((clip) => (
             <HistoryCard
               key={clip.id}
               clip={clip}
               onUndo={handleUndo}
               onCoverRemove={handleCoverRemove}
               onPublicar={handlePublicar}
+              onMarcarPublicado={handleMarcarPublicado}
               onDelete={handleDelete}
             />
           ))}
@@ -551,19 +579,23 @@ function App() {
             <p className="text-sm text-muted-foreground mt-1">
               Cuando entra un programa nuevo, los clips aprobados que quedaron
               sin publicar de la semana anterior caen acá — comodín para cuando
-              falte contenido. Se guardan hasta {RESERVA_DIAS} días.
+              falte contenido.{' '}
+              {PROGRAMA.limpiezaAutomatica
+                ? `Se guardan hasta ${RESERVA_DIAS} días.`
+                : 'Se guardan hasta que alguien los marque como publicados.'}
             </p>
           </div>
         )}
 
         {!loading && !error && tab === 'reserva' &&
-          reservaClips.map((clip) => (
+          filtrarPorCapitulo(reservaClips, capituloFiltro).map((clip) => (
             <HistoryCard
               key={clip.id}
               clip={clip}
               onUndo={handleUndo}
               onCoverRemove={handleCoverRemove}
               onPublicar={handlePublicar}
+              onMarcarPublicado={handleMarcarPublicado}
               onDelete={handleDelete}
             />
           ))}
@@ -578,13 +610,14 @@ function App() {
         )}
 
         {!loading && !error && tab === 'publicados' &&
-          publishedClips.map((clip) => (
+          filtrarPorCapitulo(publishedClips, capituloFiltro).map((clip) => (
             <HistoryCard
               key={clip.id}
               clip={clip}
               onUndo={handleUndo}
               onCoverRemove={handleCoverRemove}
               onPublicar={handlePublicar}
+              onMarcarPublicado={handleMarcarPublicado}
               onDelete={handleDelete}
             />
           ))}

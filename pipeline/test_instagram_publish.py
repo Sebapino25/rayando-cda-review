@@ -5,9 +5,12 @@ Sube una imagen de prueba simple al bucket publico 'portadas' de Supabase
 Storage, crea un contenedor de media en Instagram (POST /{ig-user-id}/media)
 y lo publica (POST /{ig-user-id}/media_publish) en la cuenta @rayandoelcda.
 
-Uso:
-    python test_instagram_publish.py            # publica y deja el post
-    python test_instagram_publish.py --delete ID # intenta borrar un post por media id
+PRUEBA EN VIVO: publica de verdad. Por eso NO corre en la suite normal: sin
+RUN_LIVE_TESTS=1 termina enseguida (exit 0) sin tocar Storage ni Instagram.
+
+Uso (PowerShell):
+    $env:RUN_LIVE_TESTS = "1"; python test_instagram_publish.py             # publica y deja el post
+    $env:RUN_LIVE_TESTS = "1"; python test_instagram_publish.py --delete ID # intenta borrar un post por media id
 
 Requiere en .env: INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_BUSINESS_ACCOUNT_ID,
 SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
@@ -138,6 +141,13 @@ def borrar_media(media_id: str) -> bool:
 
 
 def main() -> None:
+    if os.environ.get("RUN_LIVE_TESTS") != "1":
+        print(
+            "OMITIDA: prueba en vivo (publica en @rayandoelcda). "
+            'Para correrla a propósito: $env:RUN_LIVE_TESTS = "1"; python test_instagram_publish.py'
+        )
+        return
+
     if len(sys.argv) >= 3 and sys.argv[1] == "--delete":
         media_id = sys.argv[2]
         print(f"Intentando borrar media_id={media_id}...")

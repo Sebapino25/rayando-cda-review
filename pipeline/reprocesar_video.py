@@ -133,7 +133,7 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,semana,estado,comentarios_video,transcripcion_original,"
         "titulo,youtube_titulo,youtube_descripcion,youtube_video_id,created_at,"
-        "timestamp_inicio,timestamp_fin"
+        "timestamp_inicio,timestamp_fin,capitulo"
     )
     query = supabase.table(config.SUPABASE_TABLE).select(columnas).eq("estado", "correccion_video")
     if clip_id:
@@ -424,7 +424,10 @@ def procesar_fila(row: dict, apply: bool) -> bool:
             return False
 
         titulo = row.get("titulo") or config.PROGRAMA_NOMBRE
-        descripcion = f"{row.get('youtube_titulo') or ''}\n\n{row.get('youtube_descripcion') or ''}".strip()
+        descripcion = publicar.descripcion_con_capitulo(
+            f"{row.get('youtube_titulo') or ''}\n\n{row.get('youtube_descripcion') or ''}".strip(),
+            row.get("capitulo"),
+        )
         print(f'  Subiendo a YouTube como no listado: "{titulo}"...')
         try:
             nuevo_video_id = publicar.subir_youtube(vertical_path, titulo, descripcion=descripcion)
@@ -452,6 +455,8 @@ def procesar_fila(row: dict, apply: bool) -> bool:
             "estado": "pendiente",
             "revisado_por": None,
             "revisado_en": None,
+            # Pedido ya aplicado: si queda, la app lo sigue mostrando como pendiente.
+            "comentarios_video": None,
         }
         if cambia_corte:
             campos.update({

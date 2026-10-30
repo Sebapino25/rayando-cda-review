@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from '../_shared/supabaseAdmin.ts'
 import { enviarAlerta } from '../_shared/email.ts'
 import { excedeLimite, VENTANA_MINUTOS_PIN, MAX_INTENTOS_PIN } from './pin.ts'
 import { obtenerAccessTokenYoutube, publicarYoutube } from './youtube.ts'
+import { descripcionConCapitulo } from './capitulo.ts'
 import { publicarReel } from './instagram.ts'
 import { publicarTiktok, obtenerCreatorInfoParaUI, consultarEstadoPublicacion, TikTokPostOpciones } from './tiktok.ts'
 
@@ -259,7 +260,7 @@ Deno.serve(async (req: Request) => {
       await publicarYoutube(
         reclamada.youtube_video_id,
         reclamada.youtube_titulo || reclamada.titulo || '',
-        reclamada.youtube_descripcion || '',
+        descripcionConCapitulo(reclamada.youtube_descripcion || '', reclamada.capitulo),
         accessToken,
       )
     } catch (e) {

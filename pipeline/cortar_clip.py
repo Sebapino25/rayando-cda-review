@@ -6,6 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import capitulos
 import config
 import copys_ia
 import corregir_nombres
@@ -602,6 +603,7 @@ def cortar_y_publicar(
     nombre: str,
     razon: str | None = None,
     publicar_clip: bool = True,
+    capitulo: int | None = None,
 ) -> dict | None:
     """Corta el clip (horizontal + vertical con subtítulos/logo), genera
     copys/portadas, escribe metadata.json y publica (YouTube no listado +
@@ -705,6 +707,7 @@ def cortar_y_publicar(
         transcripcion=transcripcion_texto,
         timestamp_inicio=start,
         timestamp_fin=end,
+        capitulo=capitulo,
     )
     return resultado
 
@@ -738,8 +741,13 @@ def main():
     if end <= start:
         sys.exit("Error: el tiempo de fin debe ser mayor que el de inicio.")
 
+    try:
+        capitulo = capitulos.asignar_capitulo(video_path)
+    except Exception as e:  # noqa: BLE001 - mismo criterio que procesar_programa.py
+        print(f"ADVERTENCIA: no se pudo asignar el capítulo ({e}). El clip sale sin capítulo.")
+        capitulo = None
     resultado = cortar_y_publicar(video_path, start, end, args.nombre, razon=args.razon,
-                                  publicar_clip=not args.sin_publicar)
+                                  publicar_clip=not args.sin_publicar, capitulo=capitulo)
 
     if resultado and resultado.get("sin_publicar"):
         print(f"\nListo (sin publicar). Revisa: {resultado['out_dir']}\\vertical.mp4")
