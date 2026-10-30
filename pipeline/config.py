@@ -1,7 +1,7 @@
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).parent
-BASE_DIR = Path(r"C:\Users\sebap\OneDrive\Escritorio\RayandoelCDA")
+BASE_DIR = Path(r"C:\Audiovisual\rayando-el-cda")
 
 RECORDINGS_DIR = BASE_DIR / "grabaciones"
 CLIPS_DIR = BASE_DIR / "clips"

@@ -5,8 +5,8 @@
 # hijo de una sesión de Claude Code, para que sobreviva aunque esa sesión
 # termine.
 
-$ScriptReal = "C:\Users\sebap\rayando-cda\pipeline\auto_procesar.ps1"
-$LogLoop = "C:\Users\sebap\rayando-cda\pipeline\logs_auto\loop.log"
+$ScriptReal = "C:\Audiovisual\la-herramienta\rayando-cda\pipeline\auto_procesar.ps1"
+$LogLoop = "C:\Audiovisual\la-herramienta\rayando-cda\pipeline\logs_auto\loop.log"
 
 if (-not (Test-Path (Split-Path $LogLoop))) {
     New-Item -ItemType Directory -Path (Split-Path $LogLoop) | Out-Null

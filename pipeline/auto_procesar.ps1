@@ -42,8 +42,8 @@ $ErrorActionPreference = "Continue"
 $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 $PSDefaultParameterValues['Add-Content:Encoding'] = 'utf8'
 
-$BaseDir = "C:\Users\sebap\OneDrive\Escritorio\RayandoelCDA"
-$PipelineDir = "C:\Users\sebap\rayando-cda\pipeline"
+$BaseDir = "C:\Audiovisual\rayando-el-cda"
+$PipelineDir = "C:\Audiovisual\la-herramienta\rayando-cda\pipeline"
 $GrabacionesDir = Join-Path $BaseDir "grabaciones"
 $TranscripcionesDir = Join-Path $BaseDir "transcripciones"
 $LogsDir = Join-Path $PipelineDir "logs_auto"
