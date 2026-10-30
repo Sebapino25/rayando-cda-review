@@ -430,9 +430,21 @@ def publicar_clip(
         descripcion_yt = descripcion_con_capitulo(
             f"{copys.youtube_titulo}\n\n{copys.youtube_descripcion}", capitulo
         )
-        video_id = subir_youtube(video_path, titulo, descripcion=descripcion_yt)
-        youtube_url = f"https://youtu.be/{video_id}"
-        print(f"  Subido: {youtube_url}")
+        try:
+            video_id = subir_youtube(video_path, titulo, descripcion=descripcion_yt)
+        except Exception as e:
+            # Recda sigue como siempre (el error corta). Otro programa no frena
+            # sus shorts por YouTube (ej. cuota diaria agotada con 7 clips): el
+            # clip queda para revisar desde Storage.
+            if config.PROGRAMA == "rayando":
+                raise
+            print(f"  ADVERTENCIA: falló la subida a YouTube ({e}). Se revisa desde Supabase Storage.")
+            registrar_error(nombre_clip, f"YouTube: {e}")
+            falta_youtube = str(e)
+            video_id = None
+        youtube_url = f"https://youtu.be/{video_id}" if video_id else None
+        if video_id:
+            print(f"  Subido: {youtube_url}")
     else:
         video_id, youtube_url = None, None
         if not falta_youtube:
