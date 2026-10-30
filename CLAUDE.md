@@ -11,6 +11,8 @@ Pipeline que corta los shorts del programa de los lunes, los sube a YouTube (no 
 ## Cómo corre
 - Tarea programada `RayandoCDA_AutoProcesar` (mar 00:00 a mié 10:00, cada 5 min) -> `pipeline/auto_procesar.ps1` -> `transcribir.py <mkv>` + `procesar_programa.py <mkv>`; después `reprocesar_video.py`, `reprocesar_subtitulos.py` y `limpiar_clips.py`.
 - Grabaciones OBS en `C:\Audiovisual\rayando-el-cda\grabaciones` ("AAAA-MM-DD HH-MM-SS.mkv"; partidos en `grabaciones\grabaciones-partidos`); clips en `...\clips\<fecha>\candidato-NN\`. SPA: `C:\Audiovisual\siempre-pasa-algo` (`base_dir` en `pipeline/programas/spa.json`). Fuera de OneDrive desde el 30/10/2026.
+- Dos programas, un pipeline: `--programa rayando|recda|spa` (o la variable `PROGRAMA`; default `rayando`). Perfiles en `pipeline/programas/<n>.json` y credenciales en `pipeline/.env.<n>` (ver `programas/README.md`). Recda vive en los valores por defecto de `config.py`; `test_config_rayando_foto.py` falla si cambian.
+- Video: YouTube no listado es el archivo permanente (Recda y SPA, cada uno en su canal y su proyecto de Google Cloud). Storage es de paso: `limpiar_clips.py` borra el mp4 de los publicados a los 7 días.
 - Capítulo: `pipeline/capitulos.py` (lunes = MAX+1, martes antes de 06:00 = lunes anterior). La línea "Del capítulo N…" y `#RECDA<N>` los pone el código (`publicar.descripcion_con_capitulo` y `publicar-clip/capitulo.ts`), nunca la IA.
 
 ## Comandos
@@ -25,7 +27,7 @@ Pipeline que corta los shorts del programa de los lunes, los sube a YouTube (no 
 - Producción = C:\Audiovisual\la-herramienta\rayando-cda en main (lo usa el Task Scheduler). Desarrollo = C:\Audiovisual\la-herramienta\rayando-cda-dev; SPA = C:\Audiovisual\la-herramienta\spa-herramienta. Nunca cambiar de rama ni desarrollar en la carpeta de producción. (dev es un git worktree de la misma repo; producción solo recibe `git pull --ff-only` de main; `auto_procesar.ps1` tiene la ruta de producción fija.)
 - No mover rutas existentes (grabaciones, clips, buckets, nombres de carpetas).
 - No romper los shorts: cualquier cambio al pipeline se verifica con las pruebas y un `--dry-run`. Lo nuevo (capítulo, cápsulas) nunca debe frenar la salida de shorts.
-- No tocar el schema `siempre_pasa_algo` (SPA) ni su app.
+- El schema `siempre_pasa_algo` (SPA) solo se toca con pedido explícito de Seba para la unificación (plan `PLAN-UNIFICACION-Y-SERVICIO.md`); nada de migraciones ahí sin su visto bueno.
 - Excluir siempre la fila de prueba `semana = 'qa-fixture'` (estado `prueba`) de barridos, limpiezas y correcciones.
 - Migraciones solo aditivas (`add column if not exists`, tablas nuevas). Nada de drop/rename en `clips`.
 - Nada se publica ni se borra en YouTube/IG/TikTok sin confirmación explícita de Seba.
