@@ -15,14 +15,21 @@ de YouTube; los dos últimos best-effort) lo que ya no se va a usar:
 
 NO toca publicados ni estado='correccion_video' (trabajo en curso).
 
+Además (A2b, YouTube como bodega): a los clips publicados hace más de
+config.BORRAR_VIDEO_PUBLICADO_DIAS días se les borra el mp4 de Storage y la
+fila queda con video_url = NULL. La fila, la portada y YouTube no se tocan.
+El plazo da tiempo para subir TikTok a mano después de "Publicar en redes".
+
 Uso:
     python limpiar_clips.py                    # dry-run: lista qué borraría
     python limpiar_clips.py --apply            # borra de verdad
     python limpiar_clips.py --apply --dias-reserva 45
     python limpiar_clips.py --apply --clip-id <uuid>   # uno puntual (sin filtros)
     python limpiar_clips.py --apply --mantener-capitulos 2   # deja solo los 2 últimos
-        # capítulos (`semana` distintas), sea cual sea el estado. Para SPA, donde los
-        # aprobados se descargan a mano y no hay "Antiguas".
+        # capítulos (`semana` distintas). Para SPA, donde los aprobados se descargan
+        # a mano y no hay "Antiguas". Los publicados se conservan (YouTube es el
+        # archivo); solo pierden el mp4 de Storage por la regla de arriba.
+    python limpiar_clips.py --apply --sin-liberar-videos     # sin borrar mp4 de publicados
 
 Códigos de salida (para auto_procesar.ps1, mismo esquema que reprocesar_video.py):
     0  nada que limpiar (o dry-run)
@@ -82,15 +89,35 @@ def clips_a_limpiar(
 
 def clips_fuera_de_ultimos(filas: list[dict], mantener: int) -> list[dict]:
     """Filas cuyo `semana` no está entre los `mantener` capítulos más recientes.
-    Función pura. Ignora `semana` inválida y no toca correccion_video."""
+    Función pura. Ignora `semana` inválida y no toca correccion_video ni
+    publicados (su video vive en YouTube; borrar la fila borraría también el
+    video y las métricas)."""
     fechas = sorted({f for f in (_parse_date(x.get("semana")) for x in filas) if f}, reverse=True)
     vigentes = set(fechas[:mantener])
     return [
         f for f in filas
         if f.get("estado") != "correccion_video"
+        and not f.get("publicado")
         and (d := _parse_date(f.get("semana"))) is not None
         and d not in vigentes
     ]
+
+
+def videos_a_liberar(filas: list[dict], hoy: _dt.date, dias: int) -> list[dict]:
+    """Publicados con mp4 en Storage cuyo `publicado_en` tiene `dias` días o
+    más. Función pura. Nunca toca qa-fixture ni correccion_video; sin fecha de
+    publicación no se toca (no se sabe si ya pasó el plazo)."""
+    corte = hoy - _dt.timedelta(days=dias)
+    fuera = []
+    for fila in filas:
+        if not fila.get("publicado") or not fila.get("video_url"):
+            continue
+        if fila.get("semana") == "qa-fixture" or fila.get("estado") == "correccion_video":
+            continue
+        publicado_en = _parse_date(fila.get("publicado_en"))
+        if publicado_en is not None and publicado_en <= corte:
+            fuera.append(fila)
+    return fuera
 
 
 def _storage_path(url: str | None, bucket: str) -> str | None:
@@ -140,6 +167,31 @@ def _programa_vigente(sb) -> str | None:
     return None
 
 
+def _liberar_videos(sb, videos: list[dict], apply: bool, dias: int | None) -> int:
+    """Borra el mp4 de Storage de cada clip y deja video_url en NULL. Devuelve
+    cuántos fallaron. Si el archivo no se puede borrar, la fila no se toca."""
+    if not videos:
+        return 0
+    verbo = "Liberando" if apply else "[dry-run] liberaría"
+    print(f"{verbo} el mp4 de Storage de {len(videos)} clip(s) publicados hace {dias}+ días:")
+    errores = 0
+    for fila in videos:
+        etiqueta = fila.get("youtube_titulo") or fila["id"]
+        print(f"  - {fila['id']} (semana {fila.get('semana')}, publicado {str(fila.get('publicado_en'))[:10]}) {etiqueta}")
+        if not apply:
+            continue
+        path = _storage_path(fila.get("video_url"), config.SUPABASE_CLIPS_VIDEO_BUCKET)
+        try:
+            if path:
+                sb.storage.from_(config.SUPABASE_CLIPS_VIDEO_BUCKET).remove([path])
+            sb.table(config.SUPABASE_TABLE).update({"video_url": None}).eq("id", fila["id"]).execute()
+            print("    mp4 borrado, video_url = NULL")
+        except Exception as e:
+            print(f"    ERROR liberando el video: {e}")
+            errores += 1
+    return errores
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -152,7 +204,11 @@ def main() -> int:
                         help="Dejar solo los N capítulos más recientes (por `semana`) y borrar el resto, "
                              "sin mirar estado ni publicado")
     parser.add_argument("--clip-id", help="Limpiar solo este clip (ignora todos los filtros)")
+    parser.add_argument("--sin-liberar-videos", action="store_true",
+                        help="No borrar de Storage el mp4 de los clips ya publicados")
     args = parser.parse_args()
+    dias_video = config.BORRAR_VIDEO_PUBLICADO_DIAS
+    liberar = dias_video is not None and not args.sin_liberar_videos and not args.clip_id
 
     try:
         sb = publicar.get_supabase_client()
@@ -187,17 +243,34 @@ def main() -> int:
                 or []
             )
             objetivo = clips_a_limpiar(filas, vigente, _dt.date.today(), args.dias_reserva)
+        videos = []
+        if liberar:
+            publicados = (
+                sb.table(config.SUPABASE_TABLE)
+                .select("id, estado, publicado, publicado_en, semana, video_url, youtube_titulo")
+                .eq("publicado", True)
+                .execute()
+                .data
+                or []
+            )
+            videos = videos_a_liberar(publicados, _dt.date.today(), dias_video)
     except Exception as e:
         print(f"ERROR: no se pudo leer Supabase: {e}")
         return 1
 
-    if not objetivo:
+    if not objetivo and not videos:
         print("Nada que limpiar.")
         return 0
 
+    errores = 0
+    errores += _liberar_videos(sb, videos, args.apply, dias_video)
+    if not objetivo:
+        if not args.apply:
+            return 0
+        return 1 if errores else 3
+
     verbo = "Borrando" if args.apply else "[dry-run] borraría"
     print(f"{verbo} {len(objetivo)} clip(s):")
-    errores = 0
     for fila in objetivo:
         etiqueta = fila.get("youtube_titulo") or fila["id"]
         print(f"  - [{fila.get('estado')}] {fila['id']} (semana {fila.get('semana')}) {etiqueta}")

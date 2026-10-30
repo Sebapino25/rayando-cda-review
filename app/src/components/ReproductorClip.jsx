@@ -14,6 +14,14 @@ function ReproductorClip({ clip }) {
       </div>
     )
   }
+  // Publicado sin YouTube y con el mp4 ya borrado de Storage (limpiar_clips.py).
+  if (!clip.youtube_video_id) {
+    return (
+      <div className="aspect-video bg-black flex items-center justify-center text-sm text-neutral-400">
+        El video ya no está en la app (se borró tras publicarlo).
+      </div>
+    )
+  }
   return (
     <div className="aspect-video bg-black">
       <iframe

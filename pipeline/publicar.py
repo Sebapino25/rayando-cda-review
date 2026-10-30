@@ -72,14 +72,49 @@ def validar_clip(video_path: Path) -> float:
 
 # ---------- YouTube ----------
 
+# Credenciales de la cuenta de YouTube. Para un programa que no es Rayando
+# tienen que estar en su .env.<programa>: si se heredaran de .env, el programa
+# subiría al canal de Recda y gastaría la cuota de su proyecto de Google Cloud.
+YOUTUBE_CLAVES_CUENTA = ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_TOKEN_FILE")
+
+
+def _youtube_token_path() -> Path:
+    return Path(os.environ.get("YOUTUBE_TOKEN_FILE", str(config.PROJECT_DIR / "youtube_token.json")))
+
+
+def _claves_propias_del_programa() -> set[str]:
+    from dotenv import dotenv_values
+
+    valores = dotenv_values(config.PROJECT_DIR / f".env.{config.PROGRAMA}")
+    return {k for k, v in valores.items() if v}
+
+
+def youtube_faltante(exigir_token: bool = True) -> str | None:
+    """None si el programa puede usar YouTube; si no, qué falta. Rayando no
+    se revisa (comportamiento de siempre). Otro programa necesita su cuenta
+    propia en .env.<programa> y, si exigir_token, el token ya autorizado con
+    autorizar_youtube.py (las corridas son desatendidas: no hay quién apruebe
+    en el navegador)."""
+    if config.PROGRAMA == "rayando":
+        return None
+    propias = _claves_propias_del_programa()
+    faltan = [k for k in YOUTUBE_CLAVES_CUENTA if k not in propias]
+    if faltan:
+        return f"faltan en .env.{config.PROGRAMA}: {', '.join(faltan)} (no se heredan de .env)"
+    if exigir_token and not _youtube_token_path().exists():
+        return (
+            f"no existe {_youtube_token_path()}: autoriza el canal con "
+            f"python autorizar_youtube.py --programa {config.PROGRAMA}"
+        )
+    return None
+
+
 def _youtube_credentials():
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
 
-    token_path = Path(
-        os.environ.get("YOUTUBE_TOKEN_FILE", str(config.PROJECT_DIR / "youtube_token.json"))
-    )
+    token_path = _youtube_token_path()
     creds = None
     if token_path.exists():
         creds = Credentials.from_authorized_user_file(str(token_path), config.YOUTUBE_SCOPES)
@@ -106,10 +141,37 @@ def _youtube_credentials():
     return creds
 
 
+_canal_verificado = False
+
+
+def canal_autorizado(youtube) -> tuple[str, str]:
+    """(id, nombre) del canal al que pertenece el token (1 unidad de cuota)."""
+    items = youtube.channels().list(part="id,snippet", mine=True).execute().get("items", [])
+    if not items:
+        raise RuntimeError("El token de YouTube no tiene canal asociado.")
+    return items[0]["id"], items[0]["snippet"]["title"]
+
+
 def get_youtube_client():
+    """Cliente de la API de YouTube del programa. Si config.YOUTUBE_CANAL_ID
+    está definido, verifica una vez por corrida que el token sea de ese canal
+    (así un token cambiado por error no sube clips al canal equivocado)."""
+    global _canal_verificado
     from googleapiclient.discovery import build
 
-    return build("youtube", "v3", credentials=_youtube_credentials())
+    falta = youtube_faltante()
+    if falta:
+        raise RuntimeError(f"YouTube de {config.PROGRAMA_NOMBRE} no está listo: {falta}")
+    youtube = build("youtube", "v3", credentials=_youtube_credentials())
+    if config.YOUTUBE_CANAL_ID and not _canal_verificado:
+        canal_id, nombre = canal_autorizado(youtube)
+        if canal_id != config.YOUTUBE_CANAL_ID:
+            raise RuntimeError(
+                f"El token de YouTube es del canal '{nombre}' ({canal_id}), pero "
+                f"{config.PROGRAMA_NOMBRE} espera {config.YOUTUBE_CANAL_ID}. No se sube nada."
+            )
+        _canal_verificado = True
+    return youtube
 
 
 def subir_youtube(video_path: Path, titulo: str, descripcion: str = "") -> str:
@@ -359,7 +421,11 @@ def publicar_clip(
     n_clip = numero_clip(program_date, nombre_clip)
     titulo = titulo_generico(program_date, n_clip)
 
-    if config.SUBIR_YOUTUBE:
+    falta_youtube = youtube_faltante() if config.SUBIR_YOUTUBE else None
+    if falta_youtube:
+        # Los shorts no se frenan: sin YouTube listo se revisan desde Storage.
+        print(f"  ADVERTENCIA: no se sube a YouTube ({falta_youtube}). Se revisa desde Supabase Storage.")
+    if config.SUBIR_YOUTUBE and not falta_youtube:
         print(f"  Subiendo a YouTube como no listado: \"{titulo}\"...")
         descripcion_yt = descripcion_con_capitulo(
             f"{copys.youtube_titulo}\n\n{copys.youtube_descripcion}", capitulo
@@ -369,7 +435,8 @@ def publicar_clip(
         print(f"  Subido: {youtube_url}")
     else:
         video_id, youtube_url = None, None
-        print("  (SUBIR_YOUTUBE=False: no se sube a YouTube; se revisa desde Supabase Storage)")
+        if not falta_youtube:
+            print("  (SUBIR_YOUTUBE=False: no se sube a YouTube; se revisa desde Supabase Storage)")
 
     print("  Subiendo portada generada a Supabase Storage...")
     portada_storage_path = f"{program_date}/{nombre_clip}.jpg"

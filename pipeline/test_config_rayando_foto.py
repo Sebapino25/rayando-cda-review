@@ -47,7 +47,10 @@ CLAVES_NUEVAS = {
     "CANDIDATOS_POOL_N": None,
     "DICCIONARIO_PATH": "<PIPELINE>/diccionario.json",
     "CLIP_OVERRIDES_PATH": "<PIPELINE>/clip_overrides.json",
-    "BORRAR_VIDEO_TRAS_PUBLICAR": False,
+    # Cambio aprobado por Seba (30/10/2026) para los dos programas: el mp4 de
+    # un clip publicado se borra de Storage a los 7 días (limpiar_clips.py).
+    "BORRAR_VIDEO_PUBLICADO_DIAS": 7,
+    "YOUTUBE_CANAL_ID": None,
 }
 
 # Volcado de las constantes de un config.py (en un proceso aparte, para no

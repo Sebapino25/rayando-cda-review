@@ -240,6 +240,9 @@ YOUTUBE_TITULO_TEMPLATE = "Rayando el CDA - candidato {fecha} - clip {n}"
 YOUTUBE_CATEGORY_ID = "17"  # Sports
 YOUTUBE_PRIVACY_STATUS = "unlisted"
 YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube"]
+# Canal esperado del token (publicar.get_youtube_client lo verifica). None = sin
+# verificar (Recda, como siempre). Lo da autorizar_youtube.py.
+YOUTUBE_CANAL_ID = None
 
 # Subir cada candidato a YouTube como no listado para revisarlo. False = el
 # video se revisa desde Supabase Storage (video_url) y youtube_video_id queda
@@ -270,6 +273,12 @@ SUPABASE_CLIPS_VIDEO_BUCKET = "clips-video"
 #     `semana` tenga más de DIAS_RESERVA_ANTIGUAS días; después se borra.
 # NO toca: publicados ni 'correccion_video' (trabajo en curso).
 DIAS_RESERVA_ANTIGUAS = 30
+
+# YouTube es el archivo permanente; Storage es de paso (decisión 30/10/2026).
+# Un clip publicado hace N días o más pierde su mp4 de Storage (video_url = NULL;
+# la fila, la portada y YouTube quedan). Los N días dan margen para subir TikTok
+# a mano. None = no se borra nunca. Lo corre limpiar_clips.py.
+BORRAR_VIDEO_PUBLICADO_DIAS = 7
 
 # Si no es None, al terminar de subir un capítulo procesar_programa.py borra de la
 # cola (fila + video + portada) todo lo que no sea de los N capítulos más recientes.

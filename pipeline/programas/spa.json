@@ -61,7 +61,7 @@
     "DETECCION_POR_VENTANA_MAX": 4,
     "CANDIDATOS_POOL_N": 12,
     "VERTICAL_LAYOUT": "split",
-    "SUBIR_YOUTUBE": false,
+    "SUBIR_YOUTUBE": true,
     "MANTENER_CAPITULOS": 2
   },
   "layout": "spa/layout.json",

@@ -102,3 +102,22 @@ def test_bandera_programa_fija_la_variable_antes_de_config():
     assert _py(codigo, None) == "rayando []"
     # Sin bandera manda la variable de entorno, como antes.
     assert _py("import sys; sys.argv = ['x']; import programa_cli, config; print(config.PROGRAMA)", "spa") == "spa"
+
+
+def test_youtube_de_spa_no_se_hereda_de_recda(tmp_path):
+    # Sin YOUTUBE_CLIENT_ID/SECRET propios en .env.spa, SPA no puede subir a
+    # YouTube (usaría el proyecto/canal de Recda): publicar lo detecta.
+    env_spa = tmp_path / ".env.spa"
+    env_spa.write_text("YOUTUBE_TOKEN_FILE=youtube_token_spa.json\n", encoding="utf-8")
+    codigo = (
+        "import config, publicar, pathlib;"
+        f"config.PROJECT_DIR = pathlib.Path(r'{tmp_path}');"
+        "print(publicar.youtube_faltante())"
+    )
+    out = _py(codigo, "spa")
+    assert "YOUTUBE_CLIENT_ID" in out and "YOUTUBE_CLIENT_SECRET" in out and "TOKEN_FILE" not in out
+    env_spa.write_text("YOUTUBE_CLIENT_ID=a\nYOUTUBE_CLIENT_SECRET=b\nYOUTUBE_TOKEN_FILE=no_existe_spa.json\n", encoding="utf-8")
+    out = _py(codigo, "spa", {"YOUTUBE_TOKEN_FILE": "no_existe_spa.json"})
+    assert "autorizar_youtube.py --programa spa" in out
+    # Rayando no se revisa (comportamiento de siempre).
+    assert _py("import publicar; print(publicar.youtube_faltante())", None) == "None"

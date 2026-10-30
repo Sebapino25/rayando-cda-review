@@ -121,8 +121,24 @@ class _FakeQuery:
         self._sink["borradas"] += 1
         return self
 
+    def update(self, cambios):
+        self._sink.setdefault("updates", []).append(cambios)
+        return self
+
     def execute(self):
         return type("R", (), {"data": self._filas})()
+
+
+class _FakeStorage:
+    def __init__(self, sink):
+        self._sink = sink
+
+    def from_(self, bucket):
+        self._bucket = bucket
+        return self
+
+    def remove(self, paths):
+        self._sink.setdefault("storage", []).extend(f"{self._bucket}/{p}" for p in paths)
 
 
 class _FakeSupabase:
@@ -130,6 +146,7 @@ class _FakeSupabase:
         self._filas = filas
         self._sink = sink
         self._semana = semana
+        self.storage = _FakeStorage(sink)
 
     def table(self, *_a, **_k):
         # _programa_vigente pide select('semana')...order...limit(1); le damos
@@ -165,6 +182,40 @@ def test_exit_0_en_dry_run() -> None:
     assert code == 0 and sink["borradas"] == 0
 
 
+def test_mantener_capitulos_no_toca_publicados() -> None:
+    viejo = _fila(estado="aprobado", semana="2026-08-10")
+    viejo_pub = _fila(estado="aprobado", publicado=True, semana="2026-08-10")
+    nuevos = [_fila(semana="2026-08-24"), _fila(semana="2026-08-31")]
+    assert lc.clips_fuera_de_ultimos([viejo, viejo_pub, *nuevos], 2) == [viejo]
+
+
+URL_MP4 = "https://x.supabase.co/storage/v1/object/public/clips-video/2026-08-17/candidato-01.mp4"
+
+
+def test_videos_a_liberar_por_plazo_desde_publicacion() -> None:
+    viejo = _fila(estado="aprobado", publicado=True, publicado_en="2026-08-25T10:00:00+00:00", video_url=URL_MP4)
+    reciente = _fila(estado="aprobado", publicado=True, publicado_en="2026-08-30T10:00:00+00:00", video_url=URL_MP4)
+    sin_video = _fila(estado="aprobado", publicado=True, publicado_en="2026-08-01", video_url=None)
+    sin_fecha = _fila(estado="aprobado", publicado=True, publicado_en=None, video_url=URL_MP4)
+    no_publicado = _fila(estado="aprobado", publicado=False, publicado_en="2026-08-01", video_url=URL_MP4)
+    fixture = _fila(estado="prueba", publicado=True, publicado_en="2026-08-01", video_url=URL_MP4, semana="qa-fixture")
+    filas = [viejo, reciente, sin_video, sin_fecha, no_publicado, fixture]
+    assert lc.videos_a_liberar(filas, HOY, 7) == [viejo]
+
+
+def test_apply_libera_mp4_y_deja_video_url_null() -> None:
+    pub = _fila(estado="aprobado", publicado=True, publicado_en="2026-08-01", video_url=URL_MP4)
+    code, sink = _correr_main(["--apply"], [pub])
+    assert code == 3 and sink["borradas"] == 0
+    assert sink["storage"] == ["clips-video/2026-08-17/candidato-01.mp4"]
+    assert sink["updates"] == [{"video_url": None}]
+    # dry-run y --sin-liberar-videos no tocan nada
+    code, sink = _correr_main([], [pub])
+    assert code == 0 and "storage" not in sink and "updates" not in sink
+    code, sink = _correr_main(["--apply", "--sin-liberar-videos"], [pub])
+    assert code == 0 and "storage" not in sink
+
+
 def main() -> None:
     test_pendiente_de_programa_anterior_se_borra()
     test_pendiente_del_programa_vigente_se_conserva()
@@ -176,6 +227,9 @@ def main() -> None:
     test_exit_0_cuando_no_hay_nada()
     test_exit_3_cuando_se_limpia_algo()
     test_exit_0_en_dry_run()
+    test_mantener_capitulos_no_toca_publicados()
+    test_videos_a_liberar_por_plazo_desde_publicacion()
+    test_apply_libera_mp4_y_deja_video_url_null()
     print("OK: filtro por programa vigente / reserva de 30 días, Storage y exit codes.")
 
 
