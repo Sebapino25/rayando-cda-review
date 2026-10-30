@@ -10,7 +10,7 @@ Pipeline que corta los shorts del programa de los lunes, los sube a YouTube (no 
 
 ## Cómo corre
 - Tarea programada `RayandoCDA_AutoProcesar` (mar 00:00 a mié 10:00, cada 5 min) -> `pipeline/auto_procesar.ps1` -> `transcribir.py <mkv>` + `procesar_programa.py <mkv>`; después `reprocesar_video.py`, `reprocesar_subtitulos.py` y `limpiar_clips.py`.
-- Grabaciones OBS en `C:\Users\sebap\OneDrive\Escritorio\RayandoelCDA\grabaciones` ("AAAA-MM-DD HH-MM-SS.mkv"); clips en `...\clips\<fecha>\candidato-NN\`.
+- Grabaciones OBS en `C:\Audiovisual\rayando-el-cda\grabaciones` ("AAAA-MM-DD HH-MM-SS.mkv"; partidos en `grabaciones\grabaciones-partidos`); clips en `...\clips\<fecha>\candidato-NN\`. SPA: `C:\Audiovisual\siempre-pasa-algo` (`base_dir` en `pipeline/programas/spa.json`). Fuera de OneDrive desde el 30/10/2026.
 - Capítulo: `pipeline/capitulos.py` (lunes = MAX+1, martes antes de 06:00 = lunes anterior). La línea "Del capítulo N…" y `#RECDA<N>` los pone el código (`publicar.descripcion_con_capitulo` y `publicar-clip/capitulo.ts`), nunca la IA.
 
 ## Comandos
@@ -22,7 +22,7 @@ Pipeline que corta los shorts del programa de los lunes, los sube a YouTube (no 
 - Deploy Edge Function: `supabase functions deploy publicar-clip` (o la MCP de Supabase).
 
 ## Reglas duras
-- Producción = C:\Users\sebap\rayando-cda en main (lo usa el Task Scheduler). Desarrollo = C:\Users\sebap\rayando-cda-dev. Nunca cambiar de rama ni desarrollar en la carpeta de producción. (dev es un git worktree de la misma repo; producción solo recibe `git pull --ff-only` de main; `auto_procesar.ps1` tiene la ruta de producción fija.)
+- Producción = C:\Audiovisual\la-herramienta\rayando-cda en main (lo usa el Task Scheduler). Desarrollo = C:\Audiovisual\la-herramienta\rayando-cda-dev; SPA = C:\Audiovisual\la-herramienta\spa-herramienta. Nunca cambiar de rama ni desarrollar en la carpeta de producción. (dev es un git worktree de la misma repo; producción solo recibe `git pull --ff-only` de main; `auto_procesar.ps1` tiene la ruta de producción fija.)
 - No mover rutas existentes (grabaciones, clips, buckets, nombres de carpetas).
 - No romper los shorts: cualquier cambio al pipeline se verifica con las pruebas y un `--dry-run`. Lo nuevo (capítulo, cápsulas) nunca debe frenar la salida de shorts.
 - No tocar el schema `siempre_pasa_algo` (SPA) ni su app.
