@@ -32,7 +32,7 @@ if PROGRAMA != "rayando":
 
     load_dotenv(PROJECT_DIR / f".env.{PROGRAMA}", override=True)
 
-BASE_DIR = Path(_PERFIL.get("base_dir", r"C:\Users\sebap\OneDrive\Escritorio\RayandoelCDA"))
+BASE_DIR = Path(_PERFIL.get("base_dir", r"C:\Audiovisual\rayando-el-cda"))
 
 RECORDINGS_DIR = BASE_DIR / "grabaciones"
 CLIPS_DIR = BASE_DIR / "clips"

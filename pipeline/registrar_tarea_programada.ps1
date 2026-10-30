@@ -33,7 +33,7 @@
 $ErrorActionPreference = "Stop"
 
 $TaskName = "RayandoCDA_AutoProcesar"
-$Script = "C:\Users\sebap\rayando-cda\pipeline\auto_procesar.ps1"
+$Script = "C:\Audiovisual\la-herramienta\rayando-cda\pipeline\auto_procesar.ps1"
 
 Write-Host "Buscando loops viejos (auto_procesar_loop.ps1) corriendo para matarlos..."
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |

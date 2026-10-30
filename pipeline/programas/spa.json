@@ -1,6 +1,6 @@
 {
   "nombre": "SPAreírse",
-  "base_dir": "C:\\Siempre pasa Algo",
+  "base_dir": "C:\\Audiovisual\\siempre-pasa-algo",
   "whisper_contexto": "SPAreírse, programa de reacción de Siempre Pasa Algo sobre el lado B del fútbol chileno.",
   "diccionario": "spa/diccionario.json",
   "prompts": {
