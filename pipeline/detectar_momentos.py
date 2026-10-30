@@ -38,6 +38,7 @@ from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import config
 
 load_dotenv(config.PROJECT_DIR / ".env")

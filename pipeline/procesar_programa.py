@@ -52,6 +52,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import capitulos
 import config
 import cortar_clip

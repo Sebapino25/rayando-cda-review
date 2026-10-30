@@ -1,0 +1,188 @@
+{
+ "AUDIO_LOUDNORM_I": -14,
+ "AUDIO_LOUDNORM_LRA": 11,
+ "AUDIO_LOUDNORM_TP": -1.5,
+ "AUDIO_NIVELADO": "dynaudnorm=framelen=250:gausssize=15:peak=0.9:maxgain=8:targetrms=0",
+ "AUDIO_NORMALIZAR": true,
+ "AUTO_PUBLICAR_INSTAGRAM": false,
+ "AUTO_PUBLICAR_YOUTUBE": false,
+ "BASE_DIR": "C:/Audiovisual/rayando-el-cda",
+ "CANDIDATOS_DURACION_MIN": 20.0,
+ "CANDIDATOS_MAX_N": 8,
+ "CANDIDATOS_MIN_N": 5,
+ "CANDIDATOS_MODEL": "claude-opus-4-8",
+ "CAPITULO_HASHTAG": "#RECDA{n}",
+ "CAPITULO_LINEA_YOUTUBE": "Del capítulo {n} de Rayando el CDA",
+ "CIERRES_DIR": "C:/Audiovisual/rayando-el-cda/cierres",
+ "CIERRE_ROTACION_STATE_PATH": "C:/Audiovisual/rayando-el-cda/cierres/rotacion_estado.json",
+ "CIERRE_VERTICAL_FILES": [
+  "CIERRE VERTICAL.mp4",
+  "CIERRE VERTICAL 2.mp4",
+  "CIERRE VERTICAL 3.mp4"
+ ],
+ "CLIPS_DIR": "C:/Audiovisual/rayando-el-cda/clips",
+ "CLIP_FADE_SECONDS": 0.25,
+ "CLIP_PAD_SECONDS": 0.4,
+ "COPYS_HASHTAGS_BASE": [
+  "#UdeChile",
+  "#LaU",
+  "#VamosLaU",
+  "#RayandoElCDA"
+ ],
+ "DIAS_RESERVA_ANTIGUAS": 30,
+ "INSTAGRAM_CONTAINER_TIMEOUT_S": 60,
+ "LOGO_ANCHO_RATIO": 0.16,
+ "LOGO_MARGEN_PX": 40,
+ "LOGO_OPACIDAD": 0.9,
+ "LOGO_PATH": "C:/Audiovisual/rayando-el-cda/Logo PNG.png",
+ "LOGO_POSICION": "top-right",
+ "PORTADA_CANDIDATOS_MARGEN_FIN": 0.08,
+ "PORTADA_CANDIDATOS_MARGEN_INICIO": 0.08,
+ "PORTADA_CANDIDATOS_N": 7,
+ "PORTADA_CANDIDATOS_TOP_N": 4,
+ "PORTADA_COLOR_DESTACADO": [
+  255,
+  215,
+  0
+ ],
+ "PORTADA_COLOR_FRANJA": [
+  8,
+  24,
+  51
+ ],
+ "PORTADA_FONT_PATH": "<PIPELINE>/fonts/Anton-Regular.ttf",
+ "PORTADA_FONT_SIZE_MAX_RATIO": 0.099,
+ "PORTADA_FONT_SIZE_MIN_RATIO": 0.036,
+ "PORTADA_FRANJA_OPACIDAD": 190,
+ "PORTADA_FRANJA_PADDING_RATIO": 0.35,
+ "PORTADA_FRANJA_SLANT_RATIO": 0.06,
+ "PORTADA_HORIZONTAL_SIZE": [
+  1280,
+  720
+ ],
+ "PORTADA_LOGO_ANCHO_RATIO": 0.22,
+ "PORTADA_MARCA_ALTURA_RATIO": 0.045,
+ "PORTADA_MARCA_COLOR_ACENTO": [
+  255,
+  215,
+  0
+ ],
+ "PORTADA_MARCA_COLOR_FONDO": [
+  8,
+  24,
+  51
+ ],
+ "PORTADA_MARCA_COLOR_TEXTO": [
+  255,
+  255,
+  255
+ ],
+ "PORTADA_MARCA_TEXTO": "RAYANDO EL CDA",
+ "PORTADA_MARGEN_PX": 60,
+ "PORTADA_MAX_LINEAS": 3,
+ "PORTADA_MINIATURA_ESCALA": 0.2,
+ "PORTADA_OSCURECIDO_OPACIDAD": 55,
+ "PORTADA_STOPWORDS_CLAVE": [
+  "como",
+  "cual",
+  "cuales",
+  "cuando",
+  "desde",
+  "donde",
+  "entre",
+  "esta",
+  "estas",
+  "este",
+  "esto",
+  "estos",
+  "hasta",
+  "para",
+  "pero",
+  "porque",
+  "que",
+  "quien",
+  "sobre",
+  "toda",
+  "todas",
+  "todo",
+  "todos",
+  "vamos"
+ ],
+ "PORTADA_TEXTO_COLOR": [
+  255,
+  255,
+  255
+ ],
+ "PORTADA_TEXTO_SOMBRA_COLOR": [
+  0,
+  0,
+  0
+ ],
+ "PORTADA_TEXTO_STROKE_RATIO": 0.09,
+ "PORTADA_VERTICAL_SIZE": [
+  1080,
+  1920
+ ],
+ "PORTADA_VS_BADGE_COLOR": [
+  196,
+  22,
+  28
+ ],
+ "PORTADA_VS_BADGE_TEXTO_COLOR": [
+  255,
+  255,
+  255
+ ],
+ "PORTADA_VS_LINEA_COLOR": [
+  255,
+  255,
+  255
+ ],
+ "PORTADA_VS_LINEA_GROSOR": 8,
+ "PORTADA_VS_SLANT_RATIO": 0.14,
+ "PROJECT_DIR": "<PIPELINE>",
+ "PUBLICAR_ERROR_LOG": "C:/Audiovisual/rayando-el-cda/errores_publicacion.log",
+ "RECORDINGS_DIR": "C:/Audiovisual/rayando-el-cda/grabaciones",
+ "RECORDING_EXTENSIONS": [
+  ".mkv",
+  ".mp4",
+  ".mov"
+ ],
+ "RECURSOS_PORTADAS_DIR": "C:/Audiovisual/rayando-el-cda/recursos-portadas",
+ "REEL_MAX_SECONDS": 90,
+ "SUBTITLE_FONT_NAME": "Arial",
+ "SUBTITLE_FONT_SIZE": 64,
+ "SUBTITLE_MARGIN_L": 50,
+ "SUBTITLE_MARGIN_R": 50,
+ "SUBTITLE_MARGIN_V": 400,
+ "SUBTITLE_MAX_WORDS_PER_CUE": 7,
+ "SUBTITLE_OUTLINE": 4,
+ "SUBTITLE_SHADOW": 0,
+ "SUPABASE_CAPITULOS_TABLE": "capitulos",
+ "SUPABASE_CLIPS_VIDEO_BUCKET": "clips-video",
+ "SUPABASE_PORTADAS_BUCKET": "portadas",
+ "SUPABASE_SCHEMA": "rayando_cda",
+ "SUPABASE_TABLE": "clips",
+ "TRANSCRIPTS_DIR": "C:/Audiovisual/rayando-el-cda/transcripciones",
+ "VERTICAL_FOREGROUND_SCALE": 1.15,
+ "VERTICAL_HEIGHT": 1920,
+ "VERTICAL_WIDTH": 1080,
+ "VIDEO_TITULO_FONT_SIZE_MAX_RATIO": 0.34,
+ "VIDEO_TITULO_FONT_SIZE_MIN_RATIO": 0.14,
+ "VIDEO_TITULO_LOGO_GAP_PX": 20,
+ "VIDEO_TITULO_MARGEN_PX": 60,
+ "VIDEO_TITULO_MAX_LINEAS": 3,
+ "VIDEO_TITULO_MIN_USABLE_PX": 120,
+ "WHISPER_BEAM_SIZE": 5,
+ "WHISPER_COMPUTE_TYPE_CPU": "int8",
+ "WHISPER_COMPUTE_TYPE_GPU": "float16",
+ "WHISPER_LANGUAGE": "es",
+ "WHISPER_MODEL_SIZE": "medium",
+ "WHISPER_VAD_FILTER": true,
+ "YOUTUBE_CATEGORY_ID": "17",
+ "YOUTUBE_PRIVACY_STATUS": "unlisted",
+ "YOUTUBE_SCOPES": [
+  "https://www.googleapis.com/auth/youtube"
+ ],
+ "YOUTUBE_TITULO_TEMPLATE": "Rayando el CDA - candidato {fecha} - clip {n}"
+}

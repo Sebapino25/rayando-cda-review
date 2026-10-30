@@ -37,6 +37,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import config
 import cortar_clip
 import publicar

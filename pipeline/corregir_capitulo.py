@@ -24,6 +24,7 @@ import datetime as _dt
 import re
 import sys
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import config
 import publicar
 

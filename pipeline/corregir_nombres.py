@@ -25,6 +25,7 @@ import re
 import sys
 from pathlib import Path
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import config
 
 DICCIONARIO_PATH = config.DICCIONARIO_PATH

@@ -8,15 +8,24 @@ PROJECT_DIR = Path(__file__).parent
 # Un mismo pipeline sirve a varios programas. PROGRAMA=rayando (default) deja
 # todo EXACTAMENTE como estaba. PROGRAMA=spa (u otro) carga programas/<n>.json
 # y .env.<n> (que pisa las credenciales de .env), y aplica los overrides de
-# más abajo. Ver programas/README.md.
+# más abajo. Ver programas/README.md. En la línea de comandos: --programa
+# (programa_cli.py), que solo fija esta misma variable.
+# "recda" es alias de "rayando" (el nombre interno no cambia: tarea, tests).
+ALIAS_PROGRAMA = {"recda": "rayando"}
 PROGRAMA = os.environ.get("PROGRAMA", "rayando").strip().lower()
+PROGRAMA = ALIAS_PROGRAMA.get(PROGRAMA, PROGRAMA)
 PROGRAMAS_DIR = PROJECT_DIR / "programas"
 
 
 def _cargar_perfil(nombre: str) -> dict:
-    if nombre == "rayando":
-        return {}
     ruta = PROGRAMAS_DIR / f"{nombre}.json"
+    if nombre == "rayando":
+        # rayando.json solo trae datos informativos (redes, día, tarea): los
+        # valores de Recda son los de este archivo. No debe traer "config".
+        perfil = json.loads(ruta.read_text(encoding="utf-8")) if ruta.exists() else {}
+        if perfil.get("config"):
+            raise RuntimeError("programas/rayando.json no debe pisar constantes: Recda usa los valores de config.py")
+        return perfil
     if not ruta.exists():
         raise RuntimeError(f"PROGRAMA='{nombre}' pero no existe {ruta}")
     return json.loads(ruta.read_text(encoding="utf-8"))
@@ -312,6 +321,9 @@ DICCIONARIO_PATH = PROJECT_DIR / "diccionario.json"
 PROMPT_DETECCION = None  # admite {min_n} {max_n} {dur_min} {dur_max}
 CONTEXTO_COPYS = None
 PROMPT_CORRECCION_PROGRAMA = None  # nombre con el que interpretar_correccion nombra al programa
+# Informativos (los fija el perfil; A1b los usa para capítulos y la tarea).
+REDES = ("youtube", "instagram", "tiktok")  # dónde publica el programa
+DIA_PROGRAMA = 0  # 0 = lunes ... 3 = jueves
 
 
 def _leer_texto_programa(ruta_rel: str) -> str:
@@ -344,6 +356,10 @@ def _aplicar_perfil(perfil: dict) -> None:
         g["LAYOUT_SPLIT_JSON"] = PROGRAMAS_DIR / perfil["layout"]
     if "diccionario" in perfil:
         g["DICCIONARIO_PATH"] = PROGRAMAS_DIR / perfil["diccionario"]
+    if "redes" in perfil:
+        g["REDES"] = tuple(perfil["redes"])
+    if "dia_programa" in perfil:
+        g["DIA_PROGRAMA"] = perfil["dia_programa"]
     prompts = perfil.get("prompts", {})
     if "deteccion" in prompts:
         g["PROMPT_DETECCION"] = _leer_texto_programa(prompts["deteccion"])

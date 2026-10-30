@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import config
 import corregir_nombres
 

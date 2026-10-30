@@ -80,3 +80,25 @@ def test_clave_desconocida_en_perfil_falla_fuerte(tmp_path):
         assert r.returncode != 0 and "CANDIDATOS_MAX_NN" in r.stderr
     finally:
         perfil.unlink()
+
+
+def test_recda_es_alias_de_rayando():
+    out = _py("import config; print(config.PROGRAMA, config.SUPABASE_SCHEMA, config.DIA_PROGRAMA, config.REDES)", "recda")
+    assert out == "rayando rayando_cda 0 ('youtube', 'instagram', 'tiktok')"
+
+
+def test_spa_trae_redes_y_dia():
+    out = _py("import config; print(config.DIA_PROGRAMA, config.REDES)", "spa")
+    assert out == "3 ('youtube',)"
+
+
+def test_bandera_programa_fija_la_variable_antes_de_config():
+    codigo = (
+        "import sys; sys.argv = ['x', 'archivo.mkv', '--programa', 'spa', '--dry-run'];"
+        "import programa_cli, config; print(config.PROGRAMA, sys.argv[1:])"
+    )
+    assert _py(codigo, None) == "spa ['archivo.mkv', '--dry-run']"
+    codigo = "import sys; sys.argv = ['x', '--programa=recda']; import programa_cli, config; print(config.PROGRAMA, sys.argv[1:])"
+    assert _py(codigo, None) == "rayando []"
+    # Sin bandera manda la variable de entorno, como antes.
+    assert _py("import sys; sys.argv = ['x']; import programa_cli, config; print(config.PROGRAMA)", "spa") == "spa"

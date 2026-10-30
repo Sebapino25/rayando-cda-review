@@ -6,6 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import capitulos
 import config
 import copys_ia

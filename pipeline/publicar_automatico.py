@@ -50,6 +50,7 @@ from pathlib import Path
 
 import requests
 
+import programa_cli  # noqa: F401  (antes de config: fija PROGRAMA)
 import config
 import publicar
 import reprocesar_subtitulos
