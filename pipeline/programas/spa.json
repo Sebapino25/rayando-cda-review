@@ -62,7 +62,8 @@
     "CANDIDATOS_POOL_N": 12,
     "VERTICAL_LAYOUT": "split",
     "SUBIR_YOUTUBE": true,
-    "MANTENER_CAPITULOS": 2
+    "MANTENER_CAPITULOS": 2,
+    "YOUTUBE_CANAL_ID": "UCetzYersvsFAAeu26R7kL9g"
   },
   "layout": "spa/layout.json",
   "clip_overrides": "spa/clip_overrides.json"

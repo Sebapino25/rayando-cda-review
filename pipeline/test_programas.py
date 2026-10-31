@@ -117,7 +117,8 @@ def test_youtube_de_spa_no_se_hereda_de_recda(tmp_path):
     out = _py(codigo, "spa")
     assert "YOUTUBE_CLIENT_ID" in out and "YOUTUBE_CLIENT_SECRET" in out and "TOKEN_FILE" not in out
     env_spa.write_text("YOUTUBE_CLIENT_ID=a\nYOUTUBE_CLIENT_SECRET=b\nYOUTUBE_TOKEN_FILE=no_existe_spa.json\n", encoding="utf-8")
-    out = _py(codigo, "spa", {"YOUTUBE_TOKEN_FILE": "no_existe_spa.json"})
+    # (config ya cargó el .env.spa real, así que el token inexistente se fija después)
+    out = _py(codigo.replace("print(", "import os; os.environ['YOUTUBE_TOKEN_FILE'] = 'no_existe_spa.json'; print("), "spa")
     assert "autorizar_youtube.py --programa spa" in out
     # Rayando no se revisa (comportamiento de siempre).
     assert _py("import publicar; print(publicar.youtube_faltante())", None) == "None"
