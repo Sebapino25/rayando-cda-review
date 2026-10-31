@@ -37,6 +37,23 @@ Cómo se detectan los temas, según el programa:
 
 **Antes de partir:** hacer push de `main` de producción (quedó adelante de GitHub con el commit de rutas del 30 oct).
 
+### Estado al 30 oct (noche): A1a y A2b listos en la rama `unificacion`
+Detalle técnico en `BITACORA.md`. Ya hecho por Seba: proyecto de Google Cloud "La Herramienta SPA" publicado, claves en `pipeline\.env.spa` de `rayando-cda-dev`, canal Siempre Pasa Algo autorizado (`youtube_token_spa.json`, id en `spa.json`). Ninguno de los dos proyectos tiene cuota ampliada (10.000/día; aparece además "Video Uploads per day" = 100).
+
+**Paso a producción (mié 4 nov, desde las 10:00, solo con el "dale" de Seba):**
+1. En `rayando-cda-dev` (rama `unificacion`): `git merge main` por si main avanzó (si hay conflicto, se resuelve ahí y se repiten los tests). Luego, en producción, con `git status` limpio: `git merge --ff-only unificacion` (los worktrees comparten el repo, así que main avanza sin desarrollar en producción).
+2. Push de main a `origin` (despliega la app; el repo es público: el código de SPA queda visible, las claves no porque están en `.gitignore`) y a `privado`.
+3. Copiar `pipeline\.env.spa` y `pipeline\youtube_token_spa.json` de `rayando-cda-dev` a producción.
+4. En producción: tests (`test_config_rayando_foto.py`, `pytest test_programas.py`, resto de scripts), dry-run Recda del 19/10 (cap. 80) y dry-run SPA del 29/10 con `--programa spa`.
+
+**Cap. 6 de SPA (jue 5 nov), en producción:**
+```
+cd C:\Audiovisual\la-herramienta\rayando-cda\pipeline
+python transcribir.py "<mkv de SPA>" --programa spa
+python procesar_programa.py "<mkv de SPA>" --programa spa
+```
+`#SPAreírse6` va a mano en los copys (capítulos de SPA = A1b). Plan B si el merge no se hizo: procesar desde `spa-herramienta` como antes.
+
 ---
 
 ## Bloque B — La Herramienta como servicio (módulo para el cliente de Daniela Rivas)
