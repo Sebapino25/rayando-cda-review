@@ -1,8 +1,11 @@
 """Rehace el vertical.mp4 de clips ya subidos (sin volver a cortar ni a detectar) y
 reemplaza el video en Supabase Storage. Sirve cuando cambia el diseño del vertical
 (posición de subtítulos, zócalo, logo) y hay que aplicarlo a clips que ya están en
-la app de revisión. No toca YouTube ni crea filas nuevas: actualiza video_url de la
-fila existente (con ?v=<hora> para que el navegador no muestre la versión vieja).
+la app de revisión. No crea filas nuevas: actualiza video_url de la fila existente
+(con ?v=<hora> para que el navegador no muestre la versión vieja). Si el clip tiene
+video no listado en YouTube y no está publicado, sube el vertical nuevo y actualiza
+youtube_video_id, porque la app reproduce desde YouTube. El video anterior no se
+borra (queda no listado; se borra a mano desde YouTube Studio).
 
 Uso (PROGRAMA=spa):
     python rehacer_vertical.py 2026-10-08                 # todos los clips de esa fecha
@@ -76,7 +79,9 @@ def rehacer(carpeta: Path, subir: bool, replanificar: bool = True, portadas_tamb
     url = publicar.subir_video_storage(vertical, storage_path)
     sb = publicar.get_supabase_client()
     filas = (
-        sb.table(config.SUPABASE_TABLE).select("id, video_url").eq("semana", fecha)
+        sb.table(config.SUPABASE_TABLE)
+        .select("id, video_url, youtube_video_id, publicado, titulo, youtube_titulo, youtube_descripcion, capitulo")
+        .eq("semana", fecha)
         .like("video_url", f"%/{storage_path}%").execute().data
     )
     if len(filas) != 1:
@@ -89,9 +94,33 @@ def rehacer(carpeta: Path, subir: bool, replanificar: bool = True, portadas_tamb
         cambios["portada_url"] = f"{purl.split('?')[0]}?v={int(time.time())}"
     if titulo_nuevo:
         cambios["youtube_titulo"] = titulo_nuevo
+    cambios.update(_reemplazo_youtube(filas[0], vertical, nombre, titulo_nuevo))
     sb.table(config.SUPABASE_TABLE).update(cambios).eq("id", filas[0]["id"]).execute()
     print(f"  {nombre}: listo ({nueva_url})")
     return True
+
+
+def _reemplazo_youtube(fila: dict, vertical: Path, nombre: str, titulo_nuevo: str | None) -> dict:
+    """Sube el vertical nuevo a YouTube si el clip ya tenía video ahí. Devuelve
+    los cambios para la fila. Un clip publicado no se toca (su video es el
+    público). Si la subida falla, el mp4 de Storage igual queda corregido."""
+    anterior = fila.get("youtube_video_id")
+    if not anterior or not config.SUBIR_YOUTUBE:
+        return {}
+    if fila.get("publicado"):
+        print(f"  {nombre}: OJO, ya está publicado: el video de YouTube ({anterior}) no se reemplazó.")
+        return {}
+    descripcion = publicar.descripcion_con_capitulo(
+        f"{titulo_nuevo or fila.get('youtube_titulo') or ''}\n\n{fila.get('youtube_descripcion') or ''}".strip(),
+        fila.get("capitulo"),
+    )
+    try:
+        nuevo = publicar.subir_youtube(vertical, fila.get("titulo") or config.PROGRAMA_NOMBRE, descripcion=descripcion)
+    except Exception as e:  # noqa: BLE001 - la corrección en Storage no se pierde
+        print(f"  {nombre}: OJO, no se pudo subir a YouTube ({e}). La app sigue mostrando el video anterior.")
+        return {}
+    print(f"  {nombre}: YouTube {anterior} -> {nuevo}. El anterior sigue no listado; bórralo a mano en YouTube Studio.")
+    return {"youtube_video_id": nuevo}
 
 
 def main() -> None:

@@ -59,3 +59,9 @@
 - Tests: todos los scripts OK; `pytest test_programas.py` 9/9; build de la app OK. `.env.spa` copiado de `spa-herramienta` a dev (no versionado).
 - Capítulos: el 26/10 no hubo programa (fútbol), así que la tabla en 80 está bien y el lun 2/11 sale el 81 (confirmado por Seba). Ojo: no correr `procesar_programa.py` con el mkv del partido del 26/10 (lunes), porque crearía el cap. 81 con esa fecha.
 - Fuera de A1a (A1b): capítulos de SPA (tabla en su schema; hoy SPA sale sin capítulo, aviso en el log), tarea `SPA_AutoProcesar`, bloqueo general de credenciales heredadas.
+
+## 04/11/2026 — Verificación antes del merge de `unificacion` a main
+- main no avanzó desde `764edb9`: el paso a main es fast-forward. Dry-run del cap. 81 real (mkv del 02/11) y del cap. 80 con el código de main y el de la rama: salida idéntica. Test foto y todos los tests OK.
+- Prueba real de SPA sin publicar (`cortar_clip.py ... --sin-publicar --programa spa`, 25 s del cap. 5): vertical 1080x1920 con layout dividido, logo, subtítulos, portadas y copys con hashtags de SPA. La carpeta de prueba se borró.
+- `rehacer_vertical.py` (lo usan también `recortar_clip.py`): ahora que SPA tiene YouTube, si el clip no está publicado sube el vertical corregido y actualiza `youtube_video_id`, porque la app reproduce desde YouTube y si no seguiría mostrando el video viejo. El anterior no se borra (queda no listado, igual que `reprocesar_subtitulos.py`). Prueba: `test_rehacer_vertical.py`.
+- `limpiar_clips.py` en dry-run hoy: 7 mp4 de Recda y 11 de SPA (publicados del 22/10) por liberar.
