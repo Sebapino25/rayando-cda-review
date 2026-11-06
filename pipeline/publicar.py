@@ -482,6 +482,9 @@ def publicar_clip(
         "portada_url": portada_url,
         "video_url": video_url,
     }
+    if capitulo is None:
+        # La tabla de SPA aun no tiene la columna (llega en A1b).
+        del payload["capitulo"]
     print(f"  Insertando en Supabase ({config.SUPABASE_SCHEMA}.{config.SUPABASE_TABLE})...")
     supabase_id = insertar_clip_supabase(payload)
     print(f"  Insertado: {supabase_id}")

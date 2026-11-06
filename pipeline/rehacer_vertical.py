@@ -80,7 +80,7 @@ def rehacer(carpeta: Path, subir: bool, replanificar: bool = True, portadas_tamb
     sb = publicar.get_supabase_client()
     filas = (
         sb.table(config.SUPABASE_TABLE)
-        .select("id, video_url, youtube_video_id, publicado, titulo, youtube_titulo, youtube_descripcion, capitulo")
+        .select("*")  # SPA aún no tiene la columna capitulo
         .eq("semana", fecha)
         .like("video_url", f"%/{storage_path}%").execute().data
     )
