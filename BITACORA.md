@@ -78,3 +78,9 @@
 - Flujo: `transcribir.py --programa spa`, `detectar_momentos.py` (12 candidatos) -> `clips\2026-11-12\candidatos_2026-11-12.json`, prueba `cortar_clip.py --sin-publicar` (carpeta borrada después), `procesar_programa.py`. Todo con un envoltorio de la corrida que solo agrega `#SPAreírse7` a `COPYS_HASHTAGS_BASE` (sin tocar el repo).
 - Resultado: 12 clips pendientes en `siempre_pasa_algo.clips` (semana 2026-11-12), con YouTube no listado y mp4; el insert ya no falla. Se incluyeron los marcados como riesgo (2, 10), igual que en el cap. 6, para que Samuel y Cristián filtren. La limpieza de cola no borró nada.
 - Pendiente: hashtag del capítulo de SPA automático (hoy a mano por corrida) y capítulos de SPA (A1b); push de main al remoto `privado`.
+## 13/11/2026 — Correcciones de Cristián al cap. 7 de SPA
+- Pedidos en `comentarios_video`: los 12 clips con subtítulos corregidos; el 6 además termina en "Tiene más cintura bailando que jugando el Erick".
+- Bug: `reprocesar_video.py` pide la columna `capitulo` en `buscar_pendientes` y en SPA falla (42703). Se corrió con un envoltorio que consulta `select("*")` y le pasa a la IA solo la parte del corte (con el pedido completo abortaba porque traía subtítulos). Nuevo rango del 6: 1457.54 -> 1491.34 (termina en "Eric", sin el "No los últimos" que sigue). Ojo: `reprocesar_video` borra `comentarios_video` y deja el clip en `pendiente`.
+- Subtítulos: envoltorio tipo `subs_cristian.py` del cap. 6 (sin ajuste de zócalo) sobre `reprocesar_subtitulos.procesar_fila`; comillas de Cristián equilibradas (el 11 traía una sin cerrar). 12/12 OK: YouTube nuevo no listado, mp4 de Storage reemplazado (tamaño idéntico al local), `transcripcion_original` sincronizada.
+- Quedan en YouTube 13 versiones viejas no listadas (12 originales + la intermedia del 6), a la espera del ok de Seba para borrarlas.
+- Pendiente de código: sacar `capitulo` del select de `reprocesar_video.py` para SPA (mismo arreglo que `rehacer_vertical.py`).
