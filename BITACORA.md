@@ -84,3 +84,7 @@
 - Subtítulos: envoltorio tipo `subs_cristian.py` del cap. 6 (sin ajuste de zócalo) sobre `reprocesar_subtitulos.procesar_fila`; comillas de Cristián equilibradas (el 11 traía una sin cerrar). 12/12 OK: YouTube nuevo no listado, mp4 de Storage reemplazado (tamaño idéntico al local), `transcripcion_original` sincronizada.
 - Quedan en YouTube 13 versiones viejas no listadas (12 originales + la intermedia del 6), a la espera del ok de Seba para borrarlas.
 - Pendiente de código: sacar `capitulo` del select de `reprocesar_video.py` para SPA (mismo arreglo que `rehacer_vertical.py`).
+## 17/11/2026 — Cap. 83 de Recda (lun 16 nov): queda para la tarea automática del martes
+- Grabación `rayando-el-cda\grabaciones\2026-11-16 23-03-47.mkv` (23:03 a 00:25, programa, no partido). Dry-run de `procesar_programa.py`: cap. 83, `#RECDA83`.
+- La tarea `RayandoCDA_AutoProcesar` (martes, cada 5 min por 34 h; en la práctica abrió a las 00:00) ya la había detectado y la iba a tomar a las 00:40. Seba decidió apagar el PC antes y que la retome el martes de día con el PC prendido: la grabación sigue sin `transcripciones\...json`, así que la próxima corrida la procesa sola. No se lanzó nada a mano.
+- Si el PC se apagó con la transcripción a medias, no pasa nada: el json se escribe al final y se vuelve a transcribir. Verificar el martes en `pipeline\logs_auto\loop.log` ("Se procesó 2026-11-16 23-03-47.mkv") y que los clips salgan con cap. 83.
