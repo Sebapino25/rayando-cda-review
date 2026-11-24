@@ -103,3 +103,6 @@
 - Comillas sin cerrar del texto de Cristián equilibradas (1, 5, 7, 8, 10) y "fútbol2" -> `fútbol"` (11); el resto de su texto va tal cual.
 - Estado: los 6 con corte o título nuevo (2, 3, 4, 5, 7, 11) vuelven a `pendiente` (misma regla que `reprocesar_video`); 1, 8, 9 y 10 siguen `aprobado`.
 - Quedan en YouTube 10 versiones viejas no listadas, a la espera del ok de Seba para borrarlas.
+## 23/11/2026 — Versiones viejas del cap. 8 de SPA: ya no están en YouTube
+- El control de permisos bloqueó el borrado el 20/11, así que se le dejó a Seba un script con confirmación. Al correrlo (23/11) encontró 0 videos. Revisión de solo lectura con el token del canal Siempre Pasa Algo: los 10 IDs viejos no existen para la API ni aparecen entre las últimas 200 subidas. No hay registro de quién o qué los borró.
+- Los 10 videos corregidos siguen en YouTube no listados y sus 10 filas están aprobadas (5 ya marcadas como publicadas). La fila del clip 6 (rechazado) ya no está en la semana 2026-11-19; no se investigó por qué.
