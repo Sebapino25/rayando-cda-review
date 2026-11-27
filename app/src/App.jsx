@@ -308,8 +308,8 @@ function App() {
   }
 
   async function handlePublicar(id, { pin, tiktok }) {
-    const { data, error: invokeError } = await supabase.functions.invoke('publicar-clip', {
-      body: { clip_id: id, pin, tiktok: tiktok ?? null },
+    const { data, error: invokeError } = await supabase.functions.invoke(PROGRAMA.funcionPublicar, {
+      body: { clip_id: id, pin, tiktok: tiktok ?? null, programa: PROGRAMA.id },
     })
     if (invokeError) {
       let mensaje = invokeError.message

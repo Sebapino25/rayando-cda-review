@@ -130,3 +130,14 @@
 - Clip 4: los copys cayeron al texto plano por "Connection error" con Anthropic; título y portada dicen "CANDIDATO 04". Falta regenerarlo o corregirlo en la app.
 - La limpieza de cola al final (dejar 2 capítulos) borró 4 filas aprobadas sin publicar del cap. 7 y liberó el mp4 de 8 publicados.
 - Lección: para demos, Whisper small + un solo paso con lista de candidatos alcanza; el cuello de botella fue la transcripción. Si se repite el presencial con pistas idénticas, conviene tener un venv con mediapipe ya armado.
+
+## 27/11/2026 — Publicación automática de SPA (IG, YouTube, Facebook), rama spa-publicacion
+- Nueva función `publicar-clip-spa`: es un wrapper del mismo código de `publicar-clip`; el programa (recda o spa) llega en el body y `programa.ts` resuelve credenciales y destinos.
+- Secretos de SPA separados con prefijo `SPA_*`; no se mezclan con los de Recda.
+- Instagram de SPA se publica con el token de página vía graph.facebook.com (`graphBase` configurable en `instagram.ts`).
+- Facebook se publica con la Reels API (`facebook.ts`, con sus pruebas).
+- Columna `facebook_video_id` agregada en ambos schemas (migración `pipeline/migracion_facebook_video_id.sql`, ya aplicada con ok de Seba).
+- La app con `?p=spa` ya publica desde el historial. TikTok de SPA sigue a mano.
+- Recda sin cambios de comportamiento: Facebook queda apagado mientras no exista `PUBLICAR_FACEBOOK`.
+- Pruebas: `deno test publicar-clip/` 47 ok, `deno check` ok, build de la app y oxlint sin errores.
+- Pendiente: que Seba cargue los secretos `SPA_*`, desplegar `publicar-clip-spa`, prueba en vivo con un clip y merge a main.

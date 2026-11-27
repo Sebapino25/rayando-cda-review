@@ -32,3 +32,20 @@ en vez de usar la cuenta de Recda. El token se crea una vez con
 `python autorizar_youtube.py --programa spa`, que muestra el id del canal; ese id va en
 `spa.json` como `"YOUTUBE_CANAL_ID"` dentro de `config`.
     # Instagram / TikTok de SPA cuando existan (las de Rayando NO se heredan por error: déjalas vacías aquí)
+
+## Publicar en redes desde la app (Edge Function)
+El botón "Publicar en redes" llama a `publicar-clip` (Recda) o `publicar-clip-spa` (SPA, mismo
+código; la app manda `programa: "spa"`). Recda usa los secretos de siempre, sin prefijo. SPA usa
+solo los suyos (Supabase > Edge Functions > Secrets), nunca los de Recda:
+
+    SPA_PUBLISH_PIN                       PIN propio de SPA
+    SPA_PUBLICAR_YOUTUBE=true             pasa el video no listado a público
+    SPA_YOUTUBE_CLIENT_ID / SPA_YOUTUBE_CLIENT_SECRET / SPA_YOUTUBE_REFRESH_TOKEN
+    SPA_PUBLICAR_INSTAGRAM=true           Reel en Instagram (graph.facebook.com)
+    SPA_PUBLICAR_FACEBOOK=true            Reel en la página de Facebook
+    SPA_FACEBOOK_PAGE_ID / SPA_FACEBOOK_PAGE_TOKEN     token de PÁGINA (no vence)
+    SPA_INSTAGRAM_BUSINESS_ACCOUNT_ID     Instagram vinculado a esa página
+
+En SPA, Instagram y Facebook usan el mismo token de página (inicio de sesión con Facebook), así que
+no hay refresco cada 60 días como en Recda. TikTok de SPA sigue a mano. Si falta un secreto de una
+red prendida, la función lo dice antes de tocar el clip.

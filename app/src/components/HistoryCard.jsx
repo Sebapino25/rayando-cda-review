@@ -306,18 +306,22 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             <p className="text-sm font-semibold text-foreground">Publicar en redes</p>
             <div className="text-[13px] text-muted-foreground leading-snug flex flex-col gap-0.5">
               <span><span className="font-medium text-foreground">YouTube:</span> {clip.youtube_titulo || '(sin título)'}</span>
-              <span><span className="font-medium text-foreground">Instagram:</span> {clip.copy_instagram ? `${clip.copy_instagram.slice(0, 80)}${clip.copy_instagram.length > 80 ? '…' : ''}` : '(sin copy)'}</span>
+              <span><span className="font-medium text-foreground">{PROGRAMA.redesPublicar.includes('Facebook') ? 'Instagram y Facebook' : 'Instagram'}:</span> {clip.copy_instagram ? `${clip.copy_instagram.slice(0, 80)}${clip.copy_instagram.length > 80 ? '…' : ''}` : '(sin copy)'}</span>
             </div>
             <p className="flex items-start gap-1.5 text-xs text-warning">
               <Info size={14} className="shrink-0 mt-0.5" />
-              Pasa el video a público en YouTube y publica el Reel en Instagram. No se puede deshacer.
+              {PROGRAMA.redesPublicar.includes('Facebook')
+                ? 'Pasa el video a público en YouTube y publica el Reel en Instagram y en Facebook. No se puede deshacer.'
+                : 'Pasa el video a público en YouTube y publica el Reel en Instagram. No se puede deshacer.'}
             </p>
 
-            <TikTokPublishPanel
-              clip={clip}
-              onChange={setTiktokPayload}
-              onValidityChange={setTiktokValido}
-            />
+            {PROGRAMA.tiktok && (
+              <TikTokPublishPanel
+                clip={clip}
+                onChange={setTiktokPayload}
+                onValidityChange={setTiktokValido}
+              />
+            )}
 
             <label className="block">
               <span className="block text-sm font-semibold text-foreground mb-1.5">PIN para publicar</span>
@@ -352,7 +356,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             </div>
           </div>
         )}
-        {!PROGRAMA.puedePublicar && clip.estado === 'aprobado' && !clip.publicado && !confirmarMarca && (
+        {PROGRAMA.marcaManual && clip.estado === 'aprobado' && !clip.publicado && !confirmarMarca && !publishOpen && (
           <button
             type="button"
             onClick={() => setConfirmarMarca(true)}
@@ -363,7 +367,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
             Ya lo publiqué
           </button>
         )}
-        {!PROGRAMA.puedePublicar && clip.estado === 'aprobado' && !clip.publicado && confirmarMarca && (
+        {PROGRAMA.marcaManual && clip.estado === 'aprobado' && !clip.publicado && confirmarMarca && (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3.5 flex flex-col gap-3">
             <p className="text-sm text-foreground">
               ¿Ya lo subiste a redes? Pasa a <span className="font-semibold">Publicados</span> y deja de aparecer como material disponible.
@@ -396,7 +400,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
               Publicado
             </span>
             {clip.tiktok_publish_id && <TikTokStatusBadge publishId={clip.tiktok_publish_id} />}
-            {!PROGRAMA.puedePublicar && (
+            {PROGRAMA.marcaManual && (
               <button
                 type="button"
                 onClick={() => marcarPublicado(false)}

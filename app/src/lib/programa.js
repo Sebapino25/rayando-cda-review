@@ -12,6 +12,10 @@ const PROGRAMAS = {
     bucketVideo: 'clips-video',
     bucketPortadas: 'portadas',
     puedePublicar: true, // botón "Publicar en redes" (YouTube + Instagram + TikTok)
+    funcionPublicar: 'publicar-clip',
+    redesPublicar: ['YouTube', 'Instagram'], // las que publica el botón (TikTok va aparte, en su panel)
+    tiktok: true, // panel de TikTok dentro de "Publicar en redes"
+    marcaManual: false, // botón "Ya lo publiqué" para marcar sin publicar por API
     limpiezaAutomatica: true, // limpiar_clips.py borra la reserva a los RESERVA_DIAS
     guia: true,
   },
@@ -23,7 +27,12 @@ const PROGRAMAS = {
     schema: 'siempre_pasa_algo',
     bucketVideo: 'clips-video-spa',
     bucketPortadas: 'portadas-spa',
-    puedePublicar: false, // por ahora: se aprueba acá y se descarga el clip para subirlo a mano
+    // Publica con su propia función y sus propias cuentas (secretos SPA_* en Supabase).
+    puedePublicar: true,
+    funcionPublicar: 'publicar-clip-spa',
+    redesPublicar: ['YouTube', 'Instagram', 'Facebook'],
+    tiktok: false, // TikTok se ve aparte; mientras, se descarga y se sube a mano
+    marcaManual: true, // se mantiene "Ya lo publiqué" por si algo se sube a mano
     limpiezaAutomatica: false, // la reserva (Antiguas) se guarda hasta que se publique
     guia: false,
   },

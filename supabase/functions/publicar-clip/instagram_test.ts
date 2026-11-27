@@ -88,3 +88,17 @@ Deno.test('publicarReel manda cover_url solo si viene definida', async () => {
   await publicarReel('url-video', 'caption', null, CONFIG_TEST, fakeFetch as typeof fetch, sinEsperar)
   assertEquals(bodyCapturado?.includes('cover_url'), false)
 })
+
+Deno.test('publicarReel usa graphBase cuando viene (SPA: graph.facebook.com)', async () => {
+  const llamadas: string[] = []
+  const fakeFetch = async (url: string | URL) => {
+    const u = url.toString()
+    llamadas.push(u)
+    if (u.includes('/media_publish')) return new Response(JSON.stringify({ id: 'm1' }), { status: 200 })
+    if (u.includes('/ig-user-1/media')) return new Response(JSON.stringify({ id: 'c1' }), { status: 200 })
+    return new Response(JSON.stringify({ status_code: 'FINISHED' }), { status: 200 })
+  }
+  await publicarReel('https://v.mp4', 'c', null, { ...CONFIG_TEST, graphBase: 'https://graph.facebook.com/v24.0' }, fakeFetch as typeof fetch, sinEsperar)
+  assertEquals(llamadas.length, 3)
+  assertEquals(llamadas.every((u) => u.startsWith('https://graph.facebook.com/v24.0/')), true)
+})

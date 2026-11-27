@@ -4,6 +4,10 @@ export interface InstagramConfig {
   igUserId: string
   accessToken: string
   containerTimeoutMs: number
+  // Recda: graph.instagram.com (inicio de sesión con Instagram, por defecto).
+  // SPA: graph.facebook.com/vXX (token de página, inicio de sesión con
+  // Facebook). Los endpoints /media y /media_publish son los mismos.
+  graphBase?: string
 }
 
 export async function crearContenedorReel(
@@ -21,7 +25,7 @@ export async function crearContenedorReel(
   })
   if (coverUrl) params.set('cover_url', coverUrl)
 
-  const resp = await fetchImpl(`${GRAPH_API_BASE}/${config.igUserId}/media`, {
+  const resp = await fetchImpl(`${config.graphBase ?? GRAPH_API_BASE}/${config.igUserId}/media`, {
     method: 'POST',
     body: params,
   })
@@ -43,7 +47,7 @@ export async function esperarContenedorListo(
   const inicio = Date.now()
   while (Date.now() - inicio < config.containerTimeoutMs) {
     const resp = await fetchImpl(
-      `${GRAPH_API_BASE}/${creationId}?fields=status_code`,
+      `${config.graphBase ?? GRAPH_API_BASE}/${creationId}?fields=status_code`,
       { headers: { Authorization: `Bearer ${config.accessToken}` } },
     )
     if (!resp.ok) {
@@ -64,7 +68,7 @@ export async function publicarContenedor(
   config: InstagramConfig,
   fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
-  const resp = await fetchImpl(`${GRAPH_API_BASE}/${config.igUserId}/media_publish`, {
+  const resp = await fetchImpl(`${config.graphBase ?? GRAPH_API_BASE}/${config.igUserId}/media_publish`, {
     method: 'POST',
     body: new URLSearchParams({ creation_id: creationId, access_token: config.accessToken }),
   })

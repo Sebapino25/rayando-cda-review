@@ -5,6 +5,8 @@ import { obtenerAccessTokenYoutube, publicarYoutube } from './youtube.ts'
 import { descripcionConCapitulo } from './capitulo.ts'
 import { publicarReel } from './instagram.ts'
 import { publicarTiktok, obtenerCreatorInfoParaUI, consultarEstadoPublicacion, TikTokPostOpciones } from './tiktok.ts'
+import { publicarReelFacebook } from './facebook.ts'
+import { configPrograma, normalizarPrograma, secretosFaltantes } from './programa.ts'
 
 const CLAIM_EXPIRA_MINUTOS = 10
 
@@ -51,6 +53,7 @@ Deno.serve(async (req: Request) => {
     action?: string
     tiktok?: TikTokClientPayload | null
     publish_id?: string
+    programa?: string
   }
   try {
     body = await req.json()
@@ -58,7 +61,17 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ error: 'Body inválido, se espera JSON' }), { status: 400, headers: jsonHeaders })
   }
 
-  const supabase = getSupabaseAdmin()
+  // Programa: la app manda "spa" desde ?p=spa; sin campo es Recda, igual
+  // que siempre. Define schema, PIN, secretos y redes (ver programa.ts).
+  const programaId = normalizarPrograma(body.programa)
+  if (!programaId) {
+    return new Response(JSON.stringify({ error: `Programa desconocido: ${body.programa}` }), {
+      status: 400,
+      headers: jsonHeaders,
+    })
+  }
+  const programa = configPrograma(programaId)
+  const supabase = getSupabaseAdmin(programa.schema)
 
   // --- Datos para la pantalla de publicación de TikTok de la app ---
   // No pide PIN ni reclama la fila: solo lee creator_info de TikTok para que
@@ -66,7 +79,7 @@ Deno.serve(async (req: Request) => {
   // Las Content Sharing Guidelines de TikTok exigen que estas opciones salgan
   // de creator_info en vivo, no hardcodeadas.
   if (body.action === 'tiktok_creator_info') {
-    if (Deno.env.get('PUBLICAR_TIKTOK') !== 'true') {
+    if (!programa.tiktokPermitido || Deno.env.get('PUBLICAR_TIKTOK') !== 'true') {
       return new Response(JSON.stringify({ ok: true, habilitado: false }), { status: 200, headers: jsonHeaders })
     }
     const { data: tokenRow, error: tokenError } = await supabase
@@ -117,6 +130,12 @@ Deno.serve(async (req: Request) => {
   // punto 5.e de las Content Sharing Guidelines. No pide PIN: es una lectura,
   // no una acción sobre la cuenta.
   if (body.action === 'tiktok_publish_status') {
+    if (!programa.tiktokPermitido) {
+      return new Response(JSON.stringify({ ok: false, error: 'TikTok no está habilitado para este programa.' }), {
+        status: 200,
+        headers: jsonHeaders,
+      })
+    }
     const publishId = body.publish_id
     if (!publishId) {
       return new Response(JSON.stringify({ error: 'Falta publish_id' }), { status: 400, headers: jsonHeaders })
@@ -178,7 +197,7 @@ Deno.serve(async (req: Request) => {
   }
 
   // --- Validar PIN ---
-  const pinEsperado = Deno.env.get('PUBLISH_PIN')
+  const pinEsperado = programa.pin
   if (!pinEsperado || pin !== pinEsperado) {
     // Se manda la alerta solo en el insert que empuja el conteo al umbral
     // por primera vez: una vez alcanzado, todas las requests siguientes se
@@ -189,11 +208,20 @@ Deno.serve(async (req: Request) => {
     await supabase.from('pin_intentos').insert({})
     if (alcanzaLimite) {
       await enviarAlerta(
-        'Rayando el CDA: demasiados intentos de PIN',
+        `${programa.nombre}: demasiados intentos de PIN`,
         `Se alcanzó el límite de intentos de PIN (${MAX_INTENTOS_PIN} en los últimos ${VENTANA_MINUTOS_PIN} minutos). Alguien podría estar intentando adivinarlo.`,
       )
     }
     return new Response(JSON.stringify({ error: 'PIN incorrecto' }), { status: 401, headers: jsonHeaders })
+  }
+
+  // --- Secretos de las redes prendidas: revisar ANTES de reclamar ---
+  const faltan = secretosFaltantes(programa)
+  if (faltan.length > 0) {
+    return new Response(
+      JSON.stringify({ error: `Faltan secretos en Supabase para ${programa.nombre}: ${faltan.join(', ')}` }),
+      { status: 500, headers: jsonHeaders },
+    )
   }
 
   // --- Reclamar la fila de forma atómica (evita duplicados por doble click) ---
@@ -243,9 +271,10 @@ Deno.serve(async (req: Request) => {
     )
   }
 
-  const publicarYoutubeFlag = Deno.env.get('PUBLICAR_YOUTUBE') === 'true'
-  const publicarInstagramFlag = Deno.env.get('PUBLICAR_INSTAGRAM') === 'true'
-  const publicarTiktokFlag = Deno.env.get('PUBLICAR_TIKTOK') === 'true'
+  const publicarYoutubeFlag = programa.youtube.activo
+  const publicarInstagramFlag = programa.instagram.activo
+  const publicarFacebookFlag = programa.facebook.activo
+  const publicarTiktokFlag = programa.tiktokPermitido && Deno.env.get('PUBLICAR_TIKTOK') === 'true'
 
   const errores: string[] = []
   const actualizacion: Record<string, unknown> = {}
@@ -253,14 +282,16 @@ Deno.serve(async (req: Request) => {
   if (publicarYoutubeFlag) {
     try {
       const accessToken = await obtenerAccessTokenYoutube({
-        clientId: Deno.env.get('YOUTUBE_CLIENT_ID')!,
-        clientSecret: Deno.env.get('YOUTUBE_CLIENT_SECRET')!,
-        refreshToken: Deno.env.get('YOUTUBE_REFRESH_TOKEN')!,
+        clientId: programa.youtube.clientId!,
+        clientSecret: programa.youtube.clientSecret!,
+        refreshToken: programa.youtube.refreshToken!,
       })
       await publicarYoutube(
         reclamada.youtube_video_id,
         reclamada.youtube_titulo || reclamada.titulo || '',
-        descripcionConCapitulo(reclamada.youtube_descripcion || '', reclamada.capitulo),
+        programa.usaCapitulo
+          ? descripcionConCapitulo(reclamada.youtube_descripcion || '', reclamada.capitulo)
+          : reclamada.youtube_descripcion || '',
         accessToken,
       )
     } catch (e) {
@@ -268,23 +299,46 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  // Facebook va antes que Instagram: son tres llamadas rápidas (Facebook baja
+  // el mp4 por su cuenta), mientras que Instagram puede esperar casi 2 min a
+  // que el Reel quede procesado. facebook_video_id evita duplicar el Reel en
+  // la página si se reintenta después de un error en otra red.
+  if (publicarFacebookFlag && !reclamada.facebook_video_id) {
+    try {
+      const videoIdFacebook = await publicarReelFacebook(reclamada.video_url, reclamada.copy_instagram || '', {
+        pageId: programa.facebook.pageId!,
+        pageToken: programa.facebook.pageToken!,
+      })
+      actualizacion.facebook_video_id = videoIdFacebook
+    } catch (e) {
+      errores.push(`Facebook: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
   if (publicarInstagramFlag && !reclamada.instagram_media_id) {
     try {
-      const { data: tokenRow, error: tokenError } = await supabase
-        .from('instagram_token')
-        .select('access_token')
-        .eq('id', true)
-        .maybeSingle()
-      if (tokenError || !tokenRow) {
-        throw new Error('No hay token de Instagram guardado — revisar refrescar-token-instagram.')
+      let tokenInstagram: string
+      if (programa.instagram.origenToken === 'secreto') {
+        tokenInstagram = programa.instagram.tokenFijo!
+      } else {
+        const { data: tokenRow, error: tokenError } = await supabase
+          .from('instagram_token')
+          .select('access_token')
+          .eq('id', true)
+          .maybeSingle()
+        if (tokenError || !tokenRow) {
+          throw new Error('No hay token de Instagram guardado — revisar refrescar-token-instagram.')
+        }
+        tokenInstagram = tokenRow.access_token
       }
       const mediaId = await publicarReel(
         reclamada.video_url,
         reclamada.copy_instagram || '',
         reclamada.portada_url ?? null,
         {
-          igUserId: Deno.env.get('INSTAGRAM_BUSINESS_ACCOUNT_ID')!,
-          accessToken: tokenRow.access_token,
+          igUserId: programa.instagram.igUserId!,
+          accessToken: tokenInstagram,
+          graphBase: programa.instagram.graphBase,
           // Instagram no deja FINISHED un Reel al toque: tiene que procesar el
           // video primero, y a veces tarda más de 60s (caso real 2026-08-05:
           // un contenedor tardó ~65s y esto lo cortaba antes de tiempo, aunque
@@ -292,7 +346,8 @@ Deno.serve(async (req: Request) => {
           // límite duro de la plataforma: Supabase corta la función a los 150s
           // si no responde nada (Request idle timeout), y todavía falta lugar
           // en ese presupuesto para YouTube/TikTok en el mismo request.
-          containerTimeoutMs: 120_000,
+          // (SPA: 110 s, porque Facebook ya usó parte del presupuesto.)
+          containerTimeoutMs: programa.instagram.containerTimeoutMs,
         },
       )
       actualizacion.instagram_media_id = mediaId
@@ -358,7 +413,7 @@ Deno.serve(async (req: Request) => {
 
   if (errores.length > 0) {
     await supabase.from('clips').update({ ...actualizacion, publicando_en: null }).eq('id', clipId)
-    await enviarAlerta(`Rayando el CDA: falló la publicación de un clip (${clipId})`, errores.join('\n'))
+    await enviarAlerta(`${programa.nombre}: falló la publicación de un clip (${clipId})`, errores.join('\n'))
     return new Response(JSON.stringify({ error: errores.join(' | ') }), { status: 502, headers: jsonHeaders })
   }
 
@@ -371,7 +426,7 @@ Deno.serve(async (req: Request) => {
 
   if (finalError) {
     await enviarAlerta(
-      `Rayando el CDA: clip ${clipId} se publicó pero no se pudo marcar publicado=true`,
+      `${programa.nombre}: clip ${clipId} se publicó pero no se pudo marcar publicado=true`,
       finalError.message,
     )
     return new Response(
