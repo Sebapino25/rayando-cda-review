@@ -123,7 +123,7 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
   const busy = saving || approving || correcting || rejectingBusy
   // Si la transcripción editada todavía no coincide con transcripcion_original,
   // el subtítulo corregido no se aplicó al video (eso lo hace
-  // reprocesar_subtitulos.py, disparado por el auto_procesar.ps1 cada 5 min —
+  // reprocesar_subtitulos.py, disparado por auto_procesar.ps1 con "Activar La Herramienta" —
   // ver pipeline/README.md). Aprobar en este estado publicaría el video viejo
   // con el subtítulo desactualizado, que es justo el bug que esto evita.
   const transcripcionPendiente =
@@ -317,7 +317,7 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
             {transcripcionPendiente && (
               <p className="flex items-start gap-1.5 text-xs text-warning font-medium">
                 <Info size={14} className="shrink-0 mt-0.5" />
-                Corrección pendiente de aplicar al video: no vas a poder aprobar hasta que el reproceso automático termine (corre solo, cada 5 min) y actualices esta página.
+                Corrección pendiente de aplicar al video: no vas a poder aprobar hasta que se aplique. Avísale a Seba que terminaste de corregir: él activa La Herramienta, la corrección se aplica y después actualizas esta página.
               </p>
             )}
           </div>
@@ -395,7 +395,7 @@ export default function ClipCard({ clip, onSave, onApprove, onCorrection, onReje
           </label>
           <p className="flex items-start gap-1.5 text-xs text-warning mt-2">
             <Info size={15} className="shrink-0 mt-0.5" />
-            Usá este campo solo si el video en sí (corte, formato, audio) necesita trabajo técnico. Si ya corregiste el copy o la transcripción arriba, no hace falta anotarlo acá — con "Guardar cambios" alcanza. Estos pedidos se procesan solos con IA durante la ventana automática (martes a miércoles); si el pedido es ambiguo o no se encuentra el clip con certeza, queda pendiente para revisar a mano.
+            Usá este campo solo si el video en sí (corte, formato, audio) necesita trabajo técnico. Si ya corregiste el copy o la transcripción arriba, no hace falta anotarlo acá — con "Guardar cambios" alcanza. Estos pedidos se procesan con IA cuando Seba activa La Herramienta (avísale cuando termines); si el pedido es ambiguo o no se encuentra el clip con certeza, queda pendiente para revisar a mano.
           </p>
         </div>
 

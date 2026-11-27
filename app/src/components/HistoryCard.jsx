@@ -267,7 +267,7 @@ export default function HistoryCard({ clip, onUndo, onCoverRemove, onPublicar, o
               <NoteBlank size={16} className="shrink-0 mt-0.5" />
               <span>
                 <span className="font-semibold">Corrección de subtítulo pendiente: </span>
-                el video todavía no se reprocesó con la transcripción corregida (se aplica solo, cada 5 min). No se puede publicar hasta que eso termine.
+                el video todavía no se reprocesó con la transcripción corregida (se aplica cuando Seba activa La Herramienta: avísale que terminaste). No se puede publicar hasta que eso termine.
               </span>
             </p>
           )}
