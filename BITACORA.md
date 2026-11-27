@@ -141,3 +141,10 @@
 - Recda sin cambios de comportamiento: Facebook queda apagado mientras no exista `PUBLICAR_FACEBOOK`.
 - Pruebas: `deno test publicar-clip/` 47 ok, `deno check` ok, build de la app y oxlint sin errores.
 - Pendiente: que Seba cargue los secretos `SPA_*`, desplegar `publicar-clip-spa`, prueba en vivo con un clip y merge a main.
+
+## 27/11/2026 — Prueba en vivo de la publicación de SPA (clip 11 del cap. 9)
+- App de revisión de la rama corriendo en local (`npm run dev`, http://localhost:5173/rayando-cda-review/?p=spa) con el `.env` de dev.
+- Corrección de subtítulo del clip 11 (`e5236253-...`) aplicada con `reprocesar_subtitulos.py --programa spa --clip-id ... --apply` desde esta rama: YouTube nuevo `hyXNPXIFFU0` (el viejo `nuUlEL0TrQA` sigue no listado, por borrar). Antes falló porque el select pedía `capitulo`, que SPA no tiene: arreglado en `reprocesar_subtitulos.py` y `reprocesar_video.py` (solo lo piden en Recda), commit 49f46e9.
+- Primer clic: YouTube OK; Instagram y Facebook fallaron con "Cannot parse access token" (token de página mal pegado). Seba generó el token de página de nuevo (app "SPA Publicador", Graph API Explorer -> me/accounts) y el reintento publicó en YouTube, Instagram y Facebook sin duplicar.
+- Ojo: Cristián había usado "Corrección técnica de video" con el texto "Cambios en los subtítulos"; eso va por `reprocesar_video.py` (IA). Para subtítulos basta editar el texto. Se deshizo a pendiente y se aprobó.
+- Pendiente: que "Activar La Herramienta" aplique también las correcciones de SPA (hoy `auto_procesar.ps1` solo corre Recda), texto de la app "se aplica solo, cada 5 min" (ya no es así en modo manual), merge de `spa-publicacion` a main, TikTok de SPA (próxima semana).
