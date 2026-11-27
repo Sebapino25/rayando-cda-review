@@ -134,8 +134,11 @@ def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,semana,estado,comentarios_video,transcripcion_original,"
         "titulo,youtube_titulo,youtube_descripcion,youtube_video_id,created_at,"
-        "timestamp_inicio,timestamp_fin,capitulo"
+        "timestamp_inicio,timestamp_fin"
     )
+    # SPA todavía no tiene columna capitulo (A1b): pedirla rompe la consulta.
+    if config.PROGRAMA == "rayando":
+        columnas += ",capitulo"
     query = supabase.table(config.SUPABASE_TABLE).select(columnas).eq("estado", "correccion_video")
     if clip_id:
         query = query.eq("id", clip_id)

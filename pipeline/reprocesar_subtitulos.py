@@ -78,8 +78,11 @@ def redistribuir_texto(
 def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
     columnas = (
         "id,youtube_video_id,titulo,youtube_titulo,youtube_descripcion,"
-        "semana,estado,publicado,transcripcion,transcripcion_original,capitulo"
+        "semana,estado,publicado,transcripcion,transcripcion_original"
     )
+    # SPA todavía no tiene columna capitulo (A1b): pedirla rompe la consulta.
+    if config.PROGRAMA == "rayando":
+        columnas += ",capitulo"
     query = supabase.table(config.SUPABASE_TABLE).select(columnas)
     if clip_id:
         query = query.eq("id", clip_id)
