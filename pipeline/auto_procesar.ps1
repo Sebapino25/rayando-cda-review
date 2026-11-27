@@ -231,6 +231,30 @@ if ($hayGrabacionPendiente) {
     }
     # exitCode 0 (nada pendiente): no se registra nada.
 
+    # --- Correcciones de SPA (mismos dos scripts, con --programa spa) ---
+    # Así "Activar La Herramienta" aplica también lo que corrigen Cristián y
+    # Samuel en la app con ?p=spa. Logs aparte. La limpieza de la cola NO se
+    # corre para SPA (su reserva se guarda hasta publicar).
+    foreach ($paso in @(
+        @{ Script = "reprocesar_video.py"; Args = @("--programa", "spa", "--apply", "--uno"); Log = "spa_correccion_video.log"; Que = "corrección de video" },
+        @{ Script = "reprocesar_subtitulos.py"; Args = @("--programa", "spa", "--apply"); Log = "spa_correccion_subtitulos.log"; Que = "corrección de subtítulos" }
+    )) {
+        $logSpa = Join-Path $LogsDir $paso.Log
+        $exitSpa = -1
+        Push-Location $PipelineDir
+        try {
+            & python $paso.Script @($paso.Args) *>> $logSpa
+            $exitSpa = $LASTEXITCODE
+        } finally {
+            Pop-Location
+        }
+        if ($exitSpa -eq 3) {
+            Log-Evento "SPA: se aplicó una $($paso.Que). Log: $logSpa"
+        } elseif ($exitSpa -ne 0) {
+            Log-Error "SPA: falló una $($paso.Que) (código $exitSpa). Ver $logSpa."
+        }
+    }
+
     # --- Limpieza automática de la cola de clips ---
     # Borra del todo (fila de Supabase + video/portada de Storage + video no
     # listado de YouTube) lo que ya no se va a usar cuando entra un programa

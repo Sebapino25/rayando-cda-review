@@ -37,6 +37,33 @@ def test_redistribuir_texto_reparte_proporcional_a_las_palabras() -> None:
     assert todas_las_palabras == "hola como andas todo excelente genial gracias total".split()
 
 
+def test_cambiar_una_palabra_no_corre_los_siguientes() -> None:
+    # "estas" -> "estás tú" (una palabra pasa a dos) en el primer subtítulo:
+    # los otros dos tienen que quedar idénticos.
+    resultado = rs.redistribuir_texto(SEGMENTOS, "Hola, cómo estás tú todo bien genial gracias")
+    assert resultado == [
+        (0.0, 2.0, "Hola, cómo estás tú"),
+        (2.0, 4.0, "todo bien"),
+        (4.0, 6.0, "genial gracias"),
+    ]
+
+
+def test_borrar_y_agregar_palabras_se_queda_en_su_subtitulo() -> None:
+    resultado = rs.redistribuir_texto(SEGMENTOS, "hola como estas todo genial gracias de verdad")
+    assert resultado == [
+        (0.0, 2.0, "hola como estas"),
+        (2.0, 4.0, "todo"),
+        (4.0, 6.0, "genial gracias de verdad"),
+    ]
+
+
+def test_reemplazar_varias_palabras_por_una_frase_larga() -> None:
+    resultado = rs.redistribuir_texto(SEGMENTOS, "hola como estas todo perfectamente bien amigo genial gracias")
+    assert resultado[0] == (0.0, 2.0, "hola como estas")
+    assert resultado[2] == (4.0, 6.0, "genial gracias")
+    assert resultado[1] == (2.0, 4.0, "todo perfectamente bien amigo")
+
+
 def test_redistribuir_texto_vacio_no_genera_segmentos() -> None:
     assert rs.redistribuir_texto(SEGMENTOS, "") == []
     assert rs.redistribuir_texto([], "algo") == []
@@ -125,6 +152,9 @@ def main() -> None:
 
     mp = DummyMonkeypatch()
     test_redistribuir_texto_reparte_proporcional_a_las_palabras()
+    test_cambiar_una_palabra_no_corre_los_siguientes()
+    test_borrar_y_agregar_palabras_se_queda_en_su_subtitulo()
+    test_reemplazar_varias_palabras_por_una_frase_larga()
     test_redistribuir_texto_vacio_no_genera_segmentos()
     test_buscar_pendientes_ignora_clips_ya_publicados_en_el_barrido_general()
     test_buscar_pendientes_con_clip_id_explicito_si_toca_uno_ya_publicado()

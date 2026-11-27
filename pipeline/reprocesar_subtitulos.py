@@ -22,7 +22,9 @@ ejecutar de verdad, y --clip-id para probar contra un solo clip.
 """
 
 import argparse
+import difflib
 import shutil
+import unicodedata
 import sys
 from pathlib import Path
 
@@ -47,32 +49,58 @@ except Exception:
 def redistribuir_texto(
     segmentos_originales: list[tuple[float, float, str]], texto_nuevo: str
 ) -> list[tuple[float, float, str]]:
-    """Reparte texto_nuevo (la transcripción corregida a mano por René, como
-    bloque único) sobre los mismos timestamps de segmentos_originales,
-    proporcional a la cantidad de palabras que tenía cada segmento
-    originalmente. La corrección se hace sobre el texto completo, no
-    segmento a segmento, así que no hay forma de saber con certeza qué
-    palabra corregida corresponde a qué segmento exacto — esto es la mejor
-    aproximación posible sin volver a transcribir/alinear audio, y mantiene
-    los mismos cortes de tiempo que ya se ven bien en pantalla."""
+    """Reparte texto_nuevo (la transcripción corregida a mano, como bloque
+    único) sobre los mismos timestamps de segmentos_originales.
+
+    Alinea palabra por palabra el texto viejo con el nuevo (difflib): cada
+    palabra que no cambió se queda en su segmento, una palabra reemplazada
+    ocupa el lugar de la que reemplaza, y una palabra agregada se pega al
+    segmento de la palabra anterior. Así, cambiar "porque" por "por qué" o
+    agregar una palabra solo toca ese subtítulo y no corre todos los que
+    vienen después (antes se repartía por cantidad de palabras y un cambio
+    al principio desplazaba el resto del clip)."""
     palabras_nuevas = _normalizar(texto_nuevo).split()
-    pesos = [len(texto.split()) for _, _, texto in segmentos_originales]
-    total_peso = sum(pesos)
-    if not palabras_nuevas or total_peso == 0:
+    viejas: list[str] = []
+    seg_de_vieja: list[int] = []
+    for idx, (_, _, texto) in enumerate(segmentos_originales):
+        for palabra in texto.split():
+            viejas.append(palabra)
+            seg_de_vieja.append(idx)
+    if not palabras_nuevas or not viejas:
         return []
 
-    resultado = []
-    restantes = palabras_nuevas
-    n = len(segmentos_originales)
-    for i, ((cs, ce, _), peso) in enumerate(zip(segmentos_originales, pesos)):
-        if i == n - 1:
-            cantidad = len(restantes)
-        else:
-            cantidad = min(round(len(palabras_nuevas) * peso / total_peso), len(restantes))
-        chunk, restantes = restantes[:cantidad], restantes[cantidad:]
-        if chunk:
-            resultado.append((cs, ce, " ".join(chunk)))
-    return resultado
+    seg_de_nueva: list[int] = []
+    matcher = difflib.SequenceMatcher(
+        None, [_clave(p) for p in viejas], [_clave(p) for p in palabras_nuevas], autojunk=False
+    )
+    for op, i1, i2, j1, j2 in matcher.get_opcodes():
+        if op == "equal":
+            seg_de_nueva.extend(seg_de_vieja[i1:i2])
+        elif op == "replace":
+            # Las nuevas ocupan, en orden, los segmentos de las viejas que reemplazan.
+            for k in range(j2 - j1):
+                seg_de_nueva.append(seg_de_vieja[i1 + k * (i2 - i1) // (j2 - j1)])
+        elif op == "insert":
+            # Agregadas: al segmento de la palabra anterior (o de la siguiente, al inicio).
+            seg = seg_de_vieja[i1 - 1] if i1 > 0 else seg_de_vieja[0]
+            seg_de_nueva.extend([seg] * (j2 - j1))
+        # "delete": las palabras borradas simplemente desaparecen.
+
+    por_segmento: dict[int, list[str]] = {}
+    for palabra, seg in zip(palabras_nuevas, seg_de_nueva):
+        por_segmento.setdefault(seg, []).append(palabra)
+    return [
+        (cs, ce, " ".join(por_segmento[idx]))
+        for idx, (cs, ce, _) in enumerate(segmentos_originales)
+        if idx in por_segmento
+    ]
+
+
+def _clave(palabra: str) -> str:
+    """Palabra para comparar: sin mayúsculas, tildes ni puntuación, así
+    "Que" y "qué," cuentan como la misma palabra al alinear."""
+    sin_tildes = unicodedata.normalize("NFKD", palabra.lower())
+    return "".join(c for c in sin_tildes if c.isalnum())
 
 
 def buscar_pendientes(supabase, clip_id: str | None) -> list[dict]:
